@@ -1,3 +1,3 @@
-# Hoppy
+# VacHopPy
 ---
-Python module to analyze vacancy hopping in oxide materials.
+VacHopPy is a python module to anlyze hopping of oxygen vacancy in oxide materials.
