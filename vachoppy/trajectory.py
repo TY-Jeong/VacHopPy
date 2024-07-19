@@ -367,7 +367,7 @@ class LatticeHopping:
                   label=False):
         """
         make gif file of atom movement
-        index: (list or 'all') index of atoms interested in.
+        index: (list or 'all') index of atoms interested in. (Note: not index of lat_point)
         step: (list or 'all') steps interested in.
         vac: if True, vacancy is displayed.
         gif: if True, gif file is generated.
@@ -387,7 +387,7 @@ class LatticeHopping:
         
         files = []
         for step in tqdm(step,
-                         bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'% (Fore.GREEN, Fore.RESET),
+                         bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
                          ascii=False,
                          desc=f'{RED}save gif{RESET}'):
             
@@ -455,7 +455,7 @@ class LatticeHopping:
     def save_poscar(self,
                     step,
                     vac=False,
-                    on_lat=False):
+                    expression_vac='XX'):
         """
         if vac=True, vacancy is labelled by 'XX'
         """
@@ -473,7 +473,7 @@ class LatticeHopping:
                 f.write(f"{atom['species']} ")
 
             if vac:
-                f.write("XX")
+                f.write(expression_vac)
             f.write("\n")
 
             # write down number of atoms
@@ -486,18 +486,210 @@ class LatticeHopping:
 
             # write down coordination
             f.write("Direct\n")
-            if on_lat:
-                idxes = self.occ_lat_point[:,step]
-                for idx in idxes:
-                    traj = self.lat_points[idx]
+            for atom in self.position:
+                for traj in atom['traj'][:,step,:]:
                     f.write("%.6f %.6f %.6f\n"%(traj[0], traj[1], traj[2]))
-            
-            else:
-                for atom in self.position:
-                    for traj in atom['traj'][:,step,:]:
-                        f.write("%.6f %.6f %.6f\n"%(traj[0], traj[1], traj[2]))
             
             if vac:
                 for idx in self.idx_vac[step]:
                     coord = self.lat_points[idx]
-                    f.write("%.6f %.6f %.6f\n"%(coord[0], coord[1], coord[2]))         
+                    f.write("%.6f %.6f %.6f\n"%(coord[0], coord[1], coord[2])) 
+
+    def show_poscar(self,
+                    step=None,
+                    filename=None,
+                    vac=False):
+        """
+        recieve step or filename
+        """
+        if step is not None:
+            self.save_poscar(step=step, vac=vac)
+            filename = f"POSCAR_{step}"
+        
+        poscar = read_vasp(filename)
+        view(poscar)
+
+    def save_traj_on_lat(self,
+                         lat_point=[],
+                         step=[],
+                         foldername='traj_on_lat',
+                         vac=True,
+                         label=False,
+                         potim=2,
+                         dpi=300):
+        """
+        lat_point: label of lattice points at the first element of step array.
+        step: steps interested in
+        foldername: path of directory where files save.
+        vac: if True, vacancy is displayed.
+        label: if True, label of lattice point is displayed.
+        """
+        if not os.path.isdir(foldername):
+            os.mkdir(foldername)
+        
+        # obtain atom numbers
+        atom_idx = []
+        for idx in lat_point:
+            check = np.sum(self.occ_lat_point[:,step[0]]==idx)
+            if check > 1:
+                print(f"there are multiple atom at site {idx} in step {step[0]}.")
+                sys.exit(0)
+            # elif check == 0:
+            #     print(f"there are no atom at site {idx} in step {step[0]}.")
+            #     sys.exit(0)
+            else:
+                atom_idx += [np.argmax(self.occ_lat_point[:,step[0]]==idx)]
+        print(f"selected lattice points: {lat_point}  (step {step[0]})")
+        print(f"corresponding atom index: {atom_idx}")
+        
+        check_first = True
+        points_init = []
+        for s in tqdm(step,
+                      bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
+                      ascii=False,
+                      desc=f'{RED}save traj_on_lat{RESET}'):
+            
+            # plot lattice and lattice points
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            self.plot_lattice(ax, label=label)
+
+            for i, idx in enumerate(atom_idx):
+                # plot points
+                ax.scatter(*self.traj_on_lat_C[idx][s].T,
+                           facecolor=self.cmap[i%len(self.cmap)],
+                           edgecolor='none', 
+                           alpha=0.8, 
+                           label=f"{lat_point[i]}")
+                
+                # save initial postions
+                if check_first:
+                    point_init = {}
+                    point_init['p'] = self.traj_on_lat_C[idx][s]
+                    point_init['c'] = self.cmap[i%len(self.cmap)]
+                    points_init += [point_init]
+            check_first = False
+
+            # plot trajectory arrow
+            alpha = 1
+            for line in self.trace_arrows[s-1]:
+                arrow_prop_dict = dict(mutation_scale=10, 
+                                       arrowstyle='->', 
+                                       color='b',
+                                       alpha=alpha, 
+                                       shrinkA=0, 
+                                       shrinkB=0)
+                arrow = Arrow3D(*line['p'].T, **arrow_prop_dict)
+                ax.add_artist(arrow)
+
+            # show the initial positions
+            for point in points_init:
+                ax.plot(*point['p'].T, 
+                        c=point['c'], 
+                        marker='o', 
+                        linestyle='none', 
+                        markersize=10, 
+                        alpha=0.4, 
+                        zorder=0)
+
+            if vac:
+                ax.plot(*self.traj_vac_C[s].T, 
+                        color='yellow', 
+                        marker='o', 
+                        linestyle='none', 
+                        markersize=8, 
+                        alpha=0.8, 
+                        zorder=1)
+            
+            time = s * self.interval * potim / 1000
+            time_tot = self.nsw * potim / 1000
+            plt.title("(%.2f/%.2f) ps, (%d/%d) step"%(time, time_tot, s, self.num_step))
+            outfile = os.path.join(foldername, f"traj_{s}.png")
+            plt.savefig(outfile, dpi=dpi)
+            plt.close()
+
+    def check_unique_vac(self):
+        """
+        check whether there is unique vacancy at the specific step
+        """
+        step_multi_vac = []
+        for step, idx in enumerate(self.idx_vac.values()):
+            num_vac = len(idx)
+
+            if num_vac != 1:
+                step_multi_vac += [step]
+        
+        if len(step_multi_vac) == 0:
+            print("vacancy is unique.")
+        
+        else:
+            print("vacancy is not unique.")
+            print("please confine vacancy at the following steps.")
+            print("step :", end=" ")
+            for s in step_multi_vac:
+                print(s, end=", ")
+            print("")  
+
+    def update_vac(self,
+                   step,
+                   lat_point):
+        """
+        step: step which the user want to update the vacancy site
+        lat_point: label of lattice point where vacancy exist at the step
+        """
+        self.idx_vac[step] = [lat_point]
+        self.traj_vac_C[step] = np.array([self.lat_points_C[lat_point]])
+
+    
+    def check_connectivity(self, start=1):
+        """
+        tracing vacancy from 'start' step
+        connectivity of vacancy movement is confirmed.
+        """
+        trace_lines = self.trace_arrows
+        vac_site = self.idx_vac[0][0]
+
+        for step in range(start, self.num_step):
+            # when only one vacancy exist
+            if len(self.idx_vac[step]) == 1:
+                vac_site = self.idx_vac[step][0]
+                self.update_vac(step, vac_site)
+                continue
+
+            # when multiple vacancies exsit
+            #    when vacancy is stationary
+            if vac_site in self.idx_vac[step]:
+                self.update_vac(step, vac_site)
+                continue
+
+            # when vacancy moves
+            #   find connected points with vacancy
+            points = [vac_site]
+            while True:
+                check1 = len(points)
+                for dic in trace_lines[step-1]:
+                    if len(list(set(points) & set(dic['lat_points']))) == 1:
+                        points += dic['lat_points']
+                        points = list(set(points))
+                
+                check2 = len(points)
+
+                # no more connected points
+                if check1 == check2:
+                    break
+
+            site = list(set(points) & set(self.idx_vac[step]))
+            
+            if len(site) == 1:
+                vac_site = site[0]
+                self.update_vac(step, vac_site)
+            
+            elif len(site) == 0:
+                print("there is no connected site.")       
+                print(f"find the vacancy site for your self. (step: {step})")
+                break
+            
+            else:
+                print("there are multiple candidates.")       
+                print(f"find the vacancy site for your self. (step: {step})")
+                break

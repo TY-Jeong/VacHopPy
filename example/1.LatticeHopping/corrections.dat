@@ -1,0 +1,29 @@
+coord	: original coordination which is not averaged.
+traj	: coordination averaged by step number of 'interval'
+
+
+{name}_C : Cartensian
+
+
+
+omitted method:
+
+
+
+changed
+
+traj -> coords_C
+coords -> traj
+coords_cart -> traj_C
+
+coords_on_lat -> traj_on_lat_C
+occupy -> occ_lat_points
+
+coords_vac -> traj_vac_C
+vac_idx -> idx_vac
+
+trace_lines --> trace_arrows
+
+
+label과 index가 서로 다르게 사용됨
+모두 다 VESTA-1 기준으로 통일하기
