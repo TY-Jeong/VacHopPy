@@ -2,10 +2,13 @@ from vachoppy import trajectory as tj
 
 hfo2 = tj.LatticeHopping(poscar_perf='POSCAR_SUPERCELL',xdatcar='XDATCAR_2000K_01')
 
-hfo2.check_unique_vac()
-hfo2.check_connectivity()
-hfo2.update_vac(182, 60)
-hfo2.show_poscar(step=100)
+hfo2.animation(step=range(300))
+
+
+# hfo2.check_unique_vac()
+# hfo2.check_connectivity()
+# hfo2.update_vac(182, 60)
+# hfo2.show_poscar(step=100)
 
 
 # correct_vac_site = []

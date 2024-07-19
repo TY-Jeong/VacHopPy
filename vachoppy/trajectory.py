@@ -58,8 +58,11 @@ class LatticeHopping:
         self.target = target
 
         # color map for arrows
-        self.cmap = ['b', 'g', 'r', 'gray', 'm', 
-                     'darkorange', 'c', 'indigo', 'brown']
+        # self.cmap = ['b', 'g', 'r', 'gray', 'm', 
+        #              'darkorange', 'c', 'indigo', 'brown']
+        self.cmap = ['b', 'c', 'g', 'deeppink', 'r', 'darkorange', 
+                     'sienna', 'darkkhaki', 'lawngreen', 'grey', 'wheat', 
+                     'navy', 'slateblue', 'purple', 'pink']
         
         self.lattice = None # lattice vectors DIM=(3,3)
         self.atom_species = None # atom species
@@ -239,49 +242,49 @@ class LatticeHopping:
         # plot edges
         edge = np.concatenate(
             (coord_origin, self.lattice[0].reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             (coord_origin, self.lattice[1].reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             (coord_origin, self.lattice[2].reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             ((self.lattice[0]+self.lattice[1]).reshape(1,3), 
              self.lattice[0].reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             ((self.lattice[0]+self.lattice[1]).reshape(1,3), 
              self.lattice[1].reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             ((self.lattice[1]+self.lattice[2]).reshape(1,3), 
              self.lattice[1].reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             ((self.lattice[1]+self.lattice[2]).reshape(1,3), 
              self.lattice[2].reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             ((self.lattice[2]+self.lattice[0]).reshape(1,3), 
              self.lattice[2].reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             ((self.lattice[2]+self.lattice[0]).reshape(1,3), 
              self.lattice[0].reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             ((self.lattice[0]+self.lattice[1]+self.lattice[2]).reshape(1,3), 
              (self.lattice[0]+self.lattice[1]).reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             ((self.lattice[0]+self.lattice[1]+self.lattice[2]).reshape(1,3), 
              (self.lattice[1]+self.lattice[2]).reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
         edge = np.concatenate(
             ((self.lattice[0]+self.lattice[1]+self.lattice[2]).reshape(1,3), 
              (self.lattice[2]+self.lattice[0]).reshape(1,3)), axis=0).T
-        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='o')
+        ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
 
         # plot lattice points
         ax.scatter(*self.lat_points_C.T, facecolor='none', edgecolors='k', alpha=0.8)
@@ -331,7 +334,7 @@ class LatticeHopping:
                     arrow = {}
                     arrow['p'] = np.vstack((self.traj_on_lat_C[idx][step-1],
                                             self.traj_on_lat_C[idx][step]))
-                    arrow['c'] = self.cmap[idx%len(self.cmap)]
+                    arrow['c'] = self.cmap[(idx+1)%len(self.cmap)]
                     arrow['lat_points'] = [self.occ_lat_point[idx][step-1],
                                            self.occ_lat_point[idx][step]]
                     arrows += [arrow]
