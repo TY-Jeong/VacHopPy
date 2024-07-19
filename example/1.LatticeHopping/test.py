@@ -1,6 +1,6 @@
 from vachoppy import trajectory as tj
 
-hfo2 = tj.LatticeHopping(poscar_perf='POSCAR_SUPERCELL',xdatcar='XDATCAR_2200K_02')
+hfo2 = tj.LatticeHopping(poscar_perf='POSCAR_SUPERCELL',xdatcar='XDATCAR_2000K_01')
 
 hfo2.check_unique_vac()
 hfo2.check_connectivity()
