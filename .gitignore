@@ -215,3 +215,7 @@ gif/
 traj/
 
 .DS_Store
+
+xdatacr*
+
+XDATCAR*

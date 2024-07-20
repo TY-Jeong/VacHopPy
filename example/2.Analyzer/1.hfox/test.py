@@ -1,14 +1,21 @@
+import sys
 from vachoppy import trajectory as traj
 
+num = int(sys.argv[1])
+
+poscar_perf = './xdatcar.hfox.2000K/POSCAR_SUPERCELL'
+xdatcar = f"./xdatcar.hfox.2000K/XDATCAR_{format(num, '02')}"
+
 # make trajectory object
-traj_hfo2 = traj.LatticeHopping(poscar_perf='POSCAR_SUPERCELL',
-                                xdatcar='XDATCAR_2000K_01')
+traj_hfo2 = traj.LatticeHopping(poscar_perf=poscar_perf,
+                                xdatcar=xdatcar)
 traj_hfo2.check_unique_vac()
 
 # analyzer
 anal_hfo2 = traj.Analyzer(traj=traj_hfo2)
 
-# cn3
+# NEB results
+#   cn3
 num_path = 7
 site_init = 'cn3'
 site_final = ['cn4', 'cn3', 'cn3', 'cn3', 'cn4', 'cn4', 'cn4']
@@ -24,8 +31,7 @@ for i in range(num_path):
                        distance=d[i],
                        Ea=Ea[i],
                        dE=dE)
-
-## cn4
+#  cn4
 num_path = 7
 site_init = 'cn4'
 site_final = ['cn3', 'cn4', 'cn4', 'cn4', 'cn3', 'cn3', 'cn3']
@@ -41,9 +47,8 @@ for i in range(num_path):
                        distance=d[i],
                        Ea=Ea[i],
                        dE=dE)
-
+    
 # lattice information
-anal_hfo2.site_names
 for lat_point in anal_hfo2.lat_points:
     x_coord = lat_point['coord'][0]
     if 0.13796 < x_coord < 0.36204 or 0.63796 < x_coord < 0.86204:
@@ -51,12 +56,8 @@ for lat_point in anal_hfo2.lat_points:
     else:
         lat_point['site'] = 'cn3'
         
-## search path of vacancy
+# search path of vacancy
 anal_hfo2.search_path_vac()
-print('')
-# anal_hfo2.print_path_vac()
-# print('')
-# print(anal_hfo2.path_vac[1])
-# for p_vac in anal_hfo2.path_vac:
-#     print(p_vac['step'], end=' ')
-# print('')
+anal_hfo2.unwrap_path()
+
+anal_hfo2.print_summary()

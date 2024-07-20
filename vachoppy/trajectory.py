@@ -1,5 +1,6 @@
 import os
 import sys
+import copy        
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -697,7 +698,8 @@ class LatticeHopping:
                 print(f"find the vacancy site for your self. (step: {step})")
                 break
 
-           
+
+
 class Analyzer:
     def __init__(self,
                  traj=None):
@@ -711,16 +713,6 @@ class Analyzer:
         
         self.tolerance = 0.001
         
-        # information
-        notice = 'Note:\n'\
-                 'User should manually fill in the information of '\
-                 'lattice points and hopping path, since they have '\
-                 'system dependency. \n'\
-                 'please visit https://github.com/TY-Jeong/vachoppy '\
-                 'to see example.\n'
-        print(notice)
-                        
-        
         # list of dictionary containing NEB results
         self.path = []
         self.path_names = []
@@ -732,8 +724,7 @@ class Analyzer:
         self.lat_points = []
         self.lattice_points()
         
-        self.path_vac = None
-
+        self.path_vac = None # path of vacancy
         
     def add_path(self,
                  path_name,
@@ -793,10 +784,12 @@ class Analyzer:
             self.lat_points += [dic_lat_point]
             
     def search_path_vac(self):
-        check_unknown = False
         step_unknown = []
         self.path_vac = []
+        idx = 0 # index in self.path_vac
+        
         for step in range(self.traj.num_step-1):
+            count = step
             coord_init = self.lat_points[self.traj.idx_vac[step][0]]['coord']
             coord_final = self.lat_points[self.traj.idx_vac[step+1][0]]['coord']
             
@@ -805,17 +798,17 @@ class Analyzer:
             
             if distance > self.tolerance:
                 site_init = self.lat_points[self.traj.idx_vac[step][0]]['site']
-                path = self.get_path(site_init=site_init,
-                                  distance = distance)
+                path = self.get_path(site_init, distance)
+                
+                path['step'] = step+1
                 
                 if path['name'] == self.path_unknown['name']:
-                    check_unknown = True
                     step_unknown += [step+1]
                     
-                path['step'] = step+1
-                self.path_vac += [path]
+                self.path_vac += [copy.deepcopy(path)]
+                idx += 1
                 
-        if check_unknown:
+        if len(step_unknown) > 0:
             print(f"unknown steps are detected.: {step_unknown}")
         
         
@@ -861,7 +854,12 @@ class Analyzer:
                 print(p_vac['name'], end=' ')
             print('')
     
-    def plot_path_counts(self, outfile='counts.png'):
+    def plot_path_counts(self, 
+                         figure='counts.png',
+                         text='counts.txt',
+                         save_figure=True,
+                         save_text=True):
+        
         path_vac_names = [p_vac['name'] for p_vac in self.path_vac]
         path_type = self.path_names
         
@@ -871,7 +869,8 @@ class Analyzer:
         path_count = []
         for i, p_type in enumerate(path_type):
             path_count += [path_vac_names.count(p_type)]
-            
+        path_count = np.array(path_count)
+        
         # plot histogram
         x = np.arange(len(path_count))
         plt.bar(x, path_count, color='c', width=0.6)
@@ -880,9 +879,19 @@ class Analyzer:
         plt.xlabel('Path', fontsize=13)
         plt.ylabel('Counts', fontsize=13)
         
-        plt.savefig(outfile, dpi=300)
+        if save_figure:
+            plt.savefig(figure, dpi=300)
+            
         plt.show()
         plt.close()
+        
+        # write counts.txt
+        if save_text:
+            with open(text, 'w') as f:
+                f.write(f"total counts = {np.sum(path_count)}\n\n")
+                f.write("path\tcounts\n")
+                for name, count in zip(path_type, path_count):
+                    f.write(f"{name}\t{count}\n")
         
     def path_tracer(self,
                     paths,
@@ -920,6 +929,71 @@ class Analyzer:
         """
         index : index in self.path_vac
         """
+        step = self.path_vac[index]['step']
+        arrows = np.zeros((len(self.traj.trace_arrows[step-1]),2 ))
         
+        for i, dic_arrow in enumerate(self.traj.trace_arrows[step-1]):
+            arrows[i] = dic_arrow['lat_points']
         
+        vac_now = self.traj.idx_vac[step][0]
+        vac_pre = self.traj.idx_vac[step-1][0]
+        
+        path = self.path_tracer(arrows,
+                                vac_now,
+                                vac_pre)
+        path = np.array(path, dtype=int)
+        return path
+    
+    def unwrap_path(self):
+        path_unwrap = []
+        
+        for idx, path in enumerate(self.path_vac):
+            step = path['step']
+            # known path
+            if path['name'] != self.path_unknown['name']:
+                path_unwrap += [path]
+            
+            # unknown path
+            else:
+                try:
+                    p = self.path_decomposer(idx)
+                    p = np.flip(p)
+                except:
+                    print(f"error in unwrapping path_vac[{idx}].")
+                    print(f"path_vac[{idx}] : ")
+                    print(self.path_vac[idx])
+                    return
+                
+                if len(path) == 0:
+                    continue
+                
+                for i in range(len(p)-1):
+                    coord_init = self.lat_points[p[i]]['coord']
+                    coord_final = self.lat_points[p[i+1]]['coord']
+                    
+                    site_init = self.lat_points[p[i]]['site']
+                    distance = self.traj.distance_pbc(coord_init, coord_final)
+                    
+                    p_new = self.get_path(site_init, distance)
+                    p_new['step'] = step
+                    
+                    path_unwrap += [copy.deepcopy(p_new)]
+        
+        self.path_vac = path_unwrap
+        
+    def print_summary(self):
+        counts_tot = len(self.path_vac)
+        print(f"xdatcar file : {self.traj.xdatcar}")
+        print(f"poscar_per file: {self.traj.poscar_perf}\n")
+        
+        print(f"total counts : {counts_tot}")
+        print(f"hopping sequence :" )
+        Ea_max = 0
+        for p_vac in self.path_vac:
+            print(p_vac['name'], end=' ')
+            if p_vac['Ea'] > Ea_max:
+                Ea_max = p_vac['Ea']
+        print('\n')
+        
+        self.plot_path_counts()
         
