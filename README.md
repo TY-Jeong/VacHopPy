@@ -1,8 +1,10 @@
 # VacHopPy
 ---
-**VacHopPy** is a **py**thon package to anlyze oxygen **vac**ancy **hop**ping in crystalline materials.
+**VacHopPy** is a <ins>**Py**</ins>thon package to anlyze oxygen <ins>**Vac**</ins>ancy <ins>**Hop**</ins>ping in crystalline materials.
 <div align=center>
-<img src="https://github.com/user-attachments/assets/00d3dcff-336e-4de0-950e-a58e163cb6e0"  width="650" height="500"/>
+  
+![traj_2000K_01](https://github.com/user-attachments/assets/12f66663-e90f-4d55-beb7-c9b091f65627)
+
 </div>
 
 ## Functions of VacHopPy 
