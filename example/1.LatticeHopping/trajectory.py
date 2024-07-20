@@ -29,7 +29,7 @@ print('')
 
 filename = f"traj_{temp}K_{num}.gif"
 foldername = f"snapshots_{temp}K_{num}"
-traj_hfo2.animation(filename=filename, foldername=foldername)
+traj_hfo2.animation(filename=filename, foldername=foldername, fps=30)
 
 
 
