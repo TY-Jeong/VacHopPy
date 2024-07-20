@@ -1,18 +1,48 @@
 import sys
 from vachoppy import trajectory as traj
 
+temp = 2000
+
 num = format(int(sys.argv[1]), '02')
 
-xdatcar = f"../xdatcar.hfox.2000K/XDATCAR_{num}"
-poscar_perf = "../xdatcar.hfox.2000K/POSCAR_SUPERCELL"
+xdatcar = f"../xdatcar.hfox.{temp}K/XDATCAR_{num}"
+poscar_perf = f"../xdatcar.hfox.{temp}K/POSCAR_SUPERCELL"
 
-traj_hfo2 = traj.LatticeHopping(poscar_perf=poscar_perf,
-                                xdatcar=xdatcar)
 
-filename = f"traj_{num}.gif"
-foldername = f"snapshots_{num}"
-traj_hfo2.animation(filename=filename,
-                    foldername=foldername)
+# 2200K
+correct_vac_site = {}
+correct_vac_site['01'] = [[127, 7]] # 01
+correct_vac_site['02'] = [[182, 60],[194, 45],[189, 28],[190, 28],[191, 28],[192, 53]] # 02
+
+# make trajectory object
+traj_hfo2 = traj.LatticeHopping(poscar_perf=poscar_perf, xdatcar=xdatcar)
+
+traj_hfo2.check_connectivity()
+
+#if num in correct_vac_site.keys():
+#    for step, site in correct_vac_site[num]:
+#        traj_hfo2.update_vac(step=step, lat_point=site)
+#        traj_hfo2.check_connectivity()
+
+traj_hfo2.check_unique_vac()
+print('')
+
+filename = f"traj_{temp}K_{num}.gif"
+foldername = f"snapshots_{temp}K_{num}"
+traj_hfo2.animation(filename=filename, foldername=foldername)
+
+
+
+# xdatcar = f"../xdatcar.hfox.2000K/XDATCAR_{num}"
+# poscar_perf = "../xdatcar.hfox.2000K/POSCAR_SUPERCELL"
+
+# traj_hfo2 = traj.LatticeHopping(poscar_perf=poscar_perf,
+#                                 xdatcar=xdatcar)
+
+# filename = f"traj_{num}.gif"
+# foldername = f"snapshots_{num}"
+# traj_hfo2.animation(filename=filename,
+#                     foldername=foldername)
 
 
 
