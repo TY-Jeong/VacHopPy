@@ -1,0 +1,18 @@
+total counts = 41
+
+path	counts
+A1	9
+A2	0
+A3	10
+A4	1
+A5	0
+A6	0
+A7	1
+B1	6
+B2	2
+B3	9
+B4	0
+B5	1
+B6	0
+B7	2
+U	0

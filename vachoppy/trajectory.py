@@ -983,6 +983,22 @@ class Analyzer:
         
         self.path_vac = path_unwrap
         
+        # check unknown path
+        check_unknown = []
+        for p_vac in self.path_vac:
+            if p_vac['name'] == self.path_unknown['name']:
+                check_unknown += [p_vac]
+        
+        if len(check_unknown) == 0:
+            print("no unknown path exist.")
+        
+        else:
+            print("unknown path exist.")
+            print("step:", end=' ')
+            for p in check_unknown:
+                print(p['step'], end=' ')
+        
+        
     def print_summary(self,
                       figure='counts.png',
                       text='counts.txt',
@@ -997,11 +1013,13 @@ class Analyzer:
         
         print(f"total counts : {counts_tot}")
         print(f"hopping sequence :" )
+        
         Ea_max = 0
         for p_vac in self.path_vac:
             print(p_vac['name'], end=' ')
-            if p_vac['Ea'] > Ea_max:
+            if p_vac['name'] != self.path_unknown['name'] and p_vac['Ea'] > Ea_max:
                 Ea_max = p_vac['Ea']
+        
         print('\n')
         
         self.plot_path_counts(figure=figure,

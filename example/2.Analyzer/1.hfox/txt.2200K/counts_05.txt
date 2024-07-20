@@ -1,0 +1,17 @@
+total counts = 25
+
+path	counts
+A1	4
+A2	2
+A3	13
+A4	1
+A5	0
+A6	0
+A7	0
+B1	4
+B2	0
+B3	1
+B4	0
+B5	0
+B6	0
+B7	0
