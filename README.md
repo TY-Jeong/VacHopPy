@@ -8,7 +8,7 @@
 </p>
 </div>
 
-### Features
+## Features
 * tracing vacancy in *ab inito* molecular dynamics. (AIMD)
 * comparison between MD trajectory and NEB method.
 * obtain **atomic vibration freuqeuncy**.
