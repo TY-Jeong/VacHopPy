@@ -1,0 +1,6 @@
+total counts = 7
+
+path	counts
+OP	5
+IP1	2
+IP2	0

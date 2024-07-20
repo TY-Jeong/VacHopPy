@@ -860,6 +860,8 @@ class Analyzer:
                          disp=True,
                          save_figure=True,
                          save_text=True,
+                         bar_width=0.6,
+                         bar_color='c',
                          dpi=300):
         
         path_vac_names = [p_vac['name'] for p_vac in self.path_vac]
@@ -875,7 +877,7 @@ class Analyzer:
         
         # plot histogram
         x = np.arange(len(path_count))
-        plt.bar(x, path_count, color='c', width=0.6)
+        plt.bar(x, path_count, color=bar_color, width=bar_width)
         plt.xticks(x, path_type)
         
         plt.xlabel('Path', fontsize=13)
@@ -1005,6 +1007,8 @@ class Analyzer:
                       disp=True,
                       save_figure=True,
                       save_text=True,
+                      bar_width=0.6,
+                      bar_color='c',
                       dpi=300):
         
         counts_tot = len(self.path_vac)
@@ -1027,5 +1031,7 @@ class Analyzer:
                               disp=disp,
                               save_figure=save_figure,
                               save_text=save_text,
+                              bar_width=bar_width,
+                              bar_color=bar_color,
                               dpi=dpi)
         
