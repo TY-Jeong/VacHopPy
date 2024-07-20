@@ -703,15 +703,37 @@ class Analyzer:
                  traj=None):
         """
         module to analyze trajectory.
+        this module search diffusion paths in MD trajectory.
         the user need to calcualte NEB in advance.
         """
         self.traj = traj
         self.traj_backup = traj
         
+        self.tolerance = 0.001
+        
+        # information
+        notice = 'Note:\n'\
+                 'User should manually fill in the information of '\
+                 'lattice points and hopping path, since they have '\
+                 'system dependency. \n'\
+                 'please visit https://github.com/TY-Jeong/vachoppy '\
+                 'to see example.\n'
+        print(notice)
+                        
+        
         # list of dictionary containing NEB results
         self.path = []
         self.path_names = []
         self.site_names = []
+        
+        self.path_unknown = {}
+        self.path_unknown['name'] = 'unknown'
+        
+        self.lat_points = []
+        self.lattice_points()
+        
+        self.path_vac = None
+
         
     def add_path(self,
                  path_name,
@@ -741,6 +763,7 @@ class Analyzer:
             
             self.path += [dic_path]
             self.path_names += [path_name]
+             
         
         if not site_init in self.site_names:
             self.site_names += [site_init]
@@ -758,5 +781,145 @@ class Analyzer:
             print("%.2f"%path['Ea'], end='\t')
             print("%.2f"%path['dE'], end='\n')
             
+    def lattice_points(self):
+        """
+        'site' should be defined by user manually.
+        """
+        for coord in self.traj.lat_points:
+            dic_lat_point = {}
+            dic_lat_point['coord'] = coord
+            dic_lat_point['site'] = None
+
+            self.lat_points += [dic_lat_point]
+            
+    def search_path_vac(self):
+        check_unknown = False
+        step_unknown = []
+        self.path_vac = []
+        for step in range(self.traj.num_step-1):
+            coord_init = self.lat_points[self.traj.idx_vac[step][0]]['coord']
+            coord_final = self.lat_points[self.traj.idx_vac[step+1][0]]['coord']
+            
+            # check whether vacancy moves
+            distance = self.traj.distance_pbc(coord_init, coord_final)
+            
+            if distance > self.tolerance:
+                site_init = self.lat_points[self.traj.idx_vac[step][0]]['site']
+                path = self.get_path(site_init=site_init,
+                                  distance = distance)
+                
+                if path['name'] == self.path_unknown['name']:
+                    check_unknown = True
+                    step_unknown += [step+1]
+                    
+                path['step'] = step+1
+                self.path_vac += [path]
+                
+        if check_unknown:
+            print(f"unknown steps are detected.: {step_unknown}")
+        
+        
+    def get_path(self,
+                 site_init,
+                 distance):
+        """
+        path is determined based on initial site and distance.
+        """
+        if not site_init in self.site_names:
+            print(f"{site_init} is unknown site.")
+            sys.exit(0)
+        
+        candidate = []
+        for p in self.path:
+            err = abs(distance - p['distance'])
+            if err < self.tolerance and p['site_init']==site_init:
+                candidate += [p]
+        
+        if len(candidate) == 0:
+            p = self.path_unknown
+            p['site_init'] = site_init
+            p['distance'] = distance
+            return p
+            
+        elif len(candidate) > 1:
+            print('there are many candidates.')
+            print(f"initial site = {site_init}, distance = {distance}")
+            print(f'please use smaller tolerance.'\
+                  f'now: tolerance={self.tolerance}')
+            sys.exit(0)
+        
+        else:
+            return candidate[0]
+            
+    def print_path_vac(self):
+        if self.path_vac is None:
+            print("path_vac is not defines.")
+            print("please run 'search_path_vac'.")
+        else:
+            print("path of vacancy :")
+            for p_vac in self.path_vac:
+                print(p_vac['name'], end=' ')
+            print('')
+    
+    def plot_path_counts(self, outfile='counts.png'):
+        path_vac_names = [p_vac['name'] for p_vac in self.path_vac]
+        path_type = self.path_names
+        
+        if self.path_unknown['name'] in path_vac_names:
+            path_type += ['U']
+        
+        path_count = []
+        for i, p_type in enumerate(path_type):
+            path_count += [path_vac_names.count(p_type)]
+            
+        # plot histogram
+        x = np.arange(len(path_count))
+        plt.bar(x, path_count, color='c', width=0.6)
+        plt.xticks(x, path_type)
+        
+        plt.xlabel('Path', fontsize=13)
+        plt.ylabel('Counts', fontsize=13)
+        
+        plt.savefig(outfile, dpi=300)
+        plt.show()
+        plt.close()
+        
+    def path_tracer(self,
+                    paths,
+                    p_init,
+                    p_goal):
+        """
+        find sequential paths connection p_init and p_goal
+        """
+        answer = [p_init]
+        while True:
+            if answer[-1] == p_goal:
+                return answer
+            
+            intersect = []
+            for i, path in enumerate(paths):
+                if path[0] == p_init:
+                    intersect += [i]
+            
+            if len(intersect) == 1:
+                p_init = paths[intersect[0]][1]
+                answer += [p_init]
+            
+            elif len(intersect) == 0:
+                return []
+            
+            else:
+                for i in intersect:
+                    answer += self.path_tracer(paths, paths[i][1], p_goal)
+                
+                if answer[-1] != p_goal:
+                    return []
+    
+    def path_decomposer(self,
+                        index):
+        """
+        index : index in self.path_vac
+        """
+        
         
         

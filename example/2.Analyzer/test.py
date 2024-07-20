@@ -42,7 +42,21 @@ for i in range(num_path):
                        Ea=Ea[i],
                        dE=dE)
 
-
-
-anal_hfo2.print_path()    
-    
+# lattice information
+anal_hfo2.site_names
+for lat_point in anal_hfo2.lat_points:
+    x_coord = lat_point['coord'][0]
+    if 0.13796 < x_coord < 0.36204 or 0.63796 < x_coord < 0.86204:
+        lat_point['site'] = 'cn4'
+    else:
+        lat_point['site'] = 'cn3'
+        
+## search path of vacancy
+anal_hfo2.search_path_vac()
+print('')
+# anal_hfo2.print_path_vac()
+# print('')
+# print(anal_hfo2.path_vac[1])
+# for p_vac in anal_hfo2.path_vac:
+#     print(p_vac['step'], end=' ')
+# print('')
