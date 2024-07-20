@@ -696,3 +696,67 @@ class LatticeHopping:
                 print("there are multiple candidates.")       
                 print(f"find the vacancy site for your self. (step: {step})")
                 break
+
+           
+class Analyzer:
+    def __init__(self,
+                 traj=None):
+        """
+        module to analyze trajectory.
+        the user need to calcualte NEB in advance.
+        """
+        self.traj = traj
+        self.traj_backup = traj
+        
+        # list of dictionary containing NEB results
+        self.path = []
+        self.path_names = []
+        self.site_names = []
+        
+    def add_path(self,
+                 path_name,
+                 site_init,
+                 site_final,
+                 distance,
+                 Ea,
+                 dE):
+        """
+        site_init : (str) name of initial site. (ex. cn3)
+        site_final: (str) name of final site. (ex. cn4)
+        distance: (float) distance between initial and final site.
+        Ea: (float) activatoin barrier in unit of eV.
+        dE: (float) energy gain in unit of eV.
+        """ 
+        if path_name in self.path_names:
+            print(f"{path_name} already exsits.")
+            
+        else:
+            dic_path = {}
+            dic_path['name'] = path_name
+            dic_path['site_init'] = site_init
+            dic_path['site_final'] = site_final
+            dic_path['distance'] = distance
+            dic_path['Ea'] = Ea
+            dic_path['dE'] = dE
+            
+            self.path += [dic_path]
+            self.path_names += [path_name]
+        
+        if not site_init in self.site_names:
+            self.site_names += [site_init]
+        
+        if not site_final in self.site_names:
+            self.site_names += [site_final]
+            
+    def print_path(self):
+        print("name\tinit\tfinal\td (Å)\tEa (eV)\tdE (eV)")
+        for path in self.path:
+            print(f"{path['name']}", end='\t')
+            print(f"{path['site_init']}", end='\t')
+            print(f"{path['site_final']}", end='\t')
+            print("%.3f"%path['distance'], end='\t')
+            print("%.2f"%path['Ea'], end='\t')
+            print("%.2f"%path['dE'], end='\n')
+            
+        
+        
