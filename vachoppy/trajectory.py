@@ -867,12 +867,17 @@ class Analyzer:
         path_vac_names = [p_vac['name'] for p_vac in self.path_vac]
         path_type = self.path_names
         
+        check_unknown = False
         if self.path_unknown['name'] in path_vac_names:
             path_type += ['U']
+            check_unknown = True
+            num_unknown = path_vac_names.count(self.path_unknown['name'])
         
         path_count = []
         for i, p_type in enumerate(path_type):
             path_count += [path_vac_names.count(p_type)]
+        if check_unknown:
+            path_count[-1] = num_unknown
         path_count = np.array(path_count)
         
         # plot histogram
@@ -896,6 +901,8 @@ class Analyzer:
                 f.write("path\tcounts\n")
                 for name, count in zip(path_type, path_count):
                     f.write(f"{name}\t{count}\n")
+                if check_unknown:
+                    f.write(f"unknown\t{num_unknown}")
         
     def path_tracer(self,
                     paths,
