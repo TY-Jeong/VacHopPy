@@ -4,12 +4,12 @@
 
 <div align=center>
 <p>
-    <img src="./imgs/animation.gif" width="580" height="500" />
+    <img src="./imgs/main.gif" width="580" height="504" />
 </p>
 </div>
 
-## Functions of VacHopPy 
-1. tracing vacancy in *ab inito* molecular dynamics. (AIMD)
-2. comparison between MD trajectory and NEB method.
-3. obtain **atomic vibration freuqeuncy**.
-4. obtrain mass transport parameters using **Einstein relation**.
+### Features
+* tracing vacancy in *ab inito* molecular dynamics. (AIMD)
+* comparison between MD trajectory and NEB method.
+* obtain **atomic vibration freuqeuncy**.
+* obtrain mass transport parameters using **Einstein relation**.
