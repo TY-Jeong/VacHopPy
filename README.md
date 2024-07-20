@@ -4,7 +4,7 @@
 
 <div align=center>
 <p>
-    <img src="./traj_2000K_01.gif" width="580" height="500" />
+    <img src="./imgs/animation.gif" width="580" height="500" />
 </p>
 </div>
 
