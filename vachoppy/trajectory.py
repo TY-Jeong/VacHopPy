@@ -857,8 +857,10 @@ class Analyzer:
     def plot_path_counts(self, 
                          figure='counts.png',
                          text='counts.txt',
+                         disp=True,
                          save_figure=True,
-                         save_text=True):
+                         save_text=True,
+                         dpi=300):
         
         path_vac_names = [p_vac['name'] for p_vac in self.path_vac]
         path_type = self.path_names
@@ -880,9 +882,9 @@ class Analyzer:
         plt.ylabel('Counts', fontsize=13)
         
         if save_figure:
-            plt.savefig(figure, dpi=300)
-            
-        plt.show()
+            plt.savefig(figure, dpi=dpi)
+        if disp:
+            plt.show()
         plt.close()
         
         # write counts.txt
@@ -981,7 +983,14 @@ class Analyzer:
         
         self.path_vac = path_unwrap
         
-    def print_summary(self):
+    def print_summary(self,
+                      figure='counts.png',
+                      text='counts.txt',
+                      disp=True,
+                      save_figure=True,
+                      save_text=True,
+                      dpi=300):
+        
         counts_tot = len(self.path_vac)
         print(f"xdatcar file : {self.traj.xdatcar}")
         print(f"poscar_per file: {self.traj.poscar_perf}\n")
@@ -995,5 +1004,10 @@ class Analyzer:
                 Ea_max = p_vac['Ea']
         print('\n')
         
-        self.plot_path_counts()
+        self.plot_path_counts(figure=figure,
+                              text=text,
+                              disp=disp,
+                              save_figure=save_figure,
+                              save_text=save_text,
+                              dpi=dpi)
         

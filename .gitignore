@@ -219,3 +219,7 @@ traj/
 xdatacr*
 
 XDATCAR*
+
+*.gif
+
+snapshots_*/
