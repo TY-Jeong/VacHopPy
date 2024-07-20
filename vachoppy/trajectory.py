@@ -1024,8 +1024,6 @@ class Analyzer:
             if p_vac['name'] != self.path_unknown['name'] and p_vac['Ea'] > Ea_max:
                 Ea_max = p_vac['Ea']
         
-        print('\n')
-        
         self.plot_path_counts(figure=figure,
                               text=text,
                               disp=disp,
