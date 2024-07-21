@@ -1,6 +1,6 @@
 # VacHopPy
 ---
-**VacHopPy** is a <ins>**Py**</ins>thon package to anlyze oxygen <ins>**Vac**</ins>ancy <ins>**Hop**</ins>ping in crystalline materials.
+**VacHopPy** is a <ins>**Py**</ins>thon package to anlyze <ins>**Vac**</ins>ancy <ins>**Hop**</ins>ping in crystalline materials.
 
 <div align=center>
 <p>
