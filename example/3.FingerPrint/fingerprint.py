@@ -14,11 +14,13 @@ RESET = '\033[0m'  # Reset to default color
 
 # system
 temp = 2200
-ensemble = [2]
+ensembles = [1]
 # ensembles = [4, 5, 6, 7, 8, 9, 10]
 
 # parameters for HfO2
-Rmax, delta, sigma = 15, 0.01, 0.1
+Rmax, delta, sigma = 20, 0.004, 0.1
+# Rmax, delta, sigma = 15, 0.01, 0.1
+# Rmax, delta, sigma = 10, 0.05, 0.1
 
 # monoclinc
 fp_m_hfo = FingerPrint(A='Hf', 
@@ -66,6 +68,25 @@ fp_m = np.concatenate((fp_m_hfo.fingerprint,
 fp_t = np.concatenate((fp_t_hfo.fingerprint, 
                        fp_t_hfhf.fingerprint, 
                        fp_t_oo.fingerprint))
+
+# save fingerprint of HfO2
+x1 = fp_m_hfo.R
+x2 = x1 + x1[-1]
+x3 = x1 + x2[-1]
+distance_m = np.concatenate((x1, x2, x3))
+distance_t = distance_m+distance_m[-1]
+
+plt.figure(figsize=(15, 5))
+plt.plot(distance_m, fp_m, 'g-', linewidth=1.2, label='M-')
+plt.plot(distance_t, fp_t, 'r-', linewidth=1.2, label='T-')
+plt.axhline(0, 0, 1, color='k', linestyle='--', linewidth=1)
+
+plt.xlabel("r (Å)", fontsize=15)
+plt.ylabel('Intensity', fontsize=15)
+plt.legend(fontsize=15)
+
+plt.savefig('fingerprint_HfO2.png', dpi=300)
+
 
 def get_fingerprints(temp, 
                      ensemble):
@@ -155,10 +176,10 @@ def plot_distance(temp,
               fontsize=15)
     
     # save results
+    outdir = f'{temp}K'
     filename = f"distance_{Rmax}_{delta}_{sigma}_{temp}K_"+\
                f"{format(ensemble,'02')}.png"
-    outdir = f'{temp}K_{ensemble}'
-
+    
     if not os.path.isdir(outdir):
         os.makedirs(outdir, exist_ok=True)
 
