@@ -1,3 +1,4 @@
+import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -167,14 +168,17 @@ class FingerPrint:
     def plot_fingerprint(self, 
                          disp=True,
                          save=False,
+                         label=None,
+                         outdir='./',
                          dpi=300,
                          R=None):
         if R is None:
             R = self.R
 
-        plt.plot(R, 
-                 self.fingerprint,
-                 label=f"{self.A}-{self.B}")
+        if label is None:
+            label = f"{self.A}-{self.B}"
+
+        plt.plot(R, self.fingerprint, label=label)
         plt.axhline(0, 0, 1, color='k', linestyle='--', linewidth=1)
         
         plt.xlabel("Distance (Å)", fontsize=13)
@@ -183,7 +187,21 @@ class FingerPrint:
         plt.legend(fontsize=12)
 
         if save:
-            outfig = f"fingerprint_{self.A}-{self.B}.png"
+            if not os.path.isdir(outdir):
+                os.makedirs(outdir, exist_ok=True)
+            outfig = os.path.join(
+                outdir,f"fingerprint_{self.A}-{self.B}.png")
             plt.savefig(outfig, dpi=dpi)
         if disp:
             plt.show()
+
+def CosineDistance(fp1, fp2):
+    """
+    fp1 : fingerprint of structure 1
+    fp2 : fingerprint of structure 2
+    """
+    dot = np.dot(fp1, fp2)
+    norm1 = np.linalg.norm(fp1, ord=2)
+    norm2 = np.linalg.norm(fp2, ord=2)
+
+    return 0.5 * (1 - dot/(norm1*norm2))

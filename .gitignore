@@ -225,3 +225,7 @@ XDATCAR*
 snapshots_*/
 
 !imgs/*
+
+xdatcar.*/
+
+poscars_traj/
