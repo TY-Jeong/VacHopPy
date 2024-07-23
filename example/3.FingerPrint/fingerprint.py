@@ -3,10 +3,8 @@ import sys
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-
 from vachoppy.trajectory import LatticeHopping
 from vachoppy.fingerprint import FingerPrint, CosineDistance
-
 from colorama import Fore
 GREEN = '\033[92m' # Green color
 RED = '\033[91m'   # Red color
