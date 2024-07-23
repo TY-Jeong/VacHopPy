@@ -15,7 +15,11 @@ RESET = '\033[0m'  # Reset to default color
 # system
 temp = 2200
 #ensembles = [1]
+<<<<<<< HEAD
 ensembles = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+=======
+ensembles = [2, 1, 3, 4, 5, 6, 7, 8, 9, 10]
+>>>>>>> 5c1aaf5 (cmd)
 
 # parameters for HfO2
 Rmax, delta, sigma = 20, 0.004, 0.1
