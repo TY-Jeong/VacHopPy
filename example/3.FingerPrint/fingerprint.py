@@ -13,13 +13,13 @@ RESET = '\033[0m'  # Reset to default color
 
 # Rmax, delta, sigma = 20, 0.004, 0.1
 # Rmax, delta, sigma = 17.5, 0.007, 0.1
+Rmax, delta, sigma = 15, 0.01, 0.03
 # Rmax, delta, sigma = 12, 0.02, 0.1
 # Rmax, delta, sigma = 10, 0.025, 0.05
 
 temp = 2200
 outdir = f"{temp}K"
 ensembles = [format(i+1,'02') for i in range(10)]
-Rmax, delta, sigma = 17.5, 0.007, 0.1
 
 class Distance_HfO2:
     def __init__(self, 
@@ -116,7 +116,7 @@ class Distance_HfO2:
             self.traj.save_poscar(step=step, outdir='./poscars_traj')
 
         self.fp_traj = []
-        for i in tqdm(range(traj.num_step),
+        for i in tqdm(range(self.num_step),
                       bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
                       ascii=True,
                       desc=f'{RED}{ensemble}{RESET}'):
@@ -144,10 +144,10 @@ class Distance_HfO2:
 
         # plot cosine distance
         plt.figure(figsize=(15, 5))
-        plt.scatter(step, dist_m-dist_m[0], s=25, label='M')
-        plt.scatter(step, dist_t-dist_t[0], s=25, label='T')
-        plt.scatter(step, dist_po-dist_po[0], s=25, label='PO')
-        plt.scatter(step, dist_ao-dist_ao[0], s=25, label='AO')
+        plt.scatter(step, dist_m, s=25, label='M')
+        plt.scatter(step, dist_t, s=25, label='T')
+        plt.scatter(step, dist_po, s=25, label='PO')
+        plt.scatter(step, dist_ao, s=25, label='AO')
 
         # For comparing M and T
         # step_nearest = np.argmin(dist_t-dist_m)
