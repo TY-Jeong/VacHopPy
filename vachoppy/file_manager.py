@@ -2,7 +2,7 @@ import os
 import sys
 import shutil
 import numpy as np
-from ..amorphous import genInput
+from .amorphous import genInput
 #sys.path.append(os.path.join(os.path.dirname(__file__), '../amorphous'))
 #from amorphous import genInput
 

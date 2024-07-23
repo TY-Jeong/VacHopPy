@@ -229,3 +229,5 @@ snapshots_*/
 xdatcar.*/
 
 poscars_traj/
+
+example/1.LatticeHopping/data/
