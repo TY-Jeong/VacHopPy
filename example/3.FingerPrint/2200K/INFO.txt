@@ -1,4 +1,4 @@
-data: 2200K (01)
+data: 2200K (03)
 Rmax: 15
 delta: 0.01
 sigma: 0.03

@@ -52,9 +52,14 @@ The user can adjust the animation by specifying arguments desribed in ***link***
 </p>
 </div>
 
-The oxygen vacancy is represented by a yellow color, while other colored points correspond to occupied lattice points by oxgen ions. The movements of oxygen ions are displayed with arrows of the same color.
+The **oxygen vacancy** is represented by a **yellow color**, while other colored points correspond to occupied lattice points by oxgen ions. The movements of oxygen ions are displayed with arrows of the same color.
 
-It is well known that monoclinc HfO<SUB>2</SUB> becomes unstable at the higher temperatures over 2000K. Hence the movements of oxygen ions irrelevant to the vacancy are also observed 
+It is well known that monoclinc HfO<SUB>2</SUB> becomes unstable at the higher temperatures over 2000K. Hence the movements of oxygen ions irrelevant to the vacancy are also observed. 
+
+### Correction for multi-vacancy
+The method of allocating the oxygen (or other) ions to the nearest lattice points has a limitation that can result in an unphysical situation where two or more vacancies exist simultaneously, eventhough there was only one vacancy in the cell. This situation is usually observed at high temperature, especially when the existing crystalline structure becomes unstable. 
+
+In this situation, a plausible vacancy site should be carefully identified. VacHopPy provide a function that find the plausible vacancy site based on the connectivity between the previous vacancy site. For example, 
 
 ### Trajectory of each atom
 

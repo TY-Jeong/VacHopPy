@@ -19,7 +19,7 @@ Rmax, delta, sigma = 15, 0.01, 0.03
 
 temp = 2200
 outdir = f"{temp}K"
-ensembles = [format(i+1,'02') for i in range(10)]
+ensembles = [format(i+2,'02') for i in range(9)]
 
 class Distance_HfO2:
     def __init__(self, 
