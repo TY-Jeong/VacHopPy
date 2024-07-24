@@ -1,0 +1,4 @@
+data: 3000K (02)
+Rmax: 15
+delta: 0.01
+sigma: 0.03

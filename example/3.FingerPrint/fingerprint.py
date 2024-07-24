@@ -17,9 +17,9 @@ Rmax, delta, sigma = 15, 0.01, 0.03
 # Rmax, delta, sigma = 12, 0.02, 0.1
 # Rmax, delta, sigma = 10, 0.025, 0.05
 
-temp = 2200
+temp = 3000
 outdir = f"{temp}K"
-ensembles = [format(i+4,'02') for i in range(7)]
+ensembles = [format(i+1,'02') for i in range(10)]
 
 class Distance_HfO2:
     def __init__(self, 
@@ -187,5 +187,6 @@ for ensemble in tqdm(ensembles,
                      bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'% (Fore.GREEN, Fore.RESET),
                      ascii=False,
                      desc=f'{GREEN}TOTAL{RESET}'):
-    _ = Distance_HfO2(temp, ensemble, Rmax, delta, sigma, outdir)
+    path_traj = f"../xdatcar.hfo2.{temp}K"
+    _ = Distance_HfO2(temp, ensemble, Rmax, delta, sigma, outdir, path_traj=path_traj)
 
