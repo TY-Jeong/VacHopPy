@@ -231,3 +231,5 @@ xdatcar.*/
 poscars_traj/
 
 example/1.LatticeHopping/data/
+
+mid_acc/
