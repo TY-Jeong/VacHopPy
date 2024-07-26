@@ -744,7 +744,7 @@ class Analyzer:
                  site_final,
                  distance,
                  Ea,
-                 dE):
+                 dE='Nan'):
         """
         site_init : (str) name of initial site. (ex. cn3)
         site_final: (str) name of final site. (ex. cn4)
@@ -766,7 +766,6 @@ class Analyzer:
             
             self.path += [dic_path]
             self.path_names += [path_name]
-             
         
         if not site_init in self.site_names:
             self.site_names += [site_init]
@@ -775,14 +774,20 @@ class Analyzer:
             self.site_names += [site_final]
             
     def print_path(self):
+        path_sorted = sorted(self.path,
+                             key=lambda x:list(x.values()))
+
         print("name\tinit\tfinal\td (Å)\tEa (eV)\tdE (eV)")
-        for path in self.path:
+        for path in path_sorted:
             print(f"{path['name']}", end='\t')
             print(f"{path['site_init']}", end='\t')
             print(f"{path['site_final']}", end='\t')
             print("%.3f"%path['distance'], end='\t')
             print("%.2f"%path['Ea'], end='\t')
-            print("%.2f"%path['dE'], end='\n')
+            if path['dE'] == 'Nan':
+                print(f"{path['dE']}", end='\n')
+            else:
+                print("%.2f"%path['dE'], end='\n')
             
     def lattice_points(self):
         """

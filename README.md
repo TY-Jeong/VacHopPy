@@ -149,7 +149,7 @@ The red O and X markers represent the initial and final position of the atom, re
 ---
 ## How to analyze the hopping path
 
-The core module to investigate the hopping path of vacancy in MD trajectory is `trajectory.Analyzer`. To use this module, information on the hopping paths within the material is required. For example, in monoclinic HfO<SUB>2</sUB>, there are two distinguishable oxygen sites  named 'cn3' and 'cn4', referring to their coordination numbers. Additionally, there are 14 diffusion paths for V<SUB>O</SUB><SUP>2+</SUP>, as listed below: 
+The core module to investigate the hopping path of vacancy in MD trajectory is `trajectory.Analyzer`. To use this module, information on the hopping paths within the material is required. For example, in monoclinic HfO<SUB>2</sUB>, there are two distinguishable oxygen sites  named 'cn3' and 'cn4', referring to their coordination numbers. Additionally, there are 14 diffusion paths for V<SUB>O</SUB><SUP>2+</SUP>, as listed below. The z specifies the number of equivalent paths, and the names are arbitrary defined.
 
 <div align=center>
 
@@ -172,6 +172,35 @@ The core module to investigate the hopping path of vacancy in MD trajectory is `
 
 </div>
 
-The z specifies the number of equivalent paths, which is used for lattice hopping equation:
+### Prepare for hopping path analysis
+To prepare for hopping path analysis using the `trajectory.Analyzer module`, follow these steps:
+* Instantiate the Analyzer:
+  
+Create an instance of `trajectory.Analyzer`, passing in an instance of **trajectory.LatticeHopping** as an argument.
 
-$D=D_{0} exp(\frac{-E_a}{k_BT})$
+```ruby
+anal_hfo2 =  trajectory.Analyzer(traj=traj)
+```
+<br/>
+
+* Specify the hopping paths manually:
+
+Since VacHopPy classifies the hopping paths based on distance, it is crucial to provide accurate distance values. (Defaults tolerance = 0.001)
+```ruby
+final_A = ['cn4', 'cn3', 'cn3', 'cn3', 'cn4', 'cn4', 'cn4']
+final_B = ['cn3', 'cn4', 'cn4', 'cn4', 'cn3', 'cn3', 'cn3']
+
+d_A = [2.542, 2.574, 2.785, 2.837, 2.937, 2.965, 2.989]
+d_B = [2.542, 2.576, 2.662, 2.724, 2.937, 2.965, 2.989]
+
+Ea_A = [0.74, 0.84, 0.85, 1.35, 1.91, 2.07, 2.01]
+Ea_B = [0.08, 0.32, 0.86, 0.98, 1.25, 1.42, 1.36]
+
+for i in range(7):
+    anal_hfo2.add_path(f"A{i+1}", 'cn3', final_A[i], d_A[i], Ea_A[i])
+    anal_hfo2.add_path(f"B{i+1}", 'cn4', final_B[i], d_B[i], Ea_B[i])
+```
+The user can the path information using `print_path()` method.
+```ruby
+anal_hfo2.print_path()
+```
