@@ -79,8 +79,8 @@ traj.save_traj_on_lat(lat_point=[34, 35, 58, 59],
 This code will save the snapshots in `./traj_on_lat` directory. In the snapshots, the initial sites are represented by background colors, as shown below.
 <div align=center>
 <p>
-    <img src="./imgs/traj_118.png" width="350" height="262" /> 
-    <img src="./imgs/traj_119.png" width="350" height="262" />
+    <img src="./imgs/traj_118.png" width="450" height="337" /> 
+    <img src="./imgs/traj_119.png" width="450" height="337" />
 </p>
 </div>
 
