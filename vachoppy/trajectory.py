@@ -879,25 +879,48 @@ class Analyzer:
                          save_text=True,
                          bar_width=0.6,
                          bar_color='c',
-                         dpi=300):
+                         dpi=300,
+                         sort = True):
         
         path_vac_names = [p_vac['name'] for p_vac in self.path_vac]
         path_type = self.path_names
         
         check_unknown = False
         if self.path_unknown['name'] in path_vac_names:
-            path_type += ['U']
+            if not 'U' in path_type:
+                path_type.append('U')
             check_unknown = True
             num_unknown = path_vac_names.count(self.path_unknown['name'])
         
         path_count = []
-        for i, p_type in enumerate(path_type):
-            path_count += [path_vac_names.count(p_type)]
+        for p_type in path_type:
+            path_count.append(path_vac_names.count(p_type))
         if check_unknown:
             path_count[-1] = num_unknown
         path_count = np.array(path_count)
-        
-        # plot histogram
+
+        # sorting paths according to Ea
+        if sort:
+            path_Ea = []
+            for p_type in path_type:
+                for p in self.path:
+                    if p['name'] == p_type:
+                        path_Ea.append(p['Ea'])
+            if check_unknown:
+                path_Ea.append(100)
+
+            path_Ea = np.array(path_Ea)
+            args = np.argsort(path_Ea)
+
+            path_type_sorted = []
+            for arg in args:
+                path_type_sorted.append(path_type[arg])
+
+            path_Ea = path_Ea[args]
+            path_count = path_count[args]
+            path_type = path_type_sorted
+
+        # plot bar graph
         x = np.arange(len(path_count))
         plt.bar(x, path_count, color=bar_color, width=bar_width)
         plt.xticks(x, path_type)
@@ -1023,6 +1046,7 @@ class Analyzer:
             print("step:", end=' ')
             for p in check_unknown:
                 print(p['step'], end=' ')
+            print("")
         
         
     def print_summary(self,
@@ -1033,7 +1057,8 @@ class Analyzer:
                       save_text=True,
                       bar_width=0.6,
                       bar_color='c',
-                      dpi=300):
+                      dpi=300,
+                      sort=True):
         
         counts_tot = len(self.path_vac)
         print(f"xdatcar file : {self.traj.xdatcar}")
@@ -1057,5 +1082,6 @@ class Analyzer:
                               save_text=save_text,
                               bar_width=bar_width,
                               bar_color=bar_color,
-                              dpi=dpi)
+                              dpi=dpi,
+                              sort=sort)
         

@@ -30,8 +30,8 @@ The core module for vacancy trajectory analysis is `trajectory.LatticeHopping`.
 ```ruby
 from vachoppy import trajectory
 
-traj = trajectory.LatticeHopping(poscar_perf='data/POSCAR_novcac'
-                                 xdatcar='data/XDATCAR_01'
+traj = trajectory.LatticeHopping(poscar_perf='data/POSCAR_novac',
+                                 xdatcar='data/XDATCAR_01',
                                  interval=50, 
                                  target='O')
 ```
@@ -149,7 +149,7 @@ The red O and X markers represent the initial and final position of the atom, re
 ---
 ## How to analyze the hopping path
 
-The core module to investigate the hopping path of vacancy in MD trajectory is `trajectory.Analyzer`. To use this module, information on the hopping paths within the material is required. For example, in monoclinic HfO<SUB>2</sUB>, there are two distinguishable oxygen sites  named 'cn3' and 'cn4', referring to their coordination numbers. Additionally, there are 14 diffusion paths for V<SUB>O</SUB><SUP>2+</SUP>, as listed below. The z specifies the number of equivalent paths, and the names are arbitrary defined.
+The core module to investigate the hopping path of vacancy in MD trajectory is `trajectory.Analyzer`. To use this module, information on the hopping paths within the material is required. For example, in monoclinic HfO<SUB>2</sUB>, there are two distinguishable oxygen sites  named **cn3** and **cn4**, referring to their coordination numbers. Additionally, there are 14 diffusion paths for V<SUB>O</SUB><SUP>2+</SUP>, as listed below. The z specifies the number of equivalent paths, and the names are arbitrary defined.
 
 <div align=center>
 
@@ -174,7 +174,7 @@ The core module to investigate the hopping path of vacancy in MD trajectory is `
 
 ### Prepare for hopping path analysis
 To prepare for hopping path analysis using the `trajectory.Analyzer module`, follow these steps:
-* Instantiate the Analyzer:
+1. Instantiate the Analyzer:
   
 Create an instance of `trajectory.Analyzer`, passing in an instance of **trajectory.LatticeHopping** as an argument.
 
@@ -183,7 +183,7 @@ anal_hfo2 =  trajectory.Analyzer(traj=traj)
 ```
 <br/>
 
-* Specify the hopping paths manually:
+2. Specify the hopping paths manually:
 
 Since VacHopPy classifies the hopping paths based on distance, it is crucial to provide accurate distance values. (Defaults tolerance = 0.001)
 ```ruby
@@ -199,8 +199,27 @@ Ea_B = [0.08, 0.32, 0.86, 0.98, 1.25, 1.42, 1.36]
 for i in range(7):
     anal_hfo2.add_path(f"A{i+1}", 'cn3', final_A[i], d_A[i], Ea_A[i])
     anal_hfo2.add_path(f"B{i+1}", 'cn4', final_B[i], d_B[i], Ea_B[i])
+
+anal_hfo2.print_path() # the path data will be printed.
 ```
-The user can the path information using `print_path()` method.
+<br/>
+
+3. Specify type of lattice porints:
+   
+The type of lattice points should be manually specified.
 ```ruby
-anal_hfo2.print_path()
+for lat_p in anal_hfo2.lat_points:
+    x_coord = lat_p['coord'][0]
+    if 0.13796 < x_coord < 0.36204 or 0.63796 < x_coord < 0.86204:
+        lat_p['site'] = 'cn4'
+    else:
+        lat_p['site'] = 'cn3'
 ```
+### Get hopping paths of vacancy
+When the `Analyzer.search_path_vac()` method is executed, VacHopPy will search for hopping paths at each step based on distance data provided.
+
+```ruby
+anal_hfo2.search_path_vac()
+```
+
+
