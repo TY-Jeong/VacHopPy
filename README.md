@@ -185,7 +185,7 @@ anal_hfo2 =  trajectory.Analyzer(traj=traj)
 
 2. Specify the hopping paths manually:
 
-Since VacHopPy classifies the hopping paths based on distance, it is crucial to provide accurate distance values. (Defaults tolerance = 0.001)
+Since VacHopPy classifies the hopping paths based on distance, it is crucial to provide accurate distance values (defaults tolerance = 0.001).
 ```ruby
 final_A = ['cn4', 'cn3', 'cn3', 'cn3', 'cn4', 'cn4', 'cn4']
 final_B = ['cn3', 'cn4', 'cn4', 'cn4', 'cn3', 'cn3', 'cn3']
@@ -200,13 +200,18 @@ for i in range(7):
     anal_hfo2.add_path(f"A{i+1}", 'cn3', final_A[i], d_A[i], Ea_A[i])
     anal_hfo2.add_path(f"B{i+1}", 'cn4', final_B[i], d_B[i], Ea_B[i])
 
-anal_hfo2.print_path() # the path data will be printed.
 ```
-<br/>
 
-3. Specify type of lattice porints:
-   
-The type of lattice points should be manually specified.
+3. Print path data
+Print the path data to verify the added paths.
+```ruby
+anal_hfo2.print_path()
+```
+
+4. Specify type of lattice points:
+
+Manually specify the type of lattice points. The kinds of type can vary depending on the material.
+
 ```ruby
 for lat_p in anal_hfo2.lat_points:
     x_coord = lat_p['coord'][0]
@@ -215,11 +220,70 @@ for lat_p in anal_hfo2.lat_points:
     else:
         lat_p['site'] = 'cn3'
 ```
+
 ### Get hopping paths of vacancy
 When the `Analyzer.search_path_vac()` method is executed, VacHopPy will search for hopping paths at each step based on distance data provided.
 
 ```ruby
 anal_hfo2.search_path_vac()
+anal_hfo2.print_summary(sort=True)
+```
+
+This command will display the hopping sequence and the bar graph for path distribution. With `sort=True`, the paths are sorted according to the hopping barriers (E<SUB>a</SUB>).
+```
+# Example results
+unknown steps are detected.: [116, 118, 125, 127, 186, 246, 247]
+xdatcar file : data/XDATCAR_01
+poscar_per file: data/POSCAR_novac
+
+total counts : 42
+hopping sequence :
+A3 A3 A3 A3 A1 B1 A1 B2 B2 B1 A3 A1 B1 A3 A3 A4 A1 B7 A1 unknown unknown A1 unknown unknown B1 A1 B1 unknown A1 B3 B3 B3 B3 B3 B3 unknown unknown B7 A7 B1 A1 B3 
+maximum Ea : 2.01 eV
+```
+<div align=center>
+<p>
+    <img src="./imgs/counts_before.png" width="550" height="412" /> 
+</p>
+</div>
+
+Note that 7 unknown paths were observed. The main cause of the unknown path is **multi-path issue**. For example, below is snapshot at step 246, showing that two sequential hopping, 19(purple) ➔ 25(green) and 25(green) ➔ 1(yellow), take place during one step. However, since VacHopPy determines the displacement of vacancy in step-wise manner, the code interprets the vacancy as moving directly 19(pulple) ➔ 1(yellow).
+
+<div align=center>
+<p>
+    <img src="./imgs/snapshot_246.png" width="550" height="412" /> 
+</p>
+</div>
+
+### Correction for multi-path issue
+
+The multi-path issue can be addressed by using `Analyze.unwrap_path()` method, which recursively decomposes the multi-paths. This method can smartly find a possible path of vacancy by considering both connectivity and direction of arrows.
+
+```ruby
+anal_hfo2.unwrap_path()
+anal_hfo2.print_summary()
+```
+
+By executing this commands, the user can obtain renewed explanations and a bar graph.
+
+```
+unknown path exist.
+step: 246 247 
+
+xdatcar file : data/XDATCAR_01
+poscar_per file: data/POSCAR_novac
+
+total counts : 43
+hopping sequence :
+A3 A3 A3 A3 A1 B1 A1 B2 B2 B1 A3 A1 B1 A3 A3 A4 A1 B7 A1 B5 A3 A3 A3 A1 B1 A1 B1 A1 B3 B3 B3 B3 B3 B3 unknown B3 B3 unknown B7 A7 B1 A1 B3 
+maximum Ea : 2.01 eV
 ```
 
 
+<div align=center>
+<p>
+    <img src="./imgs/counts_after.png" width="550" height="412" /> 
+</p>
+</div>
+
+The number of unknown paths was reduced from 7 to 2, and the total hopping counts increased from 42 to 43 (125, 127 unknown path가 사라짐. code 수정 필요). 
