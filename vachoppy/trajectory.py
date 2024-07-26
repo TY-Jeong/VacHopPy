@@ -533,8 +533,8 @@ class LatticeHopping:
         label: if True, label of lattice point is displayed.
         """
         if not os.path.isdir(foldername):
-            os.mkdir(foldername)
-        
+            os.makedirs(foldername, exist_ok=True)
+
         # obtain atom numbers
         atom_idx = []
         for idx in lat_point:
@@ -542,13 +542,10 @@ class LatticeHopping:
             if check > 1:
                 print(f"there are multiple atom at site {idx} in step {step[0]}.")
                 sys.exit(0)
-            # elif check == 0:
-            #     print(f"there are no atom at site {idx} in step {step[0]}.")
-            #     sys.exit(0)
             else:
                 atom_idx += [np.argmax(self.occ_lat_point[:,step[0]]==idx)]
-        print(f"selected lattice points: {lat_point}  (step {step[0]})")
-        print(f"corresponding atom index: {atom_idx}")
+        # print(f"selected lattice points: \n\t{lat_point}  (step {step[0]})\n")
+        # print(f"corresponding atom index: \n\t{atom_idx}\n")
         
         check_first = True
         points_init = []
@@ -561,7 +558,8 @@ class LatticeHopping:
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
             self.plot_lattice(ax, label=label)
-
+            
+            color_atom = {}
             for i, idx in enumerate(atom_idx):
                 # plot points
                 ax.scatter(*self.traj_on_lat_C[idx][s].T,
@@ -569,6 +567,8 @@ class LatticeHopping:
                            edgecolor='none', 
                            alpha=0.8, 
                            label=f"{lat_point[i]}")
+                lat_p = self.occ_lat_point[idx][s]
+                color_atom[lat_p] = self.cmap[i%len(self.cmap)]
                 
                 # save initial postions
                 if check_first:
@@ -577,13 +577,22 @@ class LatticeHopping:
                     point_init['c'] = self.cmap[i%len(self.cmap)]
                     points_init += [point_init]
             check_first = False
-
+        
             # plot trajectory arrow
+            lat_p_atoms = [self.occ_lat_point[i][s] for i in atom_idx]
+            arrows = []
+            color_arrows = []
+            for arrow in self.trace_arrows[s-1]:
+                arrow_head = arrow['lat_points'][1]
+                if  arrow_head in lat_p_atoms:
+                    arrows.append(arrow)
+                    color_arrows.append(color_atom[arrow['lat_points'][1]])
+
             alpha = 1
-            for line in self.trace_arrows[s-1]:
+            for i, line in enumerate(arrows):
                 arrow_prop_dict = dict(mutation_scale=10, 
                                        arrowstyle='->', 
-                                       color='b',
+                                       color=color_arrows[(i)%len(color_arrows)],
                                        alpha=alpha, 
                                        shrinkA=0, 
                                        shrinkB=0)
@@ -701,7 +710,6 @@ class LatticeHopping:
                 print("there are multiple candidates.")       
                 print(f"find the vacancy site for your self. (step: {step})")
                 break
-
 
 
 class Analyzer:

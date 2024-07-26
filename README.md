@@ -33,7 +33,7 @@ from vachoppy import trajectory
 traj = trajectory.LatticeHopping(poscar_perf='data/POSCAR_novcac'
                                  xdatcar='data/XDATCAR_01'
                                  interval=50, 
-                                 target='O' )
+                                 target='O')
 ```
 The `poscar_perf` is the path to POSCAR  of perfect crystalline and is used to construct lattice points. The `xdatcar` is XDATCAR of defective cell containing one vacancy, obtaind from AIMD. To alleviate thermal fluctuation, the positions of each atoms are averaged at specified `interval`. Therefore, if the user ran AIMD for 15000 iterations and used an interval of 50, VacHopPy considers the trajectory of AIMD to be composed of 300 (=15000/50) steps and generate 300 averaged structures from each step. Note that the **position of each atoms are determined to the nearest lattice point** from the averaged position at each step. The `target` specifies which atom will be traced. For example, `target='O'` will trace oxgen ions and an oxygen vacancy.
 
@@ -59,7 +59,7 @@ The **oxygen vacancy** is represented by a **yellow color**, while other colored
 
 Note that not only hoppings through the vacancy, but also site-exchanges between oxygein ions are also observed, indicating that the lattice hopping is not the only mechanism of oxygen transport.
 
-For example, below is a snapshot at step 119. The oxygen ions labelled by 34, 35, 58, 59 exchanged their site, with hourglass-shape. (The labels can be displayed by setting `label=True`.)
+For example, below is a snapshot at step 119. The oxygen ions labelled by 34(magenta), 35(green), 58(light green), 59(grey) exchanged their site, with hourglass-shape. (The labels can be displayed by setting `label=True`.)
 
 <div align=center>
 <p>
@@ -67,10 +67,24 @@ For example, below is a snapshot at step 119. The oxygen ions labelled by 34, 35
 </p>
 </div>
 
-For the better visualiztion, the user can use `trajectory.LatticeHopping.save_traj_on_lat` module.
+with `trajectory.LatticeHopping.save_traj_on_lat` module, the user can focus on the interested atoms and steps. For example, the movements of ions within the hourglass will be shown by the following code.
+
+```ruby
+traj.save_traj_on_lat(lat_point=[34, 35, 58, 59],
+                      step=[118, 119],
+                      vac=True,
+                      label=False)
+```
+
+This code will save the snapshots in `./traj_on_lat` directory. In the snapshots, the initial sites are represented by background colors, as shown below.
+<div align=center>
+<p>
+    <img src="./imgs/traj_118.png" width="350" height="262" /> 
+    <img src="./imgs/traj_119.png" width="350" height="262" />
+</p>
+</div>
 
 
-*will be updated*
 
 
 ### Correction for multi-vacancy problem
