@@ -39,7 +39,7 @@ The `poscar_perf` is the path to POSCAR  of perfect crystalline and is used to c
 
 The method of allocating the nearest lattice point might cause unexpected issues, such as multiple vacancies existing simultaneously (**multi-vacancy issue**) or multiple sequential hopping occuring within one step (**multi-hopping issue**). VacHopPy provides correction functions for the issues, will be addressed later.
 
-> The `trajectory` module assumes that lattice points are maintained during MD simulation. It is well known that monoclinic lattice of HfO<SUB>2</SUB> becomes unstable, so that the MD trajectory at 2200 K is inappropriate. Nevertheless, the following examples were written using the MD trajetory at 2200 K in order to explain how to correct for the unexpected problems.
+> The `trajectory` module assumes that lattice points are maintained during MD simulation. It is well known that monoclinic lattice of HfO<SUB>2</SUB> becomes unstable, so that the MD trajectory at 2200 K is an inappropriate case. Nevertheless, the following examples were written using the MD trajetory at 2200 K in order to explain how to address the unexpected issues.
 
 
 ### Making animation
@@ -144,8 +144,34 @@ The trajectory of each atom will be saved in `./traj` directory. Below is an exa
     <img src="./imgs/traj_O7.png" width="550" height="412" /> 
 </p>
 </div>
-
+The red O and X markers represent the initial and final position of the atom, respectively.
 
 ---
-## Analyzing hopping path
+## How to analyze the hopping path
 
+The core module to investigate the hopping path of vacancy in MD trajectory is `trajectory.Analyzer`. To use this module, information on the hopping paths within the material is required. For example, in monoclinic HfO<SUB>2</sUB>, there are two distinguishable oxygen sites  named 'cn3' and 'cn4', referring to their coordination numbers. Additionally, there are 14 diffusion paths for V<SUB>O</SUB><SUP>2+</SUP>, as listed below: 
+
+<div align=center>
+
+|Name|Initial site|Final site|Distance (Å)|E<SUB>a</SUB> (eV)| ΔE (eV) | z
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+|A1|cn3|cn4|2.542|0.74|0.65|1|
+|A2|cn3|cn3|2.574|0.84|0|1|
+|A3|cn3|cn3|2.785|0.85|0|2|
+|A4|cn3|cn3|2.837|1.35|0|2|
+|A5|cn3|cn4|2.937|1.91|0.65|1|
+|A6|cn3|cn4|2.965|2.07|0.65|1|
+|A7|cn3|cn4|2.989|2.01|0.65|1|
+|B1|cn3|cn3|2.542|0.08|-0.65|1|
+|B2|cn3|cn4|2.576|0.32|0|1|
+|B3|cn3|cn4|2.662|0.86|0|2|
+|B4|cn3|cn4|2.724|0.98|0|1|
+|B5|cn3|cn3|2.937|1.25|-0.65|1|
+|B6|cn3|cn3|2.965|1.42|-0.65|1|
+|B7|cn3|cn3|2.989|1.36|-0.65|1|
+
+</div>
+
+The z specifies the number of equivalent paths, which is used for lattice hopping equation:
+
+$D=D_{0} exp(\frac{-E_a}{k_BT})$
