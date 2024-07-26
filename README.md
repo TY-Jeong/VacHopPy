@@ -37,7 +37,7 @@ traj = trajectory.LatticeHopping(poscar_perf='data/POSCAR_novcac'
 ```
 The `poscar_perf` is the path to POSCAR  of perfect crystalline and is used to construct lattice points. The `xdatcar` is XDATCAR of defective cell containing one vacancy, obtaind from AIMD. To alleviate thermal fluctuation, the positions of each atoms are averaged at specified `interval`. Therefore, if the user ran AIMD for 15000 iterations and used an interval of 50, VacHopPy considers the trajectory of AIMD to be composed of 300 (=15000/50) steps and generate 300 averaged structures from each step. Note that the **position of each atoms are determined to the nearest lattice point** from the averaged position at each step. The `target` specifies which atom will be traced. For example, `target='O'` will trace oxgen ions and an oxygen vacancy.
 
-The method of allocating the nearest lattice point might cause unexpected problem, such as multiple vacancies existing simultaneously (**multi-vacancy problem**) or multiple sequential hopping occuring within one step (**multi-hopping problem**). VacHopPy provides correction functions for the problems, will be addressed later.
+The method of allocating the nearest lattice point might cause unexpected issues, such as multiple vacancies existing simultaneously (**multi-vacancy issue**) or multiple sequential hopping occuring within one step (**multi-hopping issue**). VacHopPy provides correction functions for the issues, will be addressed later.
 
 > The `trajectory` module assumes that lattice points are maintained during MD simulation. It is well known that monoclinic lattice of HfO<SUB>2</SUB> becomes unstable, so that the MD trajectory at 2200 K is inappropriate. Nevertheless, the following examples were written using the MD trajetory at 2200 K in order to explain how to correct for the unexpected problems.
 
@@ -59,7 +59,7 @@ The **oxygen vacancy** is represented by a **yellow color**, while other colored
 
 Note that not only hoppings through the vacancy, but also site-exchanges between oxygein ions are also observed, indicating that the lattice hopping is not the only mechanism of oxygen transport.
 
-For example, below is a snapshot at step 119. The oxygen ions labelled by 34(magenta), 35(green), 58(light green), 59(grey) exchanged their site, with hourglass-shape. (The labels can be displayed by setting `label=True`.)
+For example, below is a snapshot at step 119. The oxygen ions labeled by 34(magenta), 35(green), 58(light green), 59(grey) exchanged their site, according to the hourglass shape arrows. (The labels can be displayed by setting `label=True`) For your information, the hourglass-type transport corresponds to the motion of optical phonon with the lowest frequency.
 
 <div align=center>
 <p>
@@ -84,13 +84,46 @@ This code will save the snapshots in `./traj_on_lat` directory. In the snapshots
 </p>
 </div>
 
+Note that two oxygen vacancies were observed at step 118, which corresponds to the multi-vacancy issue. As expected, the left one is the actual oxygen vacancy, while the right one is a **transient vacancy** caused by large thermal fluctuations.
 
 
+### Correction for multi-vacancy issue
+The straightforward way to correct the multi-vacancy issue is to use the connectivity information between previous and present steps. 
+<div align=center>
+<p>
+    <img src="./imgs/snapshot_115.png" width="550" height="412" /> 
+    <img src="./imgs/snapshot_116.png" width="550" height="412" />
+</p>
+</div>
 
-### Correction for multi-vacancy problem
-The method of allocating the oxygen (or other) ions to the nearest lattice points has a limitation that can result in an unphysical situation where two or more vacancies exist simultaneously, eventhough there was only one vacancy in the cell. This situation is usually observed at high temperature, especially when the existing crystalline structure becomes unstable. 
+There was only one vacancy at the lattice point labeled as 3 in step 115, but four vacancies were observed in step 116 at the lattice points labeled as 38, 46, 47, and 52. However, considering the movements of oxygen ions represented by the arrows, we can see that the oxygen vacancy moved via 3→55→47. Indeed, the other transient vacancies will vanish in a few steps.
 
-In this situation, a plausible vacancy site should be carefully identified. VacHopPy provide a function that find the plausible vacancy site based on the connectivity between the previous vacancy site. For example, 
+> The original monoclinic lattice changes to a tetragonal-like lattice during steps 100 to 140. (See fingerprint section) Since our code assumes the lattice remains constant, this change is beyond the scope of our code and results in many trasient vacancies being observed. For common cases, where the lattice is preserved, the multi-vacancy issue is rarely observed.
+
+Excluding the transient vacancies based on the connectivity can be done using the following command.
+```ruby
+traj.check_connectivity(start=1)
+```
+By this command, VacHopPy seqeuntially investigates the connectivity of the vacancy path from step 1 and automatically eliminates the transient vacancies. However, in this example, the user will receive the following message.
+```
+there is no connected site.
+find the vacancy site for your self. (step: 127)
+```
+When the user recieve the above message, the user should check: 
+* Whether any transport mechanisms other than lattice hopping have occured (e.g. kick-out mechanism).
+* Whether the lattice remains consistent throughout the simulation.
+
+If needed, the user should manually specify the correct vacancy site at the step.
+```ruby
+# manually designate the vacancy site in step 127 to 7
+traj.update_vac(step=127, lat_point=7) 
+traj.check_connectivity(start=127)
+```
+The user can check the existence of the transient vacancies using `check_unique_vac` method:
+```ruby
+traj.check_unique_vac()
+```
+If all transient vacancies are successfully removed, the message 'vacancy is unique.' will be displayed.
 
 ### Trajectory of each atom
 
