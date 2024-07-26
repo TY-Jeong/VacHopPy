@@ -67,7 +67,7 @@ For example, below is a snapshot at step 119. The oxygen ions labeled by 34(mage
 </p>
 </div>
 
-with `trajectory.LatticeHopping.save_traj_on_lat` module, the user can focus on the interested atoms and steps. For example, the movements of ions within the hourglass will be shown by the following code.
+Using `trajectory.LatticeHopping.save_traj_on_lat` method, the user can focus on the interested atoms and steps. For example, the movements of ions within the hourglass will be shown by the following code.
 
 ```ruby
 traj.save_traj_on_lat(lat_point=[34, 35, 58, 59],
@@ -96,7 +96,7 @@ The straightforward way to correct the multi-vacancy issue is to use the connect
 </p>
 </div>
 
-There was only one vacancy at the lattice point labeled as 3 in step 115, but four vacancies were observed in step 116 at the lattice points labeled as 38, 46, 47, and 52. However, considering the movements of oxygen ions represented by the arrows, we can see that the oxygen vacancy moved via 3→55→47. Indeed, the other transient vacancies will vanish in a few steps.
+There was only one vacancy at the lattice point labeled as 3 in step 115, but four vacancies were observed in step 116 at the lattice points labeled as 38, 46, 47, and 52. However, considering the movements of oxygen ions represented by the arrows, we can see that the oxygen vacancy moved via 3 ➔ 55 ➔ 47. Indeed, the other transient vacancies will vanish in a few steps.
 
 > The original monoclinic lattice changes to a tetragonal-like lattice during steps 100 to 140. (See fingerprint section) Since our code assumes the lattice remains constant, this change is beyond the scope of our code and results in many trasient vacancies being observed. For common cases, where the lattice is preserved, the multi-vacancy issue is rarely observed.
 
@@ -125,6 +125,27 @@ traj.check_unique_vac()
 ```
 If all transient vacancies are successfully removed, the message 'vacancy is unique.' will be displayed.
 
-### Trajectory of each atom
+### Appendix 1: Save POSCAR
+One can get a POSCAR file of a certain step with `save_poscar` method.
+```ruby
+traj.save_poscar(step)
+``` 
 
+
+### Appendix 2: Save real trajectory
+One can get real trajectory (not projected on the lattice points) of each atoms with `save_traj` method.
+
+```ruby
+traj.save_traj() 
+```
+The trajectory of each atom will be saved in `./traj` directory. Below is an example of the outputs:
+<div align=center>
+<p>
+    <img src="./imgs/traj_O7.png" width="550" height="412" /> 
+</p>
+</div>
+
+
+---
+## Analyzing hopping path
 
