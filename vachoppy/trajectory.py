@@ -883,7 +883,7 @@ class Analyzer:
                          sort = True):
         
         path_vac_names = [p_vac['name'] for p_vac in self.path_vac]
-        path_type = self.path_names
+        path_type = copy.deepcopy(self.path_names)
         
         check_unknown = False
         if self.path_unknown['name'] in path_vac_names:
@@ -899,7 +899,7 @@ class Analyzer:
             path_count[-1] = num_unknown
         path_count = np.array(path_count)
 
-        # sorting paths according to Ea
+        # sorting paths using Ea
         if sort:
             path_Ea = []
             for p_type in path_type:
@@ -981,6 +981,7 @@ class Analyzer:
         index : index in self.path_vac
         """
         step = self.path_vac[index]['step']
+        
         arrows = np.zeros((len(self.traj.trace_arrows[step-1]),2 ))
         
         for i, dic_arrow in enumerate(self.traj.trace_arrows[step-1]):
@@ -989,10 +990,9 @@ class Analyzer:
         vac_now = self.traj.idx_vac[step][0]
         vac_pre = self.traj.idx_vac[step-1][0]
         
-        path = self.path_tracer(arrows,
-                                vac_now,
-                                vac_pre)
+        path = self.path_tracer(arrows, vac_now, vac_pre)
         path = np.array(path, dtype=int)
+        
         return path
     
     def unwrap_path(self):
@@ -1016,6 +1016,14 @@ class Analyzer:
                     return
                 
                 if len(path) == 0:
+                    continue
+                
+                if len(p) == 0:
+                    # add unknown path
+                    p_new = {}
+                    p_new['name'] = self.path_unknown['name']
+                    p_new['step'] = step
+                    path_unwrap += [copy.deepcopy(p_new)]
                     continue
                 
                 for i in range(len(p)-1):

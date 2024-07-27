@@ -226,11 +226,11 @@ for lat_p in anal_hfo2.lat_points:
 ```
 
 ### Get hopping paths of vacancy
-When the `Analyzer.search_path_vac()` method is executed, VacHopPy will search for hopping paths at each step based on distance data provided. By executing the below commands, the user can see informatoin on the hopping sequence and a bar graph for the path counts.  With `sort=True`, the paths in the bar graph are sorted in ascending order of hopping barriers (E<SUB>a</SUB>).
+When the `Analyzer.search_path_vac()` method is executed, VacHopPy will search for hopping paths at each step based on distance data provided. By executing the below commands, the user can see informatoin on the hopping sequence and a bar graph for the path counts.  With default settings, the paths in the bar graph are sorted in ascending order of hopping barriers (E<SUB>a</SUB>).
 
 ```ruby
 anal_hfo2.search_path_vac()
-anal_hfo2.print_summary(sort=True)
+anal_hfo2.print_summary()
 ```
 
 ```
@@ -247,29 +247,30 @@ maximum Ea : 2.01 eV
 
 <div align=center>
 <p>
-    <img src="./imgs/counts_before.png" width="550" height="412" /> 
+    <img src="./imgs/counts_init.png" width="550" height="412" /> 
 </p>
 </div>
 
 
-VacHopPy found 42 hopping sequences, but there were 7 unknown path. The counts for unknown path is represented by 'U' in the bar graph. The unknown paths can appear due to two main reasons: 
+VacHopPy found 42 hopping sequences, but there were 7 unknown path. The counts for unknown path is represented by 'U' in the bar graph. The unknown paths can appear due to three main reasons: 
 
- 1. Existence of a new hopping path.
+#### 1. Existence of a new hopping path.
 
 By examining the unknown paths, we found a new hopping path whose distance and barrier are 3.6471 Å and 3.94 eV. After adding the new path, the user can see the counts of unknown paths decreased from 7 to 5, while the counts of the new path became 2.
  ```ruby
  anal_hfo2.add_path('New', 'cn4', 'cn4', 3.6471, 3.94)
- anal_hfo2.print_summary(sort=True)
+ anal_hfo2.search_path_vac()
+ anal_hfo2.print_summary()
  ```
 
 <div align=center>
 <p>
-    <img src="./imgs/counts_newpath.png" width="550" height="412" /> 
+    <img src="./imgs/counts_new_path.png" width="550" height="412" /> 
 </p>
 </div>
  
 
- 2. **Multi-path issue.**
+ #### 2. Multi-path issue
 
 As an example of the multi-path issue, below is a snapshot at step 246, showing that two sequential hopping, 19(purple) ➔ 25(green) and 25(green) ➔ 1(yellow), take place during one step. However, since VacHopPy determines the displacement of vacancy in step-wise manner, the code interprets the vacancy as moving directly 19(pulple) ➔ 1(yellow).
 
@@ -279,7 +280,7 @@ As an example of the multi-path issue, below is a snapshot at step 246, showing 
 </p>
 </div>
 
-The multi-path issue can be addressed by using `Analyze.unwrap_path()` method, which recursively decomposes the multi-paths. This method can smartly find a possible path of vacancy by considering both connectivity and direction of arrows. By executing below commands, the user can see that unknown paths disapear and the total counts increas from 42 to 45.
+The multi-path issue can be addressed by using `Analyze.unwrap_path()` method, which recursively decomposes the multi-paths. This method can smartly find a possible path of vacancy by considering both connectivity and direction of arrows. By executing below commands, the user can see that the number of unknown paths decreased from 5 to 1 and the total counts increased from 42 to 46.
 
 ```ruby
 anal_hfo2.unwrap_path()
@@ -287,23 +288,39 @@ anal_hfo2.print_summary()
 ```
 
 ```
-no unknown path exist.
+unknown path exist.
+step: 186 
 xdatcar file : data/XDATCAR_01
 poscar_per file: data/POSCAR_novac
 
-total counts : 45
+total counts : 46
 hopping sequence :
-A3 A3 A3 A3 A1 B1 A1 B2 B2 B1 A3 A1 B1 A3 A3 A4 A1 B7 A1 B5 A3 A3 A3 A1 New New B1 A1 B1 A1 B3 B3 B3 B3 B3 B3 New B3 B3 New B7 A7 B1 A1 B3 
+A3 A3 A3 A3 A1 B1 A1 B2 B2 B1 A3 A1 B1 A3 A3 A4 A1 B7 A1 B5 A3 A3 A3 A1 New New B1 A1 B1 unknown A1 B3 B3 B3 B3 B3 B3 New B3 B3 New B7 A7 B1 A1 B3 
 maximum Ea : 3.94 eV
 ```
 
 <div align=center>
 <p>
-    <img src="./imgs/counts_after.png" width="550" height="412" /> 
+    <img src="./imgs/counts_correct.png" width="550" height="412" /> 
 </p>
 </div>
 
-**New path 정의 안할 시 125, 127 unknown path가 사라지는 오류 확인. code 수정 필요** 
+
+<br/>
+
+#### 3. A new mechanism other than lattice hopping
+
+If the unknown paths remains after going through all of the above processes, it is likely that a mechanism other than lattice hopping is at work. In our example, the unknown path still remains at step 186. To examine the unknown step, snapshots arounds step 186 are shown below.
+
+<div align=center>
+<p>
+    <img src="./imgs/snapshot_183.png" width="550" height="412" /> 
+    <img src="./imgs/snapshot_184.png" width="550" height="412" /> 
+    <img src="./imgs/snapshot_186.png" width="550" height="412" /> 
+</p>
+</div>
+
+In step 184, the oxygen ion at site 59 (magenta) moves close to the oxygen ion at site 34 (light green). This process generates a transient vacancy at site 59, and two oxygen ions are simultaneously located at nearby site 34. Subsequently, in step 186, the magenta oxygen ion moves to site 46, the position where the vacancy was initially located, and fills the site. Finally, the transient vacancy at site 59 becomes a new vacancy site. However, the user should keep in mind that most unnatural movements of vacancy are attributed to changes in lattice points, which is beyond the scope of `trajectory` module. The straightforward way to check whether the lattice changes is by using the fingerprint of the structure.
 
 ---
 ## Fingerprint

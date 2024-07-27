@@ -1,4 +1,4 @@
-total counts = 45
+total counts = 46
 
 path	counts
 B1	6
@@ -16,3 +16,5 @@ A5	0
 A7	1
 A6	0
 New	4
+U	1
+unknown	1
