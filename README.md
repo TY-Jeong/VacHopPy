@@ -153,7 +153,7 @@ The trajectory of each atom will be saved in `./traj` directory. Below is an exa
 ---
 ## How to analyze the hopping path
 
-The core module to investigate the hopping path of vacancy in MD trajectory is `trajectory.Analyzer`. To use this module, information on the hopping paths within the material is required. For example, in monoclinic HfO<SUB>2</sUB>, there are two distinguishable oxygen sites  named **cn3** and **cn4**, referring to their coordination numbers. Additionally, there are 14 diffusion paths for V<SUB>O</SUB><SUP>2+</SUP>, as listed below. The z specifies the number of equivalent paths, and the names are arbitrary defined.
+The core module to investigate the hopping path of vacancy in MD trajectory is `trajectory.Analyzer`. To use this module, information on the hopping paths within the material is required. For example, in monoclinic HfO<SUB>2</sUB>, there are two distinguishable oxygen sites  named 'cn3' and 'cn4', referring to their coordination numbers. Additionally, there are 14 diffusion paths for V<SUB>O</SUB><SUP>2+</SUP>, as listed below. The z specifies the number of equivalent paths, and the names are arbitrary defined.
 
 <div align=center>
 
@@ -226,14 +226,13 @@ for lat_p in anal_hfo2.lat_points:
 ```
 
 ### Get hopping paths of vacancy
-When the `Analyzer.search_path_vac()` method is executed, VacHopPy will search for hopping paths at each step based on distance data provided.
+When the `Analyzer.search_path_vac()` method is executed, VacHopPy will search for hopping paths at each step based on distance data provided. By executing the below commands, the user can see informatoin on the hopping sequence and a bar graph for the path counts.  With `sort=True`, the paths in the bar graph are sorted in ascending order of hopping barriers (E<SUB>a</SUB>).
 
 ```ruby
 anal_hfo2.search_path_vac()
 anal_hfo2.print_summary(sort=True)
 ```
 
-This command will display the hopping sequence and the bar graph for path distribution. With `sort=True`, the paths are sorted according to the hopping barriers (E<SUB>a</SUB>).
 ```
 # Example results
 unknown steps are detected.: [116, 118, 125, 127, 186, 246, 247]
@@ -245,17 +244,19 @@ hopping sequence :
 A3 A3 A3 A3 A1 B1 A1 B2 B2 B1 A3 A1 B1 A3 A3 A4 A1 B7 A1 unknown unknown A1 unknown unknown B1 A1 B1 unknown A1 B3 B3 B3 B3 B3 B3 unknown unknown B7 A7 B1 A1 B3 
 maximum Ea : 2.01 eV
 ```
+
 <div align=center>
 <p>
     <img src="./imgs/counts_before.png" width="550" height="412" /> 
 </p>
 </div>
 
-Note that 7 unknown paths were observed. The unknown paths can appear due to two main reasons: 
+
+VacHopPy found 42 hopping sequences, but there were 7 unknown path. The counts for unknown path is represented by 'U' in the bar graph. The unknown paths can appear due to two main reasons: 
 
  1. Existence of a new hopping path.
 
- By examining the unknown paths, we found a new hopping path whose distance and barrier are 3.6471 Å and 3.94 eV. After adding the new path, the user can see the counts of unknown paths decreased from 7 to 5, while the counts of the new path became 2.
+By examining the unknown paths, we found a new hopping path whose distance and barrier are 3.6471 Å and 3.94 eV. After adding the new path, the user can see the counts of unknown paths decreased from 7 to 5, while the counts of the new path became 2.
  ```ruby
  anal_hfo2.add_path('New', 'cn4', 'cn4', 3.6471, 3.94)
  anal_hfo2.print_summary(sort=True)
@@ -268,17 +269,15 @@ Note that 7 unknown paths were observed. The unknown paths can appear due to two
 </div>
  
 
- 2. Multi-path issue.
+ 2. **Multi-path issue.**
 
- As an example of the multi-path issue, below is a snapshot at step 246, showing that two sequential hopping, 19(purple) ➔ 25(green) and 25(green) ➔ 1(yellow), take place during one step. However, since VacHopPy determines the displacement of vacancy in step-wise manner, the code interprets the vacancy as moving directly 19(pulple) ➔ 1(yellow).
+As an example of the multi-path issue, below is a snapshot at step 246, showing that two sequential hopping, 19(purple) ➔ 25(green) and 25(green) ➔ 1(yellow), take place during one step. However, since VacHopPy determines the displacement of vacancy in step-wise manner, the code interprets the vacancy as moving directly 19(pulple) ➔ 1(yellow).
 
 <div align=center>
 <p>
     <img src="./imgs/snapshot_246.png" width="550" height="412" /> 
 </p>
 </div>
-
-### Correction for multi-path issue
 
 The multi-path issue can be addressed by using `Analyze.unwrap_path()` method, which recursively decomposes the multi-paths. This method can smartly find a possible path of vacancy by considering both connectivity and direction of arrows. By executing below commands, the user can see that unknown paths disapear and the total counts increas from 42 to 45.
 
