@@ -125,11 +125,15 @@ traj.check_unique_vac()
 ```
 If all transient vacancies are successfully removed, the message 'vacancy is unique.' will be displayed.
 
+<br/>
+
 ### Appendix 1: Save POSCAR
 One can get a POSCAR file of a certain step with `save_poscar` method.
 ```ruby
 traj.save_poscar(step)
 ``` 
+
+<br/>
 
 
 ### Appendix 2: Save real trajectory
@@ -138,13 +142,13 @@ One can get real trajectory (not projected on the lattice points) of each atoms 
 ```ruby
 traj.save_traj() 
 ```
-The trajectory of each atom will be saved in `./traj` directory. Below is an example of the outputs:
+The trajectory of each atom will be saved in `./traj` directory. Below is an example of the outputs, where the red O and X markers represent the initial and final position of the atom, respectively.
+
 <div align=center>
 <p>
     <img src="./imgs/traj_O7.png" width="550" height="412" /> 
 </p>
 </div>
-The red O and X markers represent the initial and final position of the atom, respectively.
 
 ---
 ## How to analyze the hopping path
@@ -247,7 +251,26 @@ maximum Ea : 2.01 eV
 </p>
 </div>
 
-Note that 7 unknown paths were observed. The main cause of the unknown path is **multi-path issue**. For example, below is snapshot at step 246, showing that two sequential hopping, 19(purple) ➔ 25(green) and 25(green) ➔ 1(yellow), take place during one step. However, since VacHopPy determines the displacement of vacancy in step-wise manner, the code interprets the vacancy as moving directly 19(pulple) ➔ 1(yellow).
+Note that 7 unknown paths were observed. The unknown paths can appear due to two main reasons: 
+
+ 1. Existence of a new hopping path.
+
+ By examining the unknown paths, we found a new hopping path whose distance and barrier are 3.6471 Å and 3.94 eV. After adding the new path, the user can see the counts of unknown paths decreased from 7 to 5, while the counts of the new path became 2.
+ ```ruby
+ anal_hfo2.add_path('New', 'cn4', 'cn4', 3.6471, 3.94)
+ anal_hfo2.print_summary(sort=True)
+ ```
+
+<div align=center>
+<p>
+    <img src="./imgs/counts_newpath.png" width="550" height="412" /> 
+</p>
+</div>
+ 
+
+ 2. the Multi-path issue.
+
+ As an example for the multi-path issue, below is a snapshot at step 246, showing that two sequential hopping, 19(purple) ➔ 25(green) and 25(green) ➔ 1(yellow), take place during one step. However, since VacHopPy determines the displacement of vacancy in step-wise manner, the code interprets the vacancy as moving directly 19(pulple) ➔ 1(yellow).
 
 <div align=center>
 <p>
@@ -257,28 +280,23 @@ Note that 7 unknown paths were observed. The main cause of the unknown path is *
 
 ### Correction for multi-path issue
 
-The multi-path issue can be addressed by using `Analyze.unwrap_path()` method, which recursively decomposes the multi-paths. This method can smartly find a possible path of vacancy by considering both connectivity and direction of arrows.
+The multi-path issue can be addressed by using `Analyze.unwrap_path()` method, which recursively decomposes the multi-paths. This method can smartly find a possible path of vacancy by considering both connectivity and direction of arrows. By executing below commands, the user can see that unknown paths disapear and the total counts increas from 42 to 45.
 
 ```ruby
 anal_hfo2.unwrap_path()
 anal_hfo2.print_summary()
 ```
 
-By executing this commands, the user can obtain renewed explanations and a bar graph.
-
 ```
-unknown path exist.
-step: 246 247 
-
+no unknown path exist.
 xdatcar file : data/XDATCAR_01
 poscar_per file: data/POSCAR_novac
 
-total counts : 43
+total counts : 45
 hopping sequence :
-A3 A3 A3 A3 A1 B1 A1 B2 B2 B1 A3 A1 B1 A3 A3 A4 A1 B7 A1 B5 A3 A3 A3 A1 B1 A1 B1 A1 B3 B3 B3 B3 B3 B3 unknown B3 B3 unknown B7 A7 B1 A1 B3 
-maximum Ea : 2.01 eV
+A3 A3 A3 A3 A1 B1 A1 B2 B2 B1 A3 A1 B1 A3 A3 A4 A1 B7 A1 B5 A3 A3 A3 A1 New New B1 A1 B1 A1 B3 B3 B3 B3 B3 B3 New B3 B3 New B7 A7 B1 A1 B3 
+maximum Ea : 3.94 eV
 ```
-
 
 <div align=center>
 <p>
@@ -286,4 +304,10 @@ maximum Ea : 2.01 eV
 </p>
 </div>
 
-The number of unknown paths was reduced from 7 to 2, and the total hopping counts increased from 42 to 43 (125, 127 unknown path가 사라짐. code 수정 필요). 
+**New path 정의 안할 시 125, 127 unknown path가 사라지는 오류 확인. code 수정 필요** 
+
+---
+## Fingerprint
+
+While the `vachoppy.trajectory` module aims to analyze systems with a maintained lattice during the MD simulation, some users may want to study changes in the lattice during the simulation.
+
