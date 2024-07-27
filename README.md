@@ -310,7 +310,7 @@ maximum Ea : 3.94 eV
 
 #### 3. A new mechanism other than lattice hopping
 
-If the unknown paths remains after going through all of the above processes, it is likely that a mechanism other than lattice hopping is at work. In our example, the unknown path still remains at step 186. To examine the unknown step, snapshots arounds step 186 are shown below.
+If the unknown paths remains after going through all of the above processes, it is likely that a mechanism other than lattice hopping is at work. In our example, the unknown path still remains at step 186. To examine the unknown step, snapshots arounds step 186 are shown below. In step 184, the oxygen ion at site 59 (magenta) moves close to the oxygen ion at site 34 (light green). This process generates a transient vacancy at site 59, and two oxygen ions are simultaneously located at nearby site 34. Subsequently, in step 186, the magenta oxygen ion moves to site 46, the position where the vacancy was initially located, and fills the site. Finally, the transient vacancy at site 59 becomes a new vacancy site.
 
 <div align=center>
 <p>
@@ -320,7 +320,9 @@ If the unknown paths remains after going through all of the above processes, it 
 </p>
 </div>
 
-In step 184, the oxygen ion at site 59 (magenta) moves close to the oxygen ion at site 34 (light green). This process generates a transient vacancy at site 59, and two oxygen ions are simultaneously located at nearby site 34. Subsequently, in step 186, the magenta oxygen ion moves to site 46, the position where the vacancy was initially located, and fills the site. Finally, the transient vacancy at site 59 becomes a new vacancy site. However, the user should keep in mind that most unnatural movements of vacancy are attributed to changes in lattice points, which is beyond the scope of `trajectory` module. The straightforward way to check whether the lattice changes is by using the fingerprint of the structure.
+**However, the user should keep in mind that most unnatural movements of vacancy are attributed to changes in lattice points, which is beyond the scope of `trajectory` module.** The straightforward way to check whether the lattice changes is by using the **fingerprint** of the structure.
+
+> We note that the lattice in this example is unstable since the MD simulation was executed at a temperature of 2200 K. The monoclinic lattice is only stable below 2000 K. When the lattice is stable at temperatures lower than 2000 K, only the lattice hopping mechanism is observed.
 
 ---
 ## Fingerprint
