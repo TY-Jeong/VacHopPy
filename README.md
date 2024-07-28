@@ -327,5 +327,5 @@ If the unknown paths remains after going through all of the above processes, it 
 ---
 ## Fingerprint
 
-While the `vachoppy.trajectory` module aims to analyze systems with a maintained lattice during the MD simulation, some users may want to study changes in the lattice during the simulation.
+VacHopPy provide a tool for 
 
