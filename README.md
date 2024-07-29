@@ -465,7 +465,7 @@ plt.show()
 </p>
 </div>
 
-Note that, although the lattice was fixed to monoclnic during MD simulation (NVT ensemble was employed), the cosine distance from the monoclinic increases, while the cosine distance from tetragonal decreases in steps from 100 to 140. Indeed, when one fully relaxes the structure at step 118, corresponding to the maximum porint, a tetragonal HfO<SUB>2</SUB> will be obtained. It implies that the monoclinic lattice is not maintained at the temperature of 2200 K, and the `vachoppy.trajectory` module cannot be applied to the transition steps. 
+Note that, although the lattice was fixed to monoclnic during MD simulation (NVT ensemble was employed), the cosine distance from the monoclinic increases, while the cosine distance from tetragonal decreases in steps from 100 to 140. Indeed, when one fully relaxes the structure at step 118, corresponding to the maximum porint, a tetragonal HfO<SUB>2</SUB> will be obtained. It implies that the monoclinic lattice is not maintained at the temperature of 2200 K, and the `vachoppy.trajectory` module is not applicable,
 
 ---
 ## Reference
