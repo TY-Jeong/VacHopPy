@@ -1,0 +1,27 @@
+#!/bin/sh
+#PBS -o sys_mesg.log -N Null
+#PBS -j oe
+
+##########  SET | Jordan
+#PBS -l nodes=1:ppn=1:ykh
+#!!PBS -l nodes=j001:ppn=32
+#PBS -q q52
+
+
+##########  SET | Evironment & Mode
+EXE="/home/jty/vasp/vasp.5.4.4/bin/vasp_std"
+####################
+
+NUMBER=`wc -l < $PBS_NODEFILE`
+cd $PBS_O_WORKDIR
+
+# mpirun -machinefile $PBS_NODEFILE -np $NUMBER $EXE < /dev/null > stdout.dat
+
+T=3000
+
+python fingerprint.py ${T}
+
+
+LOGFILE=$HOME"/qlog"
+echo `date '+%F'`   $PBS_O_WORKDIR >> $LOGFILE
+exit 0

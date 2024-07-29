@@ -324,8 +324,78 @@ If the unknown paths remains after going through all of the above processes, it 
 
 > We note that the lattice in this example is unstable since the MD simulation was executed at a temperature of 2200 K. The monoclinic lattice is only stable below 2000 K. When the lattice is stable at temperatures lower than 2000 K, only the lattice hopping mechanism is observed.
 
+
+
 ---
 ## Fingerprint
 
-VacHopPy provide a tool for 
+Fingerprint of an atomic structure, as proposed by Oganov *et al.*<SUP>[1]</SUP>, can be derived using the `vachoppy.fingerprint` module. The fingerprint of two atomic type pairs $A$ and $B$ is represented as follows:
 
+$$
+F_{AB}(R)=\sum\limits_{A_i, cell}\sum\limits_{B_j} (\frac{δ(R-R_{ij})}{4πR_{ij}^2 \frac{N_{A}N_{B}}{V}Δ}) - 1
+$$
+
+The double sum runs over all $A$ atoms in the unit cell and $B$ atoms within the threshold distance $R_{max}$ from the $A_{i}$ atom. Here, $δ$ is Gaussian-smeared delta function, and the $Δ$ is the bin size that descretizes the radial distance. A well-established fingerprint function should satisfy $F_{AB}(0)=-1$ and $F_{AB}(∞)=0$.
+
+Using the fingerprint function, one can measure the similarity of two atomic structure. A straghtforwad way to quantify the similarity is using cosine distance:
+
+$$
+D_{cos} = \frac{1}{2}(1-\frac{\mathbf{F_1}⋅\mathbf{F_2}}{|\mathbf{F_1}||\mathbf{F_2}|})
+$$
+
+$D_{cos}$ has a vaule range from 0 to 1, with a smaller value indicating more similarity between two fingerprints, $\mathbf{F_1}$ and $\mathbf{F_2}$.
+
+
+### Fingerprint of monoclinic HfO<SUB>2</SUB>
+The fingerprint of monoclinic HfO<SUB>2</SUB> can be obtained by excuting the below commands
+
+```ruby
+from vachoppy.fingerprint import FingerPrint, CosineDistance
+
+# path of poscar
+poscar_m = 'data/poscars_hfo2/POSCAR_mHfO2'
+poscar_t = 'data/poscars_hfo2/POSCAR_mHfO2'
+
+# parameters of fingerprints
+Rmax, delta, sigma = 15, 0.01, 0.03
+
+# get fingerprint function
+fp_m_hfo = FingerPrint('Hf','O', poscar_m, Rmax, delta, sigma)
+fp_m_hfhf = FingerPrint('Hf','Hf', poscar_m, Rmax, delta, sigma)
+fp_m_oo = FingerPrint('Hf','Hf', poscar_m, Rmax, delta, sigma)
+
+# plot fingerprints
+x_hfo = fp_m_hfo.R
+x_hfhf = fp_m_hfhf.R + x_hfo[-1]
+x_oo = fp_m_oo.R + x_hfhf[-1]
+
+plt.figure(figsize=(10, 4))
+plt.plot(x_hfo, fp_m_hfo.fingerprint, linewidth=2, label='Hf-O')
+plt.plot(x_hfhf, fp_m_hfhf.fingerprint, linewidth=2, label='Hf-Hf')
+plt.plot(x_oo, fp_m_oo.fingerprint, linewidth=2, label='O-O')
+plt.axhline(0, 0, 1, color='k', linestyle='--', linewidth=1)
+
+plt.xticks([],[])
+plt.xlabel('R (Å)', fontsize=13)
+plt.ylabel('Cosine distance', fontsize=13)
+
+plt.legend(fontsize=13)
+plt.show()
+
+```
+
+<div align=center>
+<p>
+    <img src="imgs/D_cos_mono.png" width="900" height="300" /> 
+</p>
+</div>
+
+
+
+
+
+
+
+---
+## Reference
+[1] A. R. Ognov and M. Valle, J. Chem. Phys. **130**, 104504 (2009)
