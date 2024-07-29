@@ -177,7 +177,7 @@ The core module to investigate the hopping path of vacancy in MD trajectory is `
 </div>
 
 ### Prepare for hopping path analysis
-To prepare for hopping path analysis using the `trajectory.Analyzer module`, follow these steps:
+To prepare for hopping path analysis using the `trajectory.Analyzer` module, follow these steps:
 1. Instantiate the Analyzer:
   
 Create an instance of `trajectory.Analyzer`, passing in an instance of **trajectory.LatticeHopping** as an argument.
