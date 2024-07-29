@@ -404,25 +404,25 @@ from tqdm import tqdm
 from vachoppy.trajectory import LatticeHopping
 from vachoppy.fingerprint import FingerPrint, CosineDistance
 
-# parameters of fingerprints
+# parameters for fingerprints
 Rmax, delta, sigma = 15, 0.01, 0.03
 
 # fingerprint of monoclinic and tetragonal HfO2
-poscar_m = 'data/poscars_hfo2/POSCAR_mHfO2'
-poscar_t = 'data/poscars_hfo2/POSCAR_tHfO2'
-
 def concatFingerPrint(poscar):
     fp_hfo = FingerPrint('Hf', 'O', poscar, Rmax, delta, sigma).fingerprint
     fp_hfhf = FingerPrint('Hf', 'Hf', poscar, Rmax, delta, sigma).fingerprint
     fp_oo = FingerPrint('O', 'O', poscar, Rmax, delta, sigma).fingerprint
     return np.concatenate((fp_hfo, fp_hfhf, fp_oo))
 
-fp_m = concatFingerPrint(poscar_m)
-fp_t = concatFingerPrint(poscar_t)
+poscar_m = 'data/poscars_hfo2/POSCAR_mHfO2'
+poscar_t = 'data/poscars_hfo2/POSCAR_tHfO2'
+
+fp_m = concatFingerPrint(poscar_m) # fingerprint of monoclinic HfO2
+fp_t = concatFingerPrint(poscar_t) # fingerprint of tetragonal HfO2
 
 # fingerprint in MD trajectory
 
-# save poscars
+# extract poscars from trajectory
 poscar_perf = 'data/POSCAR_novac'
 xdatcar = 'data/XDATCAR_01'
 
@@ -432,16 +432,16 @@ num_step = traj.num_step
 for step in np.arange(num_step):
     traj.save_poscar(step, outdir='poscars_traj')
 
-# get fingerprints 
-fp_traj = []
+# get fingerprints of the trajectories
+fp_traj = [] # fingerprints of trajectories
 for i in tqdm(range(num_step)):
     poscar_i = f'poscars_traj/POSCAR_{i}'
     fp_i = concatFingerPrint(poscar_i)
     fp_traj.append(fp_i)
 
-# get cosine distance
-d_m = np.zeros(num_step)
-d_t = np.zeros(num_step)
+# get cosine distances
+d_m = np.zeros(num_step) # distance from monoclinic HfO2
+d_t = np.zeros(num_step) # distance from tetragonal HfO2
 
 for i, fp_i in enumerate(fp_traj):
     d_m[i] = CosineDistance(fp_m, fp_i)
