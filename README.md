@@ -329,7 +329,7 @@ If the unknown paths remains after going through all of the above processes, it 
 ---
 ## Fingerprint
 
-Fingerprint of an atomic structure, as proposed by Oganov *et al.*<SUP>[1]</SUP>, can be derived using the `vachoppy.fingerprint` module. The fingerprint of two atomic type pairs $A$ and $B$ is represented as follows:
+Fingerprint of an atomic structure, as proposed by Oganov *et al.*<SUP>[1]</SUP>, can be derived using VacHopPy The fingerprint of two atomic type pairs $A$ and $B$ is represented as follows:
 
 $$
 F_{AB}(R)=\sum\limits_{A_i, cell}\sum\limits_{B_j} (\frac{δ(R-R_{ij})}{4πR_{ij}^2 \frac{N_{A}N_{B}}{V}Δ}) - 1
@@ -345,39 +345,42 @@ $$
 
 $D_{cos}$ has a vaule range from 0 to 1, with a smaller value indicating more similarity between two fingerprints, $\mathbf{F_1}$ and $\mathbf{F_2}$.
 
+The fingerprint and cosine distance can simply utilized using the `vachoppy.fingerprint` module. Two examples showing how to use this module are shown below.
 
-### Fingerprint of monoclinic HfO<SUB>2</SUB>
-The fingerprint of monoclinic HfO<SUB>2</SUB> can be obtained by excuting the below commands
+
+### Example 1: Fingerprint of monoclinic HfO<SUB>2</SUB> 
+
+The fingerprint of monoclinic HfO<SUB>2</SUB> can be obtained by executing the following commands. The user should select adequate Rmax, delta, and sigma, which satisfy $F_{AB}(0)=-1$ and $F_{AB}(∞)=0$.
 
 ```ruby
-from vachoppy.fingerprint import FingerPrint, CosineDistance
+import matplotlib.pyplot as plt
+from vachoppy.fingerprint import FingerPrint
 
 # path of poscar
-poscar_m = 'data/poscars_hfo2/POSCAR_mHfO2'
-poscar_t = 'data/poscars_hfo2/POSCAR_mHfO2'
+poscar = 'data/poscars_hfo2/POSCAR_mHfO2'
 
 # parameters of fingerprints
 Rmax, delta, sigma = 15, 0.01, 0.03
 
 # get fingerprint function
-fp_m_hfo = FingerPrint('Hf','O', poscar_m, Rmax, delta, sigma)
-fp_m_hfhf = FingerPrint('Hf','Hf', poscar_m, Rmax, delta, sigma)
-fp_m_oo = FingerPrint('Hf','Hf', poscar_m, Rmax, delta, sigma)
+fp_hfo = FingerPrint('Hf','O', poscar, Rmax, delta, sigma)
+fp_hfhf = FingerPrint('Hf','Hf', poscar, Rmax, delta, sigma)
+fp_oo = FingerPrint('Hf','Hf', poscar, Rmax, delta, sigma)
 
 # plot fingerprints
-x_hfo = fp_m_hfo.R
-x_hfhf = fp_m_hfhf.R + x_hfo[-1]
-x_oo = fp_m_oo.R + x_hfhf[-1]
+x_hfo = fp_hfo.R
+x_hfhf = fp_hfhf.R + x_hfo[-1]
+x_oo = fp_oo.R + x_hfhf[-1]
 
 plt.figure(figsize=(10, 4))
-plt.plot(x_hfo, fp_m_hfo.fingerprint, linewidth=2, label='Hf-O')
-plt.plot(x_hfhf, fp_m_hfhf.fingerprint, linewidth=2, label='Hf-Hf')
-plt.plot(x_oo, fp_m_oo.fingerprint, linewidth=2, label='O-O')
+plt.plot(x_hfo, fp_hfo.fingerprint, linewidth=2, label='Hf-O')
+plt.plot(x_hfhf, fp_hfhf.fingerprint, linewidth=2, label='Hf-Hf')
+plt.plot(x_oo, fp_oo.fingerprint, linewidth=2, label='O-O')
 plt.axhline(0, 0, 1, color='k', linestyle='--', linewidth=1)
 
 plt.xticks([],[])
 plt.xlabel('R (Å)', fontsize=13)
-plt.ylabel('Cosine distance', fontsize=13)
+plt.ylabel('Intensity', fontsize=13)
 
 plt.legend(fontsize=13)
 plt.show()
@@ -386,15 +389,85 @@ plt.show()
 
 <div align=center>
 <p>
-    <img src="imgs/D_cos_mono.png" width="900" height="300" /> 
+    <img src="imgs/fingerprint_mhfo2.png" width="900" height="360" /> 
 </p>
 </div>
 
 
+### Example 2: Change in cosine distance during MD simulation
+
+Below is an example of fingerprint analysis. By executing the commands, cosine distances trends of MD trajectory from monoclinic and tetragonal HfO<SUB>2</SUB> will be obtained. In this example, the MD trajectory of monolclnic HfO<SUB>2</SUB> containinig one V<SUB>O</SUB><SUP>2+</SUP> at 2200 K is used.   
 
 
+```ruby
+import numpy as np
+import matplotlib.pyplot as plt
+from tqdm.notebook import tqdm
+from vachoppy.trajectory import LatticeHopping
+from vachoppy.fingerprint import FingerPrint, CosineDistance
 
+# parameters of fingerprints
+Rmax, delta, sigma = 15, 0.01, 0.03
 
+# fingerprint of monoclinic and tetragonal HfO2
+poscar_m = 'data/poscars_hfo2/POSCAR_mHfO2'
+poscar_t = 'data/poscars_hfo2/POSCAR_tHfO2'
+
+def concatFingerPrint(poscar):
+    fp_hfo = FingerPrint('Hf', 'O', poscar, Rmax, delta, sigma).fingerprint
+    fp_hfhf = FingerPrint('Hf', 'Hf', poscar, Rmax, delta, sigma).fingerprint
+    fp_oo = FingerPrint('O', 'O', poscar, Rmax, delta, sigma).fingerprint
+    return np.concatenate((fp_hfo, fp_hfhf, fp_oo))
+
+fp_m = concatFingerPrint(poscar_m)
+fp_t = concatFingerPrint(poscar_t)
+
+# fingerprint in MD trajectory
+
+# save poscars
+poscar_perf = 'data/POSCAR_novac'
+xdatcar = 'data/XDATCAR_01'
+
+traj = LatticeHopping(poscar_perf, xdatcar, 50, 'O')
+num_step = traj.num_step
+
+for step in np.arange(num_step):
+    traj.save_poscar(step, outdir='poscars_traj')
+
+# get fingerprints 
+fp_traj = []
+for i in tqdm(range(num_step)):
+    poscar_i = f'poscars_traj/POSCAR_{i}'
+    fp_i = concatFingerPrint(poscar_i)
+    fp_traj.append(fp_i)
+
+# get cosine distance
+d_m = np.zeros(num_step)
+d_t = np.zeros(num_step)
+
+for i, fp_i in enumerate(fp_traj):
+    d_m[i] = CosineDistance(fp_m, fp_i)
+    d_t[i] = CosineDistance(fp_t, fp_i)
+
+# plot cosine distance
+x = np.arange(num_step)
+plt.figure(figsize=(10, 4))
+plt.scatter(x, d_m, s=25, label='Monoclinic')
+plt.scatter(x, d_t, s=25, label='Tetragonal')
+
+plt.xlabel("Step", fontsize=13)
+plt.ylabel('Cosine distnace', fontsize=13)
+plt.legend(fontsize=13)
+plt.show()
+```
+
+<div align=center>
+<p>
+    <img src="imgs/D_cos.png" width="900" height="360" /> 
+</p>
+</div>
+
+Note that, although the lattice was fixed to monoclnic during MD simulation (NVT ensemble was employed), the cosine distance from the monoclinic increases, while the cosine distance from tetragonal decreases in steps from 100 to 140. Indeed, when one fully relaxes the structure at step 118, corresponding to the maximum porint, a tetragonal HfO<SUB>2</SUB> will be obtained.
 
 ---
 ## Reference
