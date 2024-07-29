@@ -343,9 +343,7 @@ $$
 D_{cos} = \frac{1}{2}(1-\frac{\mathbf{F_1}⋅\mathbf{F_2}}{|\mathbf{F_1}||\mathbf{F_2}|})
 $$
 
-$D_{cos}$ has a vaule range from 0 to 1, with a smaller value indicating more similarity between two fingerprints, $\mathbf{F_1}$ and $\mathbf{F_2}$.
-
-The fingerprint and cosine distance can simply utilized using the `vachoppy.fingerprint` module. Two examples showing how to use this module are shown below.
+$D_{cos}$ has a vaule range from 0 to 1, with a smaller value indicating more similarity between two fingerprints, $\mathbf{F_1}$ and $\mathbf{F_2}$. The fingerprint and cosine distance can simply utilized using the `vachoppy.fingerprint` module. Two examples showing how to use this module are provided below.
 
 
 ### Example 1: Fingerprint of monoclinic HfO<SUB>2</SUB> 
@@ -467,7 +465,7 @@ plt.show()
 </p>
 </div>
 
-Note that, although the lattice was fixed to monoclnic during MD simulation (NVT ensemble was employed), the cosine distance from the monoclinic increases, while the cosine distance from tetragonal decreases in steps from 100 to 140. Indeed, when one fully relaxes the structure at step 118, corresponding to the maximum porint, a tetragonal HfO<SUB>2</SUB> will be obtained.
+Note that, although the lattice was fixed to monoclnic during MD simulation (NVT ensemble was employed), the cosine distance from the monoclinic increases, while the cosine distance from tetragonal decreases in steps from 100 to 140. Indeed, when one fully relaxes the structure at step 118, corresponding to the maximum porint, a tetragonal HfO<SUB>2</SUB> will be obtained. It implies that the monoclinic lattice is not maintained at the temperature of 2200 K, and the `vachoppy.trajectory` module cannot be applied to the transition steps. 
 
 ---
 ## Reference
