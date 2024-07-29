@@ -400,7 +400,7 @@ Below is an example of fingerprint analysis. By executing the commands, cosine d
 ```ruby
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 from vachoppy.trajectory import LatticeHopping
 from vachoppy.fingerprint import FingerPrint, CosineDistance
 
