@@ -667,3 +667,178 @@ class getDiffusivity:
             for t, D in zip(self.temp, self.diffcoeffs_z):
                 f.write(f"{t}\t{D}\n")
             f.write("\n")
+
+class CompareNEB:
+    def __init__(self):
+        self.kb = 8.617332478e-5 # eV/K
+
+        # data from Einstein relation
+        self.D_ER = []
+
+        # site information
+        self.site = []
+        self.site_name = []
+        self.site_E = []
+
+    def addEinstein(self, temp, D):
+        if len(temp) != len(D):
+            print("length of temp and D should be the same.")
+            sys.exit(0)
+        
+        for t, d in zip(temp, D):
+            dic_D = {}
+            dic_D['T'] = t
+            dic_D['D'] = d
+
+            self.D_ER.append(dic_D)
+
+    def printEinstein(self):
+        D_ER_sorted = sorted(self.D_ER,
+                             key=lambda x:list(x.values()))
+        
+        print("T(K)\tD(m2/s)")
+        for dic_D in D_ER_sorted:
+            print("%d"%dic_D['T'], end='\t')
+            print("%.2e"%dic_D['D'])
+
+    def addSite(self, site, E):
+        if len(site) != len(E):
+            print("length of site and E should be the same.")
+            sys.exit(0)
+        
+        for name, energy in zip(site, E):
+            if name in self.site_name:
+                print(f"{name} already exsits.")
+                sys.exit(0)
+            dic_site = {}
+            dic_site['name'] = name
+            dic_site['E'] = energy
+            dic_site['d'] = []
+            dic_site['Ea'] = []
+            dic_site['z'] = []
+
+            self.site_name.append(name)
+            self.site_E.append(energy)
+            self.site.append(dic_site)
+
+    def addPath(self, init_site, distance, Ea, z):
+        num_path = len(init_site)
+
+        for i in range(num_path):
+            if not init_site[i] in self.site_name:
+                print(f"{init_site[i]} is not defined.")
+                sys.exit(0)
+            else:
+                idx = self.site_name.index(init_site[i])
+            
+            self.site[idx]['d'].append(distance[i])
+            self.site[idx]['Ea'].append(Ea[i])
+            self.site[idx]['z'].append(z[i])
+    
+    def printPath(self):
+        print("site\td(Å)\tEa(eV)\tE(eV)\tz")
+        for dic_site in self.site:
+            num_path = len(dic_site['d'])
+
+            for i in range(num_path):
+                print(f"{dic_site['name']}", end='\t')
+                print("%.3f"%dic_site['d'][i], end='\t')
+                print("%.2f"%dic_site['Ea'][i], end='\t')
+                print("%.2f"%dic_site['E'], end='\t')
+                print("%d"%dic_site['z'][i], end='\n')
+
+    def getD_NEB(self, T, f=1e13):
+        T = np.array(T, dtype=float)
+        E = np.array(self.site_E, dtype=float).reshape(-1, 1)
+        
+        prob = np.exp(-E/(self.kb*T))
+        partition = np.sum(prob, axis=0)
+        prob /= partition
+
+        D_site = np.zeros((len(self.site), len(T)))
+        for i, dic_site in enumerate(self.site):
+            num_path = len(dic_site['d'])
+            D_i = 0
+            for j in range(num_path):
+                a = dic_site['d'][j] * 1e-10
+                z = dic_site['z'][j]
+                D_i += (1/6)*z*a**2*f * np.exp(-dic_site['Ea'][j]/(self.kb*T))
+            D_site[i] = D_i
+
+        return np.sum(prob * D_site, axis=0)
+    
+    def plotNEB(self, T, f=1e13, label=None):
+        T = np.array(T)
+        D_NEB = self.getD_NEB(T, f)
+        plt.plot(1/T, np.log(D_NEB), 'k:', label=label)
+
+    def plotER(self):
+        # plot D from ER
+        T_ER = np.array([dic['T'] for dic in self.D_ER])
+        D_ER = np.array([dic['D'] for dic in self.D_ER])
+        plt.scatter(1/T_ER, np.log(D_ER), 
+                    facecolor='None', edgecolor='r', s=50, linewidth=1.5, 
+                    label='Einstein')
+        
+        # x ticks for ER
+        if len(T_ER) >= 3:
+            ticks_idx = np.array([0, len(T_ER)/2, len(T_ER)-1], dtype=int)
+            T_ticks = T_ER[ticks_idx]
+            ticks = [f"1/{temp}" for temp in T_ticks]
+            plt.xticks(1/T_ticks, ticks)
+        else:
+            ticks = [f"1/{temp}" for temp in T_ER]
+            plt.xticks(1/T_ER, ticks)
+        
+    def plotArrhenius(self,
+                      T,
+                      f=[],
+                      save=True,
+                      outfig='Arrhenius.png',
+                      dpi=300,
+                      fmin=1e12,
+                      fmax=1e14,
+                      step=10000):
+        # plot NEB
+        label_NEB = None
+        if len(f) == 0:
+            f = [self.getFrequency(fmin, fmax, step)]
+            label_NEB = "NEB " + "(" + "%.2e"%f[0] + " Hz)"
+
+        if label_NEB is None:
+            label_NEB = "NEB"
+
+        for freq in f:
+            self.plotNEB(T, freq, label=label_NEB)
+            label_NEB = None
+        
+        # plot ER
+        self.plotER()
+
+        plt.xlabel('1/T (1/K)', fontsize=12)
+        plt.ylabel('ln D', fontsize=12)
+        plt.legend(fontsize=10.5)
+
+        if save:
+            plt.savefig(outfig, dpi=dpi)
+        plt.show()
+
+    def getFrequency(self,
+                     fmin=1e12,
+                     fmax=1e14,
+                     step=10000):
+        
+        freq = np.linspace(fmin, fmax, step)
+        T_ER = np.array([dic['T'] for dic in self.D_ER])
+        D_ER = np.array([dic['D'] for dic in self.D_ER])
+
+        err_min = np.inf
+        f_opt = None
+        for f in freq:
+            D_NEB = self.getD_NEB(T_ER, f)
+            err = np.sum((D_NEB - D_ER)**2)
+            if err < err_min:
+                err_min = err
+                f_opt = f
+                
+        return f_opt
