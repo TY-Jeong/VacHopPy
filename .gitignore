@@ -233,3 +233,5 @@ poscars_traj/
 example/1.LatticeHopping/data/
 
 mid_acc/
+
+example/4.InputGen/
