@@ -61,7 +61,7 @@ class LatticeHopping:
         # color map for arrows
         # self.cmap = ['b', 'g', 'r', 'gray', 'm', 
         #              'darkorange', 'c', 'indigo', 'brown']
-        self.cmap = ['b', 'c', 'g', 'deeppink', 'darkorange', 
+        self.cmap = ['c', 'deeppink', 'g', 'b', 'darkorange', 
                      'sienna', 'darkkhaki', 'lawngreen', 'grey', 'wheat', 
                      'navy', 'slateblue', 'purple', 'pink']
         
