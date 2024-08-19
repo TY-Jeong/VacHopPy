@@ -85,7 +85,7 @@ class EinsteinRelation:
 
         self.potim, self.nblock, lm = 0, 0, 0
         for num, line in enumerate(lines_outcar):
-            if 'POTIM' in line:
+            if 'POTIM ' in line:
                 self.potim = float(line.split()[2])
             if 'NBLOCK' in line:
                 self.nblock = int(line.split()[2].replace(';',''))
