@@ -1,10 +1,11 @@
 import os
 import sys
-import copy        
+import copy   
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 from tqdm import tqdm
+from vachoppy import einstein
 # For Arrow3D
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import FancyArrowPatch
@@ -31,23 +32,117 @@ class Arrow3D(FancyArrowPatch):
         xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
         return np.min(zs)
+    
+class Lattice:
+    def __init__(self,
+                 poscar_perf,
+                 symbol='O'):
+        """
+        this class contains information on hopping paths and lattice points
+        """
+        
+        self.path_poscar = poscar_perf
+        self.symbol = symbol
+
+        # information on lattice points
+        self.lattice = None
+        self.lat_points = []
+        self.read_poscar()
+
+        # information on hopping path
+        self.path = []
+        self.path_names = []
+        self.site_names = []
+
+    def read_poscar(self):
+        with open(self.path_poscar, 'r') as f:
+            lines = np.array([line.strip() for line in f])
+
+        # lattice
+        scale = float(lines[1])
+        self.lattice = np.array([line.split() for line in lines[2:5]], dtype=float)
+        self.lattice *= scale
+
+        # atom species
+        atom_species = np.array(lines[5].split())
+        num_atoms = np.array(lines[6].split(), dtype=int)
+        idx = np.where(atom_species == self.symbol)[0][0]
+        coords= lines[num_atoms[:idx].sum()+8:num_atoms[:idx+1].sum()+8]
+
+        # lattice points
+        for coord in coords:
+            dic_lat = {}
+            dic_lat['site'] = 'Nan'
+            dic_lat['coord'] = np.array(coord.split()[:3], dtype=float)
+            dic_lat['coord_C'] = np.dot(dic_lat['coord'], self.lattice)
+            self.lat_points.append(dic_lat)
+
+    def addPath(self,
+                name,
+                site_init,
+                site_final,
+                d,
+                Ea,
+                dE='Nan'):
+        
+        if name in self.path_names:
+            print(f"{name} already exsits.")
+            sys.exit(0)
+        
+        dic_path = {}
+        dic_path['name'] = name
+        dic_path['site_init'] = site_init
+        dic_path['site_final'] = site_final
+        dic_path['distance'] = d
+        dic_path['Ea'] = Ea
+        dic_path['dE'] = dE
+        
+        self.path.append(dic_path)
+        self.path_names.append(name)
+
+        if not site_init in self.site_names:
+            self.site_names += [site_init]
+        
+        if not site_final in self.site_names:
+            self.site_names += [site_final]
+    
+    def printPath(self):
+        """
+        paths sorted by names
+        """
+        path_sorted = sorted(self.path,
+                             key=lambda x:list(x.values()))
+
+        print("name\tinit\tfinal\td (Å)\tEa (eV)\tdE (eV)")
+        for path in path_sorted:
+            print(f"{path['name']}", end='\t')
+            print(f"{path['site_init']}", end='\t')
+            print(f"{path['site_final']}", end='\t')
+            print("%.3f"%path['distance'], end='\t')
+            print("%.2f"%path['Ea'], end='\t')
+            if path['dE'] == 'Nan':
+                print(f"{path['dE']}", end='\n')
+            else:
+                print("%.2f"%path['dE'], end='\n')
+
+    def printLatticePoints(self):
+        print("site\tcoord(direct)\tcoord(cartesian)")
+        for lat_p in self.lat_points:
+            print(lat_p['site'], end='\t')
+            print(f"{lat_p['coord']}", end='\t')
+            print(f"{lat_p['coord_C']}", end='\n')
+
 
 class LatticeHopping:
     def __init__(self,
-                 poscar_perf,
                  xdatcar,
-                 interval=50,
-                 target='O'):
+                 lattice,
+                 interval=1):
         """
-        poscar_perf: (str) path for perfect POSCAR.
         xdatcar: (str) path for XDATCAR.
+        lattice: trajectory.Lattice class
         interval: (int) step interval to be used in averaging.
         """
-        if os.path.isfile(poscar_perf):
-            self.poscar_perf = poscar_perf
-        else:
-            print(f"'{poscar_perf}' is not found.")
-            sys.exit(0)
 
         if os.path.isfile(xdatcar):
             self.xdatcar = xdatcar
@@ -56,11 +151,9 @@ class LatticeHopping:
             sys.exit(0)
         
         self.interval = interval
-        self.target = target
+        self.target = lattice.symbol
 
         # color map for arrows
-        # self.cmap = ['b', 'g', 'r', 'gray', 'm', 
-        #              'darkorange', 'c', 'indigo', 'brown']
         self.cmap = ['b', 'c', 'g', 'deeppink', 'darkorange', 
                      'sienna', 'darkkhaki', 'lawngreen', 'grey', 'wheat', 
                      'navy', 'slateblue', 'purple', 'pink']
@@ -76,10 +169,15 @@ class LatticeHopping:
         self.idx_target = None
         self.read_xdatcar()
 
-        self.num_lat_points = None # number of lattice points of target.
-        self.lat_points = None # direct coordination of lattice points
-        self.lat_points_C = None # cartesian coordination of lattice points
-        self.read_poscar()
+        self.lat_points = [] # direct coordination of lattice points
+        self.lat_points_C = [] # cartesian coordination of lattice points
+        for lat_p in lattice.lat_points:
+            self.lat_points.append(lat_p['coord'])
+            self.lat_points_C.append(lat_p['coord_C'])
+
+        self.lat_points = np.array(self.lat_points)
+        self.lat_points_C = np.array(self.lat_points_C)
+        self.num_lat_points = len(self.lat_points) # number of lattice points of target.
 
         self.traj_on_lat_C = None # trajectory projected on lattice point
         self.occ_lat_point = None # occupying lattice point of each atom
@@ -156,22 +254,6 @@ class LatticeHopping:
             atom['traj'] = traj # dim: (atom['num'], num_step, 3)
             atom['traj_C'] = traj_C # dim: (atom['num'], num_step, 3)
             self.position += [atom]
-
-    def read_poscar(self):
-        # read poscar_perf file
-        with open(self.poscar_perf, 'r') as f:
-            lines = np.array([line.strip() for line in f])
-        atom_species = np.array(lines[5].split())
-        num_atoms = np.array(lines[6].split(), dtype=int)
-
-        # get index of target atom
-        idx = np.where(atom_species == self.target)[0][0]
-        self.num_lat_points = num_atoms[idx]
-        coords= lines[num_atoms[:idx].sum()+8:num_atoms[:idx+1].sum()+8]
-
-        # save coordination of lattice points
-        self.lat_points = np.array([line.split()[:3] for line in coords],dtype=float)
-        self.lat_points_C = np.dot(self.lat_points, self.lattice)
 
     def distance_pbc(self, coord1, coord2):
         """
@@ -710,11 +792,12 @@ class LatticeHopping:
                 print("there are multiple candidates.")       
                 print(f"find the vacancy site for your self. (step: {step})")
                 break
-
+            
 
 class Analyzer:
     def __init__(self,
-                 traj=None):
+                 traj,
+                 lattice):
         """
         module to analyze trajectory.
         this module search diffusion paths in MD trajectory.
@@ -725,88 +808,32 @@ class Analyzer:
         
         self.tolerance = 0.001
         
-        # list of dictionary containing NEB results
-        self.path = []
-        self.path_names = []
-        self.site_names = []
+        # check whether hopping paths are defined
+        if len(lattice.path) == 0:
+            print("information on hopping path does not exist.")
+            sys.exit(0)
+        self.path = lattice.path
+        self.path_names = lattice.path_names
+        self.site_names = lattice.site_names
+
+        # check whether lattice points are defined
+        for lat_p in lattice.lat_points:
+            if lat_p['site'] == 'Nan':
+                print("some lattice points are not defined")
+                print(f"coord: {lat_p['coord']}")
+                sys.exit(0)
+        self.lat_points = lattice.lat_points
         
         self.path_unknown = {}
         self.path_unknown['name'] = 'unknown'
-        
-        self.lat_points = []
-        self.lattice_points()
-        
         self.path_vac = None # path of vacancy
-        
-    def add_path(self,
-                 path_name,
-                 site_init,
-                 site_final,
-                 distance,
-                 Ea,
-                 dE='Nan'):
-        """
-        site_init : (str) name of initial site. (ex. cn3)
-        site_final: (str) name of final site. (ex. cn4)
-        distance: (float) distance between initial and final site.
-        Ea: (float) activatoin barrier in unit of eV.
-        dE: (float) energy gain in unit of eV.
-        """ 
-        if path_name in self.path_names:
-            print(f"{path_name} already exsits.")
             
-        else:
-            dic_path = {}
-            dic_path['name'] = path_name
-            dic_path['site_init'] = site_init
-            dic_path['site_final'] = site_final
-            dic_path['distance'] = distance
-            dic_path['Ea'] = Ea
-            dic_path['dE'] = dE
-            
-            self.path += [dic_path]
-            self.path_names += [path_name]
-        
-        if not site_init in self.site_names:
-            self.site_names += [site_init]
-        
-        if not site_final in self.site_names:
-            self.site_names += [site_final]
-            
-    def print_path(self):
-        path_sorted = sorted(self.path,
-                             key=lambda x:list(x.values()))
-
-        print("name\tinit\tfinal\td (Å)\tEa (eV)\tdE (eV)")
-        for path in path_sorted:
-            print(f"{path['name']}", end='\t')
-            print(f"{path['site_init']}", end='\t')
-            print(f"{path['site_final']}", end='\t')
-            print("%.3f"%path['distance'], end='\t')
-            print("%.2f"%path['Ea'], end='\t')
-            if path['dE'] == 'Nan':
-                print(f"{path['dE']}", end='\n')
-            else:
-                print("%.2f"%path['dE'], end='\n')
-            
-    def lattice_points(self):
-        """
-        'site' should be defined by user manually.
-        """
-        for coord in self.traj.lat_points:
-            dic_lat_point = {}
-            dic_lat_point['coord'] = coord
-            dic_lat_point['site'] = None
-
-            self.lat_points += [dic_lat_point]
-            
-    def search_path_vac(self):
+    def search_path_vac(self, verbose=True):
         step_unknown = []
         self.path_vac = []
         idx = 0 # index in self.path_vac
         
         for step in range(self.traj.num_step-1):
-            count = step
             coord_init = self.lat_points[self.traj.idx_vac[step][0]]['coord']
             coord_final = self.lat_points[self.traj.idx_vac[step+1][0]]['coord']
             
@@ -825,9 +852,8 @@ class Analyzer:
                 self.path_vac += [copy.deepcopy(path)]
                 idx += 1
                 
-        if len(step_unknown) > 0:
+        if len(step_unknown) > 0 and verbose:
             print(f"unknown steps are detected.: {step_unknown}")
-        
         
     def get_path(self,
                  site_init,
@@ -1050,12 +1076,11 @@ class Analyzer:
             print("no unknown path exist.")
         
         else:
-            print("unknown path exist.")
-            print("step:", end=' ')
+            print("unknown path exist.", end=' ')
+            print("( step:", end=' ')
             for p in check_unknown:
                 print(p['step'], end=' ')
-            print("")
-        
+            print(")")
         
     def print_summary(self,
                       figure='counts.png',
@@ -1092,4 +1117,168 @@ class Analyzer:
                               bar_color=bar_color,
                               dpi=dpi,
                               sort=sort)
+            
+
+class CorrelationFactor:
+    def __init__(self,
+                 lattice,
+                 fraction,
+                 xdatcar,
+                 label='auto',
+                 interval=1):
         
+        self.lattice = lattice
+        self.xdatcar = xdatcar
+        self.fraction = fraction
+        self.interval = interval
+        self.label = self.getLabel() if label=='auto' else label
+        
+        # lattice information
+        self.symbol = lattice.symbol
+        self.path = lattice.path
+
+        # unknown path
+        self.path_unknown = {}
+        self.path_unknown['name'] = 'unknown'
+        self.path_unknown['counts'] = 0
+
+        # encounter MSD
+        print("Calculating encounter MSD...")
+        msd_enc = self.encounterMSD()
+
+        # random walk MSD
+        print("\nCalculating random walk MSD...")
+        msd_random = self.randomMSD()
+
+        # correlation factor
+        self.f = msd_enc / msd_random
+        print("correlation factor = %.3f"%(self.f))
+
+    def getLabel(self):
+        label = []
+        for filename in os.listdir(self.xdatcar):
+                if len(filename.split('_')) == 2:
+                    first, second = filename.split('_')
+                    if first == 'XDATCAR':
+                        label.append(second)
+        label.sort()
+        return label
+
+    def encounterMSD(self):
+        ensembleEin = einstein.EnsembleEinstein(symbol=self.symbol,
+                                                prefix=self.xdatcar,
+                                                labels=self.label,
+                                                segments=1,
+                                                skip=0,
+                                                start=None)
+        return ensembleEin.msd[-1] / self.fraction
+    
+    def makeAnalyzer(self, label):
+        path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
+
+        traj = LatticeHopping(lattice=self.lattice,
+                              xdatcar=path_xdatcar,
+                              interval=self.interval)
+        traj.check_connectivity()
+        traj.check_unique_vac()
+
+        analyzer = Analyzer(traj=traj,
+                            lattice=self.lattice)
+        analyzer.search_path_vac(verbose=False)
+        analyzer.unwrap_path()
+        return analyzer
+    
+    def randomMSD(self):
+        # path of vacancy
+        path_vac = []
+        for l in tqdm(self.label,
+                      bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
+                      ascii=True,
+                      desc=f'{RED}randomMSD{RESET}'):
+            print(l)
+            analyzer = self.makeAnalyzer(label=l)
+            for p_vac in analyzer.path_vac:
+                print(p_vac['name'], end=' ')
+                path_vac.append(p_vac['name'])
+            print('\n')
+
+        msd_random = 0
+        self.path_unknown['counts'] = path_vac.count(self.path_unknown['name'])
+        for p in self.path:
+            p['counts'] = path_vac.count(p['name'])
+            msd_random += p['counts'] * p['distance']**2
+        msd_random /= len(self.label)
+        return msd_random
+    
+    def plotCounts(self,
+                   title='',
+                   save=True,
+                   outfile='counts.png',
+                   dpi=300):
+        
+        name, Ea, counts = [], [], []
+        for p in self.path:
+            name.append(p['name'])
+            Ea.append(p['Ea'])
+            counts.append(p['counts'])
+        
+        # unknown path
+        name.append('U')
+        Ea.append(np.inf)
+        counts.append(self.path_unknown['counts'])
+
+        num_path = len(name)
+        Ea, counts = np.array(Ea), np.array(counts)
+        
+        # sort by activation energy
+        idx_sort = Ea.argsort()
+        counts_sort = counts[idx_sort]
+        name_sort = []
+        for idx in idx_sort:
+            name_sort.append(name[idx])
+
+        # plot counts
+        x = np.arange(num_path)
+        plt.bar(x, counts_sort)
+        plt.xticks(x, name_sort)
+        plt.ylabel('Counts')
+        plt.title(title + f" (total counts: {np.sum(counts)})")
+        if save:
+            plt.savefig(outfile, dpi=dpi)
+        plt.show()
+
+    def printCounts(self):
+        name, Ea, counts = [], [], []
+        for p in self.path:
+            name.append(p['name'])
+            Ea.append(p['Ea'])
+            counts.append(p['counts'])
+        
+        # unknown path
+        name.append('U')
+        Ea.append(np.inf)
+        counts.append(self.path_unknown['counts'])
+        Ea, counts = np.array(Ea), np.array(counts)
+        
+        # sort by activation energy
+        idx_sort = Ea.argsort()
+        counts_sort = counts[idx_sort]
+        name_sort = []
+        for idx in idx_sort:
+            name_sort.append(name[idx])
+        
+        print(f"total counts : {np.sum(counts)}")
+        for n, c in zip(name_sort, counts_sort):
+            print(f"{n}({c})", end=' ')
+
+
+
+
+        
+
+
+
+                
+    
+
+
