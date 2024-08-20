@@ -1212,6 +1212,7 @@ class CorrelationFactor:
     
     def plotCounts(self,
                    title='',
+                   disp=True,
                    save=True,
                    outfile='counts.png',
                    dpi=300):
@@ -1245,7 +1246,8 @@ class CorrelationFactor:
         plt.title(title + f" (total counts: {np.sum(counts)})")
         if save:
             plt.savefig(outfile, dpi=dpi)
-        plt.show()
+        if disp:
+            plt.show()
 
     def printCounts(self):
         name, Ea, counts = [], [], []
