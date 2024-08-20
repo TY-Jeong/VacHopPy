@@ -1143,16 +1143,16 @@ class CorrelationFactor:
         self.path_unknown['counts'] = 0
 
         # encounter MSD
-        print("Calculating encounter MSD...")
+        # print("Calculating encounter MSD...")
         msd_enc = self.encounterMSD()
 
         # random walk MSD
-        print("\nCalculating random walk MSD...")
+        # print("\nCalculating random walk MSD...")
         msd_random = self.randomMSD()
 
         # correlation factor
         self.f = msd_enc / msd_random
-        print("correlation factor = %.3f"%(self.f))
+        print("correlation factor = %.2f"%(self.f))
 
     def getLabel(self):
         label = []
@@ -1194,7 +1194,7 @@ class CorrelationFactor:
         for l in tqdm(self.label,
                       bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
                       ascii=True,
-                      desc=f'{RED}randomMSD{RESET}'):
+                      desc=f'{RED}MSD_rand_walk{RESET}'):
             print(l)
             analyzer = self.makeAnalyzer(label=l)
             for p_vac in analyzer.path_vac:
