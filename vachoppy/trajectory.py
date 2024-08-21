@@ -801,7 +801,6 @@ class Analyzer:
         """
         module to analyze trajectory.
         this module search diffusion paths in MD trajectory.
-        the user need to calcualte NEB in advance.
         """
         self.traj = traj
         self.traj_backup = traj
@@ -810,7 +809,7 @@ class Analyzer:
         
         # check whether hopping paths are defined
         if len(lattice.path) == 0:
-            print("information on hopping path does not exist.")
+            print("hopping paths are not defined.")
             sys.exit(0)
         self.path = lattice.path
         self.path_names = lattice.path_names
@@ -827,6 +826,8 @@ class Analyzer:
         self.path_unknown = {}
         self.path_unknown['name'] = 'unknown'
         self.path_vac = None # path of vacancy
+
+        self.idx_vac = self.traj.idx_vac # (dic) index of vacancy
             
     def search_path_vac(self, verbose=True):
         step_unknown = []
@@ -1018,6 +1019,9 @@ class Analyzer:
         
         path = self.path_tracer(arrows, vac_now, vac_pre)
         path = np.array(path, dtype=int)
+
+        # update index of lattice points occupied by vacancy
+        self.idx_vac[step] = path[-2::-1]
         
         return path
     
@@ -1094,9 +1098,6 @@ class Analyzer:
                       sort=True):
         
         counts_tot = len(self.path_vac)
-        print(f"xdatcar file : {self.traj.xdatcar}")
-        print(f"poscar_per file: {self.traj.poscar_perf}\n")
-        
         print(f"total counts : {counts_tot}")
         print(f"hopping sequence :" )
         
@@ -1117,15 +1118,191 @@ class Analyzer:
                               bar_color=bar_color,
                               dpi=dpi,
                               sort=sort)
-            
 
 class CorrelationFactor:
+    def __init__(self, 
+                 lattice,
+                 xdatcar,
+                 label='auto',
+                 interval=1):
+        """
+        encounter MSD is calculated using projected vacancy path
+        """
+        # save arguments
+        self.lattice = lattice
+        self.xdatcar = xdatcar
+        self.interval = interval
+        self.label = self.getLabel() if label=='auto' else label
+        
+        # lattice information
+        self.symbol = lattice.symbol
+        self.path = lattice.path
+        for p in self.path:
+            p['counts'] = 0
+        
+        # unknown path
+        self.path_unknown = {}
+        self.path_unknown['name'] = 'unknown'
+        self.path_unknown['counts'] = 0
+
+        # correlation factor of each ensemble 
+        self.f_ensemble = []
+        self.getCorrelationFactor()
+        self.f_ensemble = np.array(self.f_ensemble)
+
+        # correlation factor
+        self.f_cor = np.average(self.f_ensemble)
+        print(f"correlation factor = {self.f_cor}")
+
+
+    def getLabel(self):
+        label = []
+        for filename in os.listdir(self.xdatcar):
+                if len(filename.split('_')) == 2:
+                    first, second = filename.split('_')
+                    if first == 'XDATCAR':
+                        label.append(second)
+        label.sort()
+        return label
+
+    def encounterMSD(self, analyzer):
+        path_vac_idx = []  
+        for i in range(analyzer.traj.num_step):
+            path_vac_idx += list(analyzer.idx_vac[i])
+
+        coord_vac = [analyzer.traj.lat_points[idx] for idx in path_vac_idx]
+        coord_vac = np.array(coord_vac)
+        
+        displacement = np.zeros_like(coord_vac)
+        displacement[1:,:] = np.diff(coord_vac, axis=0)
+
+        displacement[displacement > 0.5] -= 1.0
+        displacement[displacement < -0.5] += 1.0
+        
+        # self.check_displacement = displacement
+        displacement = np.sum(displacement, axis=0)
+
+        lattice = analyzer.traj.lattice
+        return np.sum(np.dot(displacement, lattice)**2)
+    
+    def randomwalkMSD(self, analyzer):
+        path_vac = []
+        for p_vac in analyzer.path_vac:
+            print(p_vac['name'], end=' ')
+            path_vac.append(p_vac['name'])
+        print('')
+        
+        msd_rand = 0
+        for p in self.path:
+            num_p = path_vac.count(p['name'])
+            p['counts'] += num_p
+            msd_rand += num_p * p['distance']**2
+        self.path_unknown['counts'] += path_vac.count(self.path_unknown['name'])
+        return msd_rand
+    
+    def makeAnalyzer(self, label):
+        path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
+        traj = LatticeHopping(lattice=self.lattice,
+                              xdatcar=path_xdatcar,
+                              interval=self.interval)
+        traj.check_connectivity()
+        traj.check_unique_vac()
+
+        analyzer = Analyzer(traj=traj,
+                            lattice=self.lattice)
+        analyzer.search_path_vac(verbose=False)
+        analyzer.unwrap_path()
+        return analyzer
+    
+    def getCorrelationFactor(self):
+        for label in tqdm(self.label,
+                          bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
+                          ascii=True,
+                          desc=f'{RED}f_cor{RESET}'):
+            print(label)
+            analyzer = self.makeAnalyzer(label)
+            
+            msd_enc = self.encounterMSD(analyzer)
+            msd_rand = self.randomwalkMSD(analyzer)
+
+            self.f_ensemble.append(msd_enc/msd_rand)
+            print(msd_enc/msd_rand)
+            print('')
+    
+    def plotCounts(self,
+                   title='',
+                   disp=True,
+                   save=True,
+                   outfile='counts.png',
+                   dpi=300):
+        
+        name, Ea, counts = [], [], []
+        for p in self.path:
+            name.append(p['name'])
+            Ea.append(p['Ea'])
+            counts.append(p['counts'])
+        
+        # unknown path
+        name.append('U')
+        Ea.append(np.inf)
+        counts.append(self.path_unknown['counts'])
+
+        num_path = len(name)
+        Ea, counts = np.array(Ea), np.array(counts)
+        
+        # sort by activation energy
+        idx_sort = Ea.argsort()
+        counts_sort = counts[idx_sort]
+        name_sort = []
+        for idx in idx_sort:
+            name_sort.append(name[idx])
+
+        # plot counts
+        x = np.arange(num_path)
+        plt.bar(x, counts_sort)
+        plt.xticks(x, name_sort)
+        plt.ylabel('Counts')
+        plt.title(title + f" (total counts: {np.sum(counts)})")
+        if save:
+            plt.savefig(outfile, dpi=dpi)
+        if disp:
+            plt.show()
+
+    def printCounts(self):
+        name, Ea, counts = [], [], []
+        for p in self.path:
+            name.append(p['name'])
+            Ea.append(p['Ea'])
+            counts.append(p['counts'])
+        
+        # unknown path
+        name.append('U')
+        Ea.append(np.inf)
+        counts.append(self.path_unknown['counts'])
+        Ea, counts = np.array(Ea), np.array(counts)
+        
+        # sort by activation energy
+        idx_sort = Ea.argsort()
+        counts_sort = counts[idx_sort]
+        name_sort = []
+        for idx in idx_sort:
+            name_sort.append(name[idx])
+        
+        print(f"total counts : {np.sum(counts)}")
+        for n, c in zip(name_sort, counts_sort):
+            print(f"{n}({c})", end=' ')
+
+
+class CorrelationFactor_legacy:
     def __init__(self,
                  lattice,
                  fraction,
                  xdatcar,
                  label='auto',
                  interval=1):
+        """
+        encounter MSD is calculated by Einstein relation
+        """
         
         self.lattice = lattice
         self.xdatcar = xdatcar
