@@ -1145,6 +1145,9 @@ class CorrelationFactor:
         self.path_unknown['name'] = 'unknown'
         self.path_unknown['counts'] = 0
 
+        # (test)
+        self.cum_displacement = 0
+        
         # correlation factor of each ensemble 
         self.f_ensemble = []
         self.getCorrelationFactor()
@@ -1153,6 +1156,13 @@ class CorrelationFactor:
         # correlation factor
         self.f_cor = np.average(self.f_ensemble)
         print(f"correlation factor = {self.f_cor}")
+
+        # cumulative displacement (test)
+        msd_enc = np.sum(np.dot(self.cum_displacement, lattice.lattice)**2)
+        msd_rand = 0
+        for p in self.path:
+            msd_rand += p['counts'] * p['distance']**2
+        self.f_cum = msd_enc / msd_rand
 
 
     def getLabel(self):
@@ -1179,8 +1189,8 @@ class CorrelationFactor:
         displacement[displacement > 0.5] -= 1.0
         displacement[displacement < -0.5] += 1.0
         
-        # self.check_displacement = displacement
         displacement = np.sum(displacement, axis=0)
+        self.cum_displacement += displacement # (test)
 
         lattice = analyzer.traj.lattice
         return np.sum(np.dot(displacement, lattice)**2)
