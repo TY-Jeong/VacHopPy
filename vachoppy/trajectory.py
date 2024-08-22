@@ -468,7 +468,7 @@ class LatticeHopping:
             num_target = self.num_atoms[self.idx_target]
             index = np.arange(num_target)
         
-        if step == 'all':
+        if str(step) == 'all':
             step = np.arange(self.num_step)
         
         files = []
