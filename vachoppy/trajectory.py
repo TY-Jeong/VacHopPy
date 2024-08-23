@@ -1339,7 +1339,7 @@ class CorrelationFactor_legacy:
 
         # correlation factor
         self.f = msd_enc / msd_random
-        print("correlation factor = %.2f"%(self.f))
+        print(f"correlation factor = {self.f}")
 
     def getLabel(self):
         label = []
