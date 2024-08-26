@@ -93,7 +93,7 @@ class getMDresult:
         
         # copy XDATCAR files
         if os.path.isdir(self.outdir):
-            os.mkdir(self.outdir)
+            os.makedirs(self.outdir)
             
         check_temp = []   
         for path in self.foldername:
