@@ -1124,7 +1124,8 @@ class CorrelationFactor:
                  lattice,
                  xdatcar,
                  label='auto',
-                 interval=1):
+                 interval=1,
+                 verbose=True):
         """
         encounter MSD is calculated using projected vacancy path
         """
@@ -1133,6 +1134,7 @@ class CorrelationFactor:
         self.xdatcar = xdatcar
         self.interval = interval
         self.label = self.getLabel() if label=='auto' else label
+        self.verbose = verbose
         
         # lattice information
         self.symbol = lattice.symbol
@@ -1154,16 +1156,11 @@ class CorrelationFactor:
         self.f_ensemble = np.array(self.f_ensemble)
 
         # correlation factor
-        self.f_cor = np.average(self.f_ensemble)
-        print(f"correlation factor = {self.f_cor}")
-
-        # cumulative displacement (test)
-        msd_enc = np.sum(np.dot(self.cum_displacement, lattice.lattice)**2)
-        msd_rand = 0
-        for p in self.path:
-            msd_rand += p['counts'] * p['distance']**2
-        self.f_cum = msd_enc / msd_rand
-
+        self.f_cor = self.f_ensemble[~np.isnan(self.f_ensemble)]
+        self.f_cor = np.average(self.f_cor)
+        
+        if self.verbose:
+            self.print_fcor()
 
     def getLabel(self):
         label = []
@@ -1235,8 +1232,13 @@ class CorrelationFactor:
             msd_enc = self.encounterMSD(analyzer)
             msd_rand = self.randomwalkMSD(analyzer)
 
-            self.f_ensemble.append(msd_enc/msd_rand)
-            print(msd_enc/msd_rand)
+            if msd_rand > 1e-5:
+                f_label = msd_enc/msd_rand
+                self.f_ensemble.append(f_label)
+                print(f"f_cor = {f_label}")
+            else:
+                self.f_ensemble.append(np.NaN)
+                print("no hopping detected.")
             print('')
     
     def plotCounts(self,
@@ -1298,9 +1300,16 @@ class CorrelationFactor:
         for idx in idx_sort:
             name_sort.append(name[idx])
         
-        print(f"total counts : {np.sum(counts)}")
+        print(f"total counts : {np.sum(counts)} ")
         for n, c in zip(name_sort, counts_sort):
             print(f"{n}({c})", end=' ')
+
+    def print_fcor(self):
+        print("label\tf_cor")
+        for label, f in zip(self.label, self.f_ensemble):
+            print(f"{label}\t{f}")
+        print('')
+        print(f"averaged f_cor = {self.f_cor}")
 
 
 class CorrelationFactor_legacy:
