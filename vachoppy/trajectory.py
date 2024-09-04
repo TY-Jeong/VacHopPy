@@ -32,7 +32,45 @@ class Arrow3D(FancyArrowPatch):
         xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
         return np.min(zs)
+
+# extract force data from vasprun.xml
+def extractForce(vasprun, 
+                 out_file='force.dat'):
+    # read vasprun.xml
+    with open(vasprun, 'r') as f:
+        lines = [line.strip() for line in f]
     
+    # system info
+    nsw, num_atoms = None, None
+    for line in lines:
+        if 'NSW' in line:
+            nsw = int(line.split()[-1].split('<')[0])
+        if '<atoms>' in line:
+            num_atoms = int(line.split()[1])
+        if nsw and num_atoms:
+            break
+    
+    # save forces
+    step = 0
+    forces = np.zeros((nsw, num_atoms, 3))
+    for i, line in enumerate(lines):
+        if 'forces' in line:
+            force = [list(map(float, s.split()[1:4])) for s in lines[i+1:i+1+num_atoms]]
+            force = np.array(force)
+            forces[step] = force
+            step += 1
+
+    # write out_file
+    with open(out_file, 'w') as f:
+        for i, force in enumerate(forces, start=1):
+            f.write(f"Iteration {i}\n")
+            for fx, fy, fz in force:
+                fx = str(fx).rjust(12)
+                fy = str(fy).rjust(12)
+                fz = str(fz).rjust(12)
+                f.write(f"{fx} {fy} {fz}\n")
+
+
 class Lattice:
     def __init__(self,
                  poscar_perf,
@@ -137,6 +175,7 @@ class LatticeHopping:
     def __init__(self,
                  xdatcar,
                  lattice,
+                 force=None,
                  interval=1):
         """
         xdatcar: (str) path for XDATCAR.
@@ -144,66 +183,75 @@ class LatticeHopping:
         interval: (int) step interval to be used in averaging.
         """
 
+        self.interval = interval
         if os.path.isfile(xdatcar):
             self.xdatcar = xdatcar
         else:
             print(f"'{xdatcar} is not found.")
             sys.exit(0)
-        
-        self.interval = interval
-        self.target = lattice.symbol
 
         # color map for arrows
         self.cmap = ['b', 'c', 'g', 'deeppink', 'darkorange', 
                      'sienna', 'darkkhaki', 'lawngreen', 'grey', 'wheat', 
                      'navy', 'slateblue', 'purple', 'pink']
-        
-        self.lattice = None # lattice vectors DIM=(3,3)
-        self.atom_species = None # atom species
+
+        # lattice information
+        self.target = lattice.symbol
+        self.lat_points = np.array([d['coord'] for d in lattice.lat_points], dtype=float)
+        self.lat_points_C = np.array([d['coord_C'] for d in lattice.lat_points], dtype=float)
+        self.num_lat_points = len(self.lat_points)
+
+        # read xdatcar
+        self.lattice = None
+        self.atom_species = None
         self.num_species = None
         self.num_atoms = None
         self.nsw = None
-        self.num_step = None # total step number. (=nsw/interval)
-
-        self.position = [] # list of dictionary. DIM=(num_species,)
+        self.num_step = None # (=nsw/interval)
+        self.position = []
         self.idx_target = None
         self.read_xdatcar()
 
-        self.lat_points = [] # direct coordination of lattice points
-        self.lat_points_C = [] # cartesian coordination of lattice points
-        for lat_p in lattice.lat_points:
-            self.lat_points.append(lat_p['coord'])
-            self.lat_points_C.append(lat_p['coord_C'])
+        # read force data
+        self.force_file = force
+        self.forces = None
+        if self.force_file is not None:
+            self.read_force()
 
-        self.lat_points = np.array(self.lat_points)
-        self.lat_points_C = np.array(self.lat_points_C)
-        self.num_lat_points = len(self.lat_points) # number of lattice points of target.
-
-        self.traj_on_lat_C = None # trajectory projected on lattice point
-        self.occ_lat_point = None # occupying lattice point of each atom
+        # trajectory of atom
+        self.traj_on_lat_C = None
+        self.occ_lat_point = None
         self.traj_on_lattice()
 
-        self.count_before = 0 # number of atoms befor target atom
+        # number of atoms befor target atom
+        self.count_before = 0 
         for i in range(self.idx_target):
             self.count_before += self.position[i]['num']
 
-        self.traj_vac_C = {} # trajectory of vacancy at each step. 
-        self.idx_vac = {} # index of vacancy at each step
+        # trajectory of vacancy
+        self.idx_vac = {}
+        self.traj_vac_C = {} 
         self.find_vacancy()
 
-        self.trace_arrows = {} # trace arrows of moving atoms at each step
+        # trace arrows of moving atoms at each step
+        self.trace_arrows = {}
         self.get_trace_lines()
+
+        # check multi-vacancy issue
+        self.multi_vac = None
     
+
     def read_xdatcar(self):
         # read xdatcar file
         with open(self.xdatcar, 'r') as f:
             lines = np.array([line.strip() for line in f])
-        scale = float(lines[1])
-        self.lattice = np.array([line.split() for line in lines[2:5]],
-                                dtype=float) * scale
+
+        self.lattice = np.array([line.split() for line in lines[2:5]], dtype=float)
+        self.lattice *= float(lines[1])
+
         self.atom_species = np.array(lines[5].split())
-        self.num_species = len(self.atom_species)
         self.num_atoms = np.array(lines[6].split(), dtype=int)
+        self.num_species = len(self.atom_species)
         num_atoms_tot = np.sum(self.num_atoms)
         self.nsw = int((lines.shape[0]-7)/(1+num_atoms_tot))
         self.num_step = int(self.nsw / self.interval)
@@ -255,6 +303,30 @@ class LatticeHopping:
             atom['traj_C'] = traj_C # dim: (atom['num'], num_step, 3)
             self.position += [atom]
 
+
+    def read_force(self):
+        # read force data
+        with open(self.force_file, 'r') as f:
+            lines = [line.strip() for line in f]
+        
+        # number of atoms
+        num_tot = np.sum(self.num_atoms)
+        num_pre = np.sum(self.num_atoms[:self.idx_target])
+        num_tar = self.num_atoms[self.idx_target]
+        
+        # save forces
+        forces = np.zeros((self.nsw, num_tar, 3))
+        for i in range(self.nsw):
+            idx_i = (num_tot+1)*i + num_pre + 1
+            idx_f = idx_i + num_tar
+            forces[i] = np.array([line.split() for line in lines[idx_i:idx_f]], dtype=float)
+
+        # averaged forces
+        self.forces = np.zeros((self.num_step, num_tar, 3))
+        for i in range(self.num_step):
+            self.forces[i] = np.average(forces[self.interval*i:self.interval*(i+1)], axis=0)
+
+
     def distance_pbc(self, coord1, coord2):
         """
         coord1 and coord2 are direct coordinations.
@@ -270,17 +342,28 @@ class LatticeHopping:
             return np.sqrt(np.sum(np.dot(distance, self.lattice)**2))
         else:
             return np.sqrt(np.sum(np.dot(distance, self.lattice)**2,axis=1))
-        
-    def traj_on_lattice(self):
-        self.traj_on_lat_C = np.zeros_like(self.position[self.idx_target]['traj_C'])
-        self.occ_lat_point = np.zeros(self.traj_on_lat_C.shape[:2], dtype=int)
 
-        for idx in range(self.position[self.idx_target]['num']):
-            for step, traj in enumerate(self.position[self.idx_target]['traj'][idx]):
-                distance = self.distance_pbc(self.lat_points, traj)
-                occ_site = np.argmin(distance)
-                self.traj_on_lat_C[idx][step] = self.lat_points_C[occ_site]
-                self.occ_lat_point[idx][step] = int(occ_site)
+
+    def getDisplacement(self, r1, r2):
+        disp = r2 - r1
+        disp[disp > 0.5] -= 1.0
+        disp[disp < -0.5] += 1.0
+        return np.dot(disp, self.lattice)
+            
+
+    def traj_on_lattice(self):
+        traj = self.position[self.idx_target]['traj']
+
+        # distance from lattice points
+        disp = self.lat_points[np.newaxis,np.newaxis,:,:] - traj[:,:,np.newaxis,:]
+        disp[disp > 0.5] -= 1.0
+        disp[disp < -0.5] += 1.0
+        disp = np.linalg.norm(np.dot(disp, self.lattice), axis=3)
+
+        # save trajectory on lattice
+        self.occ_lat_point = np.argmin(disp, axis=2)
+        self.traj_on_lat_C = self.lat_points_C[self.occ_lat_point]
+
 
     def save_traj(self,
                   interval_traj=1,
@@ -318,6 +401,7 @@ class LatticeHopping:
             outfile = os.path.join(foldername, filename)
             plt.savefig(outfile, format='png')
             plt.close()
+
 
     def plot_lattice(self, ax, label=False):
         coord_origin = np.zeros([1,3])
@@ -380,23 +464,62 @@ class LatticeHopping:
         ax.set_ylabel('y (Å)')
         ax.set_zlabel('z (Å)')
 
-    def find_vacancy(self):
-        """
-        Note that mutiple vacancy site can be searched,
-        since this code allocate atom to the nearest lattice point.
-        Therefore, the traj_vac_C and idx_vac are dictionary.
-        Confinement will be pregressed later.
-        """
-        # find candidate for vacancy
-        for step in range(self.num_step):
-            unocc_site = []
 
-            # find unoccupied lattice points
-            for idx in range(self.num_lat_points):
-                if not idx in self.occ_lat_point[:,step]:
-                    unocc_site += [idx]
-                self.idx_vac[step] = unocc_site
-                self.traj_vac_C[step] = self.lat_points_C[unocc_site]
+    def find_vacancy(self):
+        idx_lat = np.arange(self.num_lat_points)
+        for i in range(self.num_step):
+            idx_i = np.setdiff1d(idx_lat, self.occ_lat_point[:,i])
+            self.idx_vac[i] = idx_i
+            self.traj_vac_C[i] = self.lat_points_C[idx_i]
+
+
+    def correctionTS(self):
+        traj = np.transpose(self.position[self.idx_target]['traj'], (1, 0, 2))
+        for i in range(1, self.num_step):
+            # check whether vacancy moves
+            idx_pre = self.idx_vac[i-1][0]
+            idx_now = self.idx_vac[i][0]
+            if idx_pre == idx_now:
+                continue
+
+            atom = np.where((self.occ_lat_point[:,i]==idx_pre)==True)[0][0]
+
+            coord = traj[i, atom]
+            force = self.forces[i, atom]
+
+            r_pre = self.getDisplacement(coord, self.lat_points[idx_now])
+            r_now = self.getDisplacement(coord, self.lat_points[idx_pre])
+
+            d_site = np.linalg.norm(r_now - r_pre)
+            d_atom = np.linalg.norm(r_pre)
+
+            cond1 ,cond2 = False, False
+            # condition 1
+            if d_atom > d_site:
+                cond1 = True
+            
+            # condition 2
+            norm_force = np.linalg.norm(force)
+            norm_r_pre = np.linalg.norm(r_pre)
+            norm_r_now = np.linalg.norm(r_now)
+
+            cos_pre = np.dot(r_pre, force) / (norm_force*norm_r_pre)
+            cos_now = np.dot(r_now, force) / (norm_force*norm_r_now)
+
+            if cos_now > cos_pre:
+                cond2 = True
+
+            # atom passes TS
+            if cond1 or cond2:
+                continue
+
+            # atom doesn't pass TS
+            # update trajectories
+            self.idx_vac[i] = self.idx_vac[i-1]
+            self.traj_vac_C[i] = self.traj_vac_C[i-1]
+            self.occ_lat_point[atom][i] = self.occ_lat_point[atom][i-1]
+            self.traj_on_lat_C[atom][i] = self.traj_on_lat_C[atom][i-1]
+
 
     def get_trace_lines(self):
         """
@@ -423,6 +546,7 @@ class LatticeHopping:
                     arrows += [arrow]
                 
             self.trace_arrows[step-1] = arrows
+
 
     def save_gif_PIL(self, 
                      filename, 
@@ -538,6 +662,7 @@ class LatticeHopping:
                               loop=loop)
             print(f"{filename} was generated.")
         
+
     def save_poscar(self,
                     step,
                     outdir='./',
@@ -585,6 +710,7 @@ class LatticeHopping:
                     coord = self.lat_points[idx]
                     f.write("%.6f %.6f %.6f\n"%(coord[0], coord[1], coord[2])) 
 
+
     def show_poscar(self,
                     step=None,
                     filename=None,
@@ -598,6 +724,7 @@ class LatticeHopping:
         
         poscar = read_vasp(filename)
         view(poscar)
+
 
     def save_traj_on_lat(self,
                          lat_point=[],
@@ -707,27 +834,21 @@ class LatticeHopping:
             plt.savefig(outfile, dpi=dpi)
             plt.close()
 
-    def check_unique_vac(self):
-        """
-        check whether there is unique vacancy at the specific step
-        """
-        step_multi_vac = []
-        for step, idx in enumerate(self.idx_vac.values()):
-            num_vac = len(idx)
 
-            if num_vac != 1:
-                step_multi_vac += [step]
-        
-        if len(step_multi_vac) == 0:
-            print("vacancy is unique.")
-        
+    def check_unique_vac(self):
+        num_vac = np.array([len(i) for i in self.idx_vac.values()])
+        check = np.where((num_vac==1) == False)[0]
+        if len(check) > 0:
+            self.multi_vac = True
+            print('multi-vacancy issue raised:')
+            print('  step :', end=' ')
+            for i in check:
+                print(i, end = ' ')
+            print('')
         else:
-            print("vacancy is not unique.")
-            print("please confine vacancy at the following steps.")
-            print("step :", end=" ")
-            for s in step_multi_vac:
-                print(s, end=", ")
-            print("")  
+            self.multi_vac = False
+            print('vacancy is unique.')
+
 
     def update_vac(self,
                    step,
