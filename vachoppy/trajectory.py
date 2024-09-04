@@ -477,8 +477,14 @@ class LatticeHopping:
         traj = np.transpose(self.position[self.idx_target]['traj'], (1, 0, 2))
         for i in range(1, self.num_step):
             # check whether vacancy moves
-            idx_pre = self.idx_vac[i-1][0]
-            idx_now = self.idx_vac[i][0]
+            try:
+                idx_pre = self.idx_vac[i-1][0]
+                idx_now = self.idx_vac[i][0]
+            except:
+                print(f"error rased in step {i}. (correction TS)")
+                print(self.idx_vac[i])
+                continue
+
             if idx_pre == idx_now:
                 continue
 
