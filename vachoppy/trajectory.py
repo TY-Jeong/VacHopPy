@@ -481,8 +481,9 @@ class LatticeHopping:
                 idx_pre = self.idx_vac[i-1][0]
                 idx_now = self.idx_vac[i][0]
             except:
-                print(f"error rased in step {i}. (correction TS)")
-                print(self.idx_vac[i])
+                print(f"error raised in step {i}. (correction TS)")
+                print(f"step{i-1} : {self.idx_vac[i-1]}")
+                print(f"step{i} : {self.idx_vac[i]}")
                 continue
 
             if idx_pre == idx_now:
