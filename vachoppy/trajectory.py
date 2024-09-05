@@ -980,58 +980,58 @@ class LatticeHopping:
         self.get_trace_lines()
     
 
-    def check_connectivity_backup(self, start=1):
-        """
-        correction for multi-vacancy issue
-        correction starts from 'start' step
-        """
-        trace_lines = self.trace_arrows
-        vac_site = self.idx_vac[0][0]
+    # def check_connectivity_backup(self, start=1):
+    #     """
+    #     correction for multi-vacancy issue
+    #     correction starts from 'start' step
+    #     """
+    #     trace_lines = self.trace_arrows
+    #     vac_site = self.idx_vac[0][0]
 
-        for step in range(start, self.num_step):
-            # when only one vacancy exist
-            if len(self.idx_vac[step]) == 1:
-                vac_site = self.idx_vac[step][0]
-                self.update_vac(step, vac_site)
-                continue
+    #     for step in range(start, self.num_step):
+    #         # when only one vacancy exist
+    #         if len(self.idx_vac[step]) == 1:
+    #             vac_site = self.idx_vac[step][0]
+    #             self.update_vac(step, vac_site)
+    #             continue
 
-            # when multiple vacancies exsit
-            #    when vacancy is stationary
-            if vac_site in self.idx_vac[step]:
-                self.update_vac(step, vac_site)
-                continue
+    #         # when multiple vacancies exsit
+    #         #    when vacancy is stationary
+    #         if vac_site in self.idx_vac[step]:
+    #             self.update_vac(step, vac_site)
+    #             continue
 
-            # when vacancy moves
-            #   find connected points with vacancy
-            points = [vac_site]
-            while True:
-                check1 = len(points)
-                for dic in trace_lines[step-1]:
-                    if len(list(set(points) & set(dic['lat_points']))) == 1:
-                        points += dic['lat_points']
-                        points = list(set(points))
+    #         # when vacancy moves
+    #         #   find connected points with vacancy
+    #         points = [vac_site]
+    #         while True:
+    #             check1 = len(points)
+    #             for dic in trace_lines[step-1]:
+    #                 if len(list(set(points) & set(dic['lat_points']))) == 1:
+    #                     points += dic['lat_points']
+    #                     points = list(set(points))
                 
-                check2 = len(points)
+    #             check2 = len(points)
 
-                # no more connected points
-                if check1 == check2:
-                    break
+    #             # no more connected points
+    #             if check1 == check2:
+    #                 break
 
-            site = list(set(points) & set(self.idx_vac[step]))
+    #         site = list(set(points) & set(self.idx_vac[step]))
             
-            if len(site) == 1:
-                vac_site = site[0]
-                self.update_vac(step, vac_site)
+    #         if len(site) == 1:
+    #             vac_site = site[0]
+    #             self.update_vac(step, vac_site)
             
-            elif len(site) == 0:
-                print("there is no connected site.")       
-                print(f"find the vacancy site for your self. (step: {step})")
-                break
+    #         elif len(site) == 0:
+    #             print("there is no connected site.")       
+    #             print(f"find the vacancy site for your self. (step: {step})")
+    #             break
             
-            else:
-                print("there are multiple candidates.")       
-                print(f"find the vacancy site for your self. (step: {step})")
-                break
+    #         else:
+    #             print("there are multiple candidates.")       
+    #             print(f"find the vacancy site for your self. (step: {step})")
+    #             break
             
 
 
