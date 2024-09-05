@@ -26,7 +26,7 @@ class Arrow3D(FancyArrowPatch):
     def __init__(self, xs, ys, zs, *args, **kwargs):
         super().__init__((0,0), (0,0), *args, **kwargs)
         self._verts3d = xs, ys, zs
-
+        
     def do_3d_projection(self, renderer=None):
         xs3d, ys3d, zs3d = self._verts3d
         xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)
@@ -92,6 +92,7 @@ class Lattice:
         self.path_names = []
         self.site_names = []
 
+
     def read_poscar(self):
         with open(self.path_poscar, 'r') as f:
             lines = np.array([line.strip() for line in f])
@@ -114,6 +115,7 @@ class Lattice:
             dic_lat['coord'] = np.array(coord.split()[:3], dtype=float)
             dic_lat['coord_C'] = np.dot(dic_lat['coord'], self.lattice)
             self.lat_points.append(dic_lat)
+
 
     def addPath(self,
                 name,
@@ -144,6 +146,7 @@ class Lattice:
         if not site_final in self.site_names:
             self.site_names += [site_final]
     
+
     def printPath(self):
         """
         paths sorted by names
@@ -162,6 +165,7 @@ class Lattice:
                 print(f"{path['dE']}", end='\n')
             else:
                 print("%.2f"%path['dE'], end='\n')
+
 
     def printLatticePoints(self):
         print("site\tcoord(direct)\tcoord(cartesian)")
@@ -239,42 +243,51 @@ class LatticeHopping:
 
         # check multi-vacancy issue
         self.multi_vac = None
-    
+
 
     def read_xdatcar(self):
-        # read xdatcar file
+        # read xdatcar
         with open(self.xdatcar, 'r') as f:
-            lines = np.array([line.strip() for line in f])
+            lines = np.array([s.strip() for s in f])
 
-        self.lattice = np.array([line.split() for line in lines[2:5]], dtype=float)
+        self.lattice = np.array([s.split() for s in lines[2:5]], dtype=float)
         self.lattice *= float(lines[1])
 
         self.atom_species = np.array(lines[5].split())
-        self.num_atoms = np.array(lines[6].split(), dtype=int)
         self.num_species = len(self.atom_species)
+
+        self.num_atoms = np.array(lines[6].split(), dtype=int)
         num_atoms_tot = np.sum(self.num_atoms)
-        self.nsw = int((lines.shape[0]-7)/(1+num_atoms_tot))
-        self.num_step = int(self.nsw / self.interval)
+
+        self.nsw = int((lines.shape[0]-7) / (1+num_atoms_tot))
+
+        if self.nsw % self.interval == 0:
+            self.num_step = int(self.nsw / self.interval)  
+        else:
+            print("nsw is not divided by interval.")
+            sys.exit(0)
 
         # save coordnation
         for i, spec in enumerate(self.atom_species):
+            if self.target == spec:
+                self.idx_target = i
+            
             atom = {}
             atom['species'] = spec
             atom['num'] = self.num_atoms[i]
-            if atom['species'] == self.target:
-                self.idx_target = i
             
-            # get averaged coordination
-            traj = np.zeros((atom['num'], self.num_step, 3)) # averaged coordination
-            coords_C = np.zeros((atom['num'], self.nsw, 3)) # original coordination (not averaged)
+            # traj : mean coords (atom['num'], num_step, 3)
+            # coords_C : original coords (atom['num'], nsw, 3)
+            traj = np.zeros((atom['num'], self.num_step, 3)) 
+            coords_C = np.zeros((atom['num'], self.nsw, 3)) 
 
             for j in range(atom['num']):
-                idx = np.sum(self.num_atoms[:i]) + j
-                coords = np.array(
-                    [line.split() for line in lines[(8+idx):(lines.shape[0]+1):(num_atoms_tot+1)]], 
-                    dtype=float)
+                start = np.sum(self.num_atoms[:i]) + j + 8
+                end = lines.shape[0] + 1
+                step = num_atoms_tot + 1
+                coords = [s.split() for s in lines[start:end:step]]
+                coords = np.array(coords, dtype=float)
                 
-                # displacement
                 displacement = np.zeros_like(coords)
                 displacement[0,:] = 0
                 displacement[1:,:] = np.diff(coords, axis=0)
@@ -289,25 +302,44 @@ class LatticeHopping:
                 coords_C[j] = np.dot(coords, self.lattice)
 
                 # averaged coordination
-                for k in range(self.num_step):
-                    mean_coord = np.average(coords[k*self.interval:(k+1)*self.interval],
-                                            axis=0)
+                coords = coords.reshape(self.num_step, self.interval, 3)
+                coords = np.average(coords, axis=1)
 
-                    # wrap back into cell
-                    mean_coord = mean_coord - np.floor(mean_coord)
-                    traj[j][k] = mean_coord
-            traj_C = np.dot(traj, self.lattice)
+                # wrap back into cell
+                coords = coords - np.floor(coords)
+                traj[j] = coords
 
-            atom['coords_C'] = coords_C # dim: (atom['num'], nsw, 3)
-            atom['traj'] = traj # dim: (atom['num'], num_step, 3)
-            atom['traj_C'] = traj_C # dim: (atom['num'], num_step, 3)
+            atom['coords_C'] = coords_C
+            atom['traj'] = traj
+            atom['traj_C'] = np.dot(traj, self.lattice)
             self.position += [atom]
 
 
     def read_force(self):
         # read force data
         with open(self.force_file, 'r') as f:
-            lines = [line.strip() for line in f]
+            lines = [s.strip() for s in f]
+        
+        # number of atoms
+        num_tot = np.sum(self.num_atoms)
+        num_pre = np.sum(self.num_atoms[:self.idx_target])
+        num_tar = self.num_atoms[self.idx_target]
+        
+        # save forces
+        self.forces = np.zeros((self.nsw, num_tar, 3))
+        for i in range(self.nsw):
+            start = (num_tot+1)*i + num_pre + 1
+            end = start + num_tar
+            self.forces[i] = np.array([s.split() for s in lines[start:end]], dtype=float)
+
+        self.forces = self.forces.reshape(self.num_step, self.interval, num_tar, 3)
+        self.forces = np.average(self.forces, axis=1)
+
+
+    def read_force_backup(self):
+        # read force data
+        with open(self.force_file, 'r') as f:
+            lines = [s.strip() for s in f]
         
         # number of atoms
         num_tot = np.sum(self.num_atoms)
@@ -317,9 +349,9 @@ class LatticeHopping:
         # save forces
         forces = np.zeros((self.nsw, num_tar, 3))
         for i in range(self.nsw):
-            idx_i = (num_tot+1)*i + num_pre + 1
-            idx_f = idx_i + num_tar
-            forces[i] = np.array([line.split() for line in lines[idx_i:idx_f]], dtype=float)
+            start = (num_tot+1)*i + num_pre + 1
+            end = start + num_tar
+            forces[i] = np.array([s.split() for s in lines[start:end]], dtype=float)
 
         # averaged forces
         self.forces = np.zeros((self.num_step, num_tar, 3))
@@ -957,6 +989,7 @@ class Analyzer:
 
         self.idx_vac = self.traj.idx_vac # (dic) index of vacancy
             
+
     def search_path_vac(self, verbose=True):
         step_unknown = []
         self.path_vac = []
@@ -984,6 +1017,7 @@ class Analyzer:
         if len(step_unknown) > 0 and verbose:
             print(f"unknown steps are detected.: {step_unknown}")
         
+
     def get_path(self,
                  site_init,
                  distance):
@@ -1016,6 +1050,7 @@ class Analyzer:
         else:
             return candidate[0]
             
+
     def print_path_vac(self):
         if self.path_vac is None:
             print("path_vac is not defines.")
@@ -1026,6 +1061,7 @@ class Analyzer:
                 print(p_vac['name'], end=' ')
             print('')
     
+
     def plot_path_counts(self, 
                          figure='counts.png',
                          text='counts.txt',
@@ -1099,6 +1135,7 @@ class Analyzer:
                 if check_unknown:
                     f.write(f"unknown\t{num_unknown}")
         
+
     def path_tracer(self,
                     paths,
                     p_init,
@@ -1130,6 +1167,7 @@ class Analyzer:
                 if answer[-1] != p_goal:
                     return []
     
+
     def path_decomposer(self,
                         index):
         """
@@ -1153,6 +1191,7 @@ class Analyzer:
         
         return path
     
+
     def unwrap_path(self):
         path_unwrap = []
         
@@ -1214,6 +1253,7 @@ class Analyzer:
                 print(p['step'], end=' ')
             print(")")
         
+
     def print_summary(self,
                       figure='counts.png',
                       text='counts.txt',
@@ -1246,6 +1286,7 @@ class Analyzer:
                               bar_color=bar_color,
                               dpi=dpi,
                               sort=sort)
+
 
 class CorrelationFactor:
     def __init__(self, 
