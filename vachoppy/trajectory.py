@@ -604,7 +604,7 @@ class LatticeHopping:
                   potim=2,
                   fps=5,
                   loop=0,
-                  dpi=300,
+                  dpi=100,
                   legend=False,
                   label=False):
         """
@@ -871,7 +871,7 @@ class LatticeHopping:
         
         if len(check) > 0:
             self.multi_vac = True
-            print('multi-vacancy issue raised:')
+            print('multi-vacancy issue occurs:')
             print('  step :', end=' ')
 
             for i in check:
@@ -1079,6 +1079,7 @@ class Analyzer:
         if self.path_vac is None:
             print("path_vac is not defines.")
             print("please run 'search_path_vac'.")
+
         else:
             print("path of vacancy :")
             for p_vac in self.path_vac:
@@ -1110,6 +1111,7 @@ class Analyzer:
         path_count = []
         for p_type in path_type:
             path_count.append(path_vac_names.count(p_type))
+
         if check_unknown:
             path_count[-1] = num_unknown
         path_count = np.array(path_count)
@@ -1145,6 +1147,7 @@ class Analyzer:
         
         if save_figure:
             plt.savefig(figure, dpi=dpi)
+
         if disp:
             plt.show()
         plt.close()
@@ -1282,8 +1285,8 @@ class Analyzer:
                       figure='counts.png',
                       text='counts.txt',
                       disp=True,
-                      save_figure=True,
-                      save_text=True,
+                      save_figure=False,
+                      save_text=False,
                       bar_width=0.6,
                       bar_color='c',
                       dpi=300,
@@ -1505,162 +1508,162 @@ class CorrelationFactor:
         print(f"averaged f_cor = {self.f_cor}")
 
 
-class CorrelationFactor_legacy:
-    def __init__(self,
-                 lattice,
-                 fraction,
-                 xdatcar,
-                 label='auto',
-                 interval=1):
-        """
-        encounter MSD is calculated by Einstein relation
-        """
+# class CorrelationFactor_Einstein:
+#     def __init__(self,
+#                  lattice,
+#                  fraction,
+#                  xdatcar,
+#                  label='auto',
+#                  interval=1):
+#         """
+#         encounter MSD is calculated by Einstein relation
+#         """
         
-        self.lattice = lattice
-        self.xdatcar = xdatcar
-        self.fraction = fraction
-        self.interval = interval
-        self.label = self.getLabel() if label=='auto' else label
+#         self.lattice = lattice
+#         self.xdatcar = xdatcar
+#         self.fraction = fraction
+#         self.interval = interval
+#         self.label = self.getLabel() if label=='auto' else label
         
-        # lattice information
-        self.symbol = lattice.symbol
-        self.path = lattice.path
+#         # lattice information
+#         self.symbol = lattice.symbol
+#         self.path = lattice.path
 
-        # unknown path
-        self.path_unknown = {}
-        self.path_unknown['name'] = 'unknown'
-        self.path_unknown['counts'] = 0
+#         # unknown path
+#         self.path_unknown = {}
+#         self.path_unknown['name'] = 'unknown'
+#         self.path_unknown['counts'] = 0
 
-        # encounter MSD
-        # print("Calculating encounter MSD...")
-        msd_enc = self.encounterMSD()
+#         # encounter MSD
+#         # print("Calculating encounter MSD...")
+#         msd_enc = self.encounterMSD()
 
-        # random walk MSD
-        # print("\nCalculating random walk MSD...")
-        msd_random = self.randomMSD()
+#         # random walk MSD
+#         # print("\nCalculating random walk MSD...")
+#         msd_random = self.randomMSD()
 
-        # correlation factor
-        self.f = msd_enc / msd_random
-        print(f"correlation factor = {self.f}")
+#         # correlation factor
+#         self.f = msd_enc / msd_random
+#         print(f"correlation factor = {self.f}")
 
-    def getLabel(self):
-        label = []
-        for filename in os.listdir(self.xdatcar):
-                if len(filename.split('_')) == 2:
-                    first, second = filename.split('_')
-                    if first == 'XDATCAR':
-                        label.append(second)
-        label.sort()
-        return label
+#     def getLabel(self):
+#         label = []
+#         for filename in os.listdir(self.xdatcar):
+#                 if len(filename.split('_')) == 2:
+#                     first, second = filename.split('_')
+#                     if first == 'XDATCAR':
+#                         label.append(second)
+#         label.sort()
+#         return label
 
-    def encounterMSD(self):
-        ensembleEin = einstein.EnsembleEinstein(symbol=self.symbol,
-                                                prefix=self.xdatcar,
-                                                labels=self.label,
-                                                segments=1,
-                                                skip=0,
-                                                start=None)
-        return ensembleEin.msd[-1] / self.fraction
+#     def encounterMSD(self):
+#         ensembleEin = einstein.EnsembleEinstein(symbol=self.symbol,
+#                                                 prefix=self.xdatcar,
+#                                                 labels=self.label,
+#                                                 segments=1,
+#                                                 skip=0,
+#                                                 start=None)
+#         return ensembleEin.msd[-1] / self.fraction
     
-    def makeAnalyzer(self, label):
-        path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
+#     def makeAnalyzer(self, label):
+#         path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
 
-        traj = LatticeHopping(lattice=self.lattice,
-                              xdatcar=path_xdatcar,
-                              interval=self.interval)
-        traj.check_connectivity()
-        traj.check_unique_vac()
+#         traj = LatticeHopping(lattice=self.lattice,
+#                               xdatcar=path_xdatcar,
+#                               interval=self.interval)
+#         traj.check_connectivity()
+#         traj.check_unique_vac()
 
-        analyzer = Analyzer(traj=traj,
-                            lattice=self.lattice)
-        analyzer.search_path_vac(verbose=False)
-        analyzer.unwrap_path()
-        return analyzer
+#         analyzer = Analyzer(traj=traj,
+#                             lattice=self.lattice)
+#         analyzer.search_path_vac(verbose=False)
+#         analyzer.unwrap_path()
+#         return analyzer
     
-    def randomMSD(self):
-        # path of vacancy
-        path_vac = []
-        for l in tqdm(self.label,
-                      bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
-                      ascii=True,
-                      desc=f'{RED}MSD_rand_walk{RESET}'):
-            print(l)
-            analyzer = self.makeAnalyzer(label=l)
-            for p_vac in analyzer.path_vac:
-                print(p_vac['name'], end=' ')
-                path_vac.append(p_vac['name'])
-            print('\n')
+#     def randomMSD(self):
+#         # path of vacancy
+#         path_vac = []
+#         for l in tqdm(self.label,
+#                       bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
+#                       ascii=True,
+#                       desc=f'{RED}MSD_rand_walk{RESET}'):
+#             print(l)
+#             analyzer = self.makeAnalyzer(label=l)
+#             for p_vac in analyzer.path_vac:
+#                 print(p_vac['name'], end=' ')
+#                 path_vac.append(p_vac['name'])
+#             print('\n')
 
-        msd_random = 0
-        self.path_unknown['counts'] = path_vac.count(self.path_unknown['name'])
-        for p in self.path:
-            p['counts'] = path_vac.count(p['name'])
-            msd_random += p['counts'] * p['distance']**2
-        msd_random /= len(self.label)
-        return msd_random
+#         msd_random = 0
+#         self.path_unknown['counts'] = path_vac.count(self.path_unknown['name'])
+#         for p in self.path:
+#             p['counts'] = path_vac.count(p['name'])
+#             msd_random += p['counts'] * p['distance']**2
+#         msd_random /= len(self.label)
+#         return msd_random
     
-    def plotCounts(self,
-                   title='',
-                   disp=True,
-                   save=True,
-                   outfile='counts.png',
-                   dpi=300):
+#     def plotCounts(self,
+#                    title='',
+#                    disp=True,
+#                    save=True,
+#                    outfile='counts.png',
+#                    dpi=300):
         
-        name, Ea, counts = [], [], []
-        for p in self.path:
-            name.append(p['name'])
-            Ea.append(p['Ea'])
-            counts.append(p['counts'])
+#         name, Ea, counts = [], [], []
+#         for p in self.path:
+#             name.append(p['name'])
+#             Ea.append(p['Ea'])
+#             counts.append(p['counts'])
         
-        # unknown path
-        name.append('U')
-        Ea.append(np.inf)
-        counts.append(self.path_unknown['counts'])
+#         # unknown path
+#         name.append('U')
+#         Ea.append(np.inf)
+#         counts.append(self.path_unknown['counts'])
 
-        num_path = len(name)
-        Ea, counts = np.array(Ea), np.array(counts)
+#         num_path = len(name)
+#         Ea, counts = np.array(Ea), np.array(counts)
         
-        # sort by activation energy
-        idx_sort = Ea.argsort()
-        counts_sort = counts[idx_sort]
-        name_sort = []
-        for idx in idx_sort:
-            name_sort.append(name[idx])
+#         # sort by activation energy
+#         idx_sort = Ea.argsort()
+#         counts_sort = counts[idx_sort]
+#         name_sort = []
+#         for idx in idx_sort:
+#             name_sort.append(name[idx])
 
-        # plot counts
-        x = np.arange(num_path)
-        plt.bar(x, counts_sort)
-        plt.xticks(x, name_sort)
-        plt.ylabel('Counts')
-        plt.title(title + f" (total counts: {np.sum(counts)})")
-        if save:
-            plt.savefig(outfile, dpi=dpi)
-        if disp:
-            plt.show()
+#         # plot counts
+#         x = np.arange(num_path)
+#         plt.bar(x, counts_sort)
+#         plt.xticks(x, name_sort)
+#         plt.ylabel('Counts')
+#         plt.title(title + f" (total counts: {np.sum(counts)})")
+#         if save:
+#             plt.savefig(outfile, dpi=dpi)
+#         if disp:
+#             plt.show()
 
-    def printCounts(self):
-        name, Ea, counts = [], [], []
-        for p in self.path:
-            name.append(p['name'])
-            Ea.append(p['Ea'])
-            counts.append(p['counts'])
+#     def printCounts(self):
+#         name, Ea, counts = [], [], []
+#         for p in self.path:
+#             name.append(p['name'])
+#             Ea.append(p['Ea'])
+#             counts.append(p['counts'])
         
-        # unknown path
-        name.append('U')
-        Ea.append(np.inf)
-        counts.append(self.path_unknown['counts'])
-        Ea, counts = np.array(Ea), np.array(counts)
+#         # unknown path
+#         name.append('U')
+#         Ea.append(np.inf)
+#         counts.append(self.path_unknown['counts'])
+#         Ea, counts = np.array(Ea), np.array(counts)
         
-        # sort by activation energy
-        idx_sort = Ea.argsort()
-        counts_sort = counts[idx_sort]
-        name_sort = []
-        for idx in idx_sort:
-            name_sort.append(name[idx])
+#         # sort by activation energy
+#         idx_sort = Ea.argsort()
+#         counts_sort = counts[idx_sort]
+#         name_sort = []
+#         for idx in idx_sort:
+#             name_sort.append(name[idx])
         
-        print(f"total counts : {np.sum(counts)}")
-        for n, c in zip(name_sort, counts_sort):
-            print(f"{n}({c})", end=' ')
+#         print(f"total counts : {np.sum(counts)}")
+#         for n, c in zip(name_sort, counts_sort):
+#             print(f"{n}({c})", end=' ')
 
 
 
