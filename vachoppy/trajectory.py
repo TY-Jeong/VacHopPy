@@ -575,7 +575,8 @@ class LatticeHopping:
             else:
                 self.trace_arrows[step] = [arrow]
         
-        for step in range(1, self.num_step):
+        # for step in range(1, self.num_step):
+        for step in range(self.num_step):
             if not step in self.trace_arrows.keys():
                 self.trace_arrows[step] = []
 
