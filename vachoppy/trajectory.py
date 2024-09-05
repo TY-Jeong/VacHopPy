@@ -247,7 +247,7 @@ class LatticeHopping:
         self.find_vacancy()
 
         # trace arrows
-        self.trace_arrows = {}
+        self.trace_arrows = None
         self.get_trace_lines()
 
         # check multi-vacancy issue
@@ -551,7 +551,6 @@ class LatticeHopping:
             self.traj_on_lat_C[atom][i] = self.traj_on_lat_C[atom][i-1]
 
         # update trace arrows
-        self.trace_arrows = {}
         self.get_trace_lines()
 
 
@@ -559,27 +558,26 @@ class LatticeHopping:
         """
         displaying trajectory of moving atom at each step.
         """
-        num_target = self.num_atoms[self.idx_target]
-        idx_atoms = np.arange(num_target)
+        idx_diff = np.diff(self.occ_lat_point, axis=1)
+        move_atom, move_step = np.where(idx_diff != 0)
 
+        self.trace_arrows = {}
+        for step, atom in zip(move_step, move_atom):
+            arrow = {}
+            arrow['p'] = np.vstack((self.traj_on_lat_C[atom][step], 
+                                    self.traj_on_lat_C[atom][step+1]))
+            arrow['c'] = self.cmap[(atom+1)%len(self.cmap)]
+            arrow['lat_points'] = [self.occ_lat_point[atom][step], 
+                                   self.occ_lat_point[atom][step+1]]
+            
+            if step in self.trace_arrows.keys():
+                self.trace_arrows[step].append(arrow)
+            else:
+                self.trace_arrows[step] = [arrow]
+        
         for step in range(1, self.num_step):
-            arrows = []
-            for idx in idx_atoms:
-                traj_now = self.lat_points[self.occ_lat_point[idx][step]]
-                traj_pre = self.lat_points[self.occ_lat_point[idx][step-1]]
-                
-                # check whether atom moves
-                distance = self.distance_pbc(traj_now, traj_pre)
-                if distance > 0.001:
-                    arrow = {}
-                    arrow['p'] = np.vstack((self.traj_on_lat_C[idx][step-1],
-                                            self.traj_on_lat_C[idx][step]))
-                    arrow['c'] = self.cmap[(idx+1)%len(self.cmap)]
-                    arrow['lat_points'] = [self.occ_lat_point[idx][step-1],
-                                           self.occ_lat_point[idx][step]]
-                    arrows += [arrow]
-                
-            self.trace_arrows[step-1] = arrows
+            if not step in self.trace_arrows.keys():
+                self.trace_arrows[step] = []
 
 
     def save_gif_PIL(self, 
@@ -976,62 +974,7 @@ class LatticeHopping:
                 break
 
         # update trace arrows
-        self.trace_arrows = {}
         self.get_trace_lines()
-    
-
-    # def check_connectivity_backup(self, start=1):
-    #     """
-    #     correction for multi-vacancy issue
-    #     correction starts from 'start' step
-    #     """
-    #     trace_lines = self.trace_arrows
-    #     vac_site = self.idx_vac[0][0]
-
-    #     for step in range(start, self.num_step):
-    #         # when only one vacancy exist
-    #         if len(self.idx_vac[step]) == 1:
-    #             vac_site = self.idx_vac[step][0]
-    #             self.update_vac(step, vac_site)
-    #             continue
-
-    #         # when multiple vacancies exsit
-    #         #    when vacancy is stationary
-    #         if vac_site in self.idx_vac[step]:
-    #             self.update_vac(step, vac_site)
-    #             continue
-
-    #         # when vacancy moves
-    #         #   find connected points with vacancy
-    #         points = [vac_site]
-    #         while True:
-    #             check1 = len(points)
-    #             for dic in trace_lines[step-1]:
-    #                 if len(list(set(points) & set(dic['lat_points']))) == 1:
-    #                     points += dic['lat_points']
-    #                     points = list(set(points))
-                
-    #             check2 = len(points)
-
-    #             # no more connected points
-    #             if check1 == check2:
-    #                 break
-
-    #         site = list(set(points) & set(self.idx_vac[step]))
-            
-    #         if len(site) == 1:
-    #             vac_site = site[0]
-    #             self.update_vac(step, vac_site)
-            
-    #         elif len(site) == 0:
-    #             print("there is no connected site.")       
-    #             print(f"find the vacancy site for your self. (step: {step})")
-    #             break
-            
-    #         else:
-    #             print("there are multiple candidates.")       
-    #             print(f"find the vacancy site for your self. (step: {step})")
-    #             break
             
 
 
