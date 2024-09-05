@@ -21,9 +21,12 @@ RED = '\033[91m'   # Red color
 RESET = '\033[0m'  # Reset to default color
 
 
-# class for drawing arrows in 3D plot
+
 class Arrow3D(FancyArrowPatch):
     def __init__(self, xs, ys, zs, *args, **kwargs):
+        """
+        helper class to drqw 3D arrows
+        """
         super().__init__((0,0), (0,0), *args, **kwargs)
         self._verts3d = xs, ys, zs
         
@@ -33,12 +36,16 @@ class Arrow3D(FancyArrowPatch):
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
         return np.min(zs)
 
-# extract force data from vasprun.xml
-def extractForce(vasprun, 
-                 out_file='force.dat'):
+
+
+def extractForce(file_in, 
+                 file_out='force.dat'):
+    """
+    extract force profile from vasprun.xml
+    """
     # read vasprun.xml
-    with open(vasprun, 'r') as f:
-        lines = [line.strip() for line in f]
+    with open(file_in, 'r') as f:
+        lines = [s.strip() for s in f]
     
     # system info
     nsw, num_atoms = None, None
@@ -61,7 +68,7 @@ def extractForce(vasprun,
             step += 1
 
     # write out_file
-    with open(out_file, 'w') as f:
+    with open(file_out, 'w') as f:
         for i, force in enumerate(forces, start=1):
             f.write(f"Iteration {i}\n")
             for fx, fy, fz in force:
@@ -71,14 +78,14 @@ def extractForce(vasprun,
                 f.write(f"{fx} {fy} {fz}\n")
 
 
+
 class Lattice:
     def __init__(self,
                  poscar_perf,
                  symbol='O'):
         """
-        this class contains information on hopping paths and lattice points
+        class containing information on hopping paths and lattice points
         """
-        
         self.path_poscar = poscar_perf
         self.symbol = symbol
 
@@ -175,6 +182,7 @@ class Lattice:
             print(f"{lat_p['coord_C']}", end='\n')
 
 
+
 class LatticeHopping:
     def __init__(self,
                  xdatcar,
@@ -187,12 +195,13 @@ class LatticeHopping:
         interval: (int) step interval to be used in averaging.
         """
 
-        self.interval = interval
         if os.path.isfile(xdatcar):
             self.xdatcar = xdatcar
         else:
             print(f"'{xdatcar} is not found.")
             sys.exit(0)
+
+        self.interval = interval
 
         # color map for arrows
         self.cmap = ['b', 'c', 'g', 'deeppink', 'darkorange', 
@@ -227,7 +236,7 @@ class LatticeHopping:
         self.occ_lat_point = None
         self.traj_on_lattice()
 
-        # number of atoms befor target atom
+        # number of atoms preceding target
         self.count_before = 0 
         for i in range(self.idx_target):
             self.count_before += self.position[i]['num']
@@ -237,7 +246,7 @@ class LatticeHopping:
         self.traj_vac_C = {} 
         self.find_vacancy()
 
-        # trace arrows of moving atoms at each step
+        # trace arrows
         self.trace_arrows = {}
         self.get_trace_lines()
 
@@ -334,29 +343,6 @@ class LatticeHopping:
 
         self.forces = self.forces.reshape(self.num_step, self.interval, num_tar, 3)
         self.forces = np.average(self.forces, axis=1)
-
-
-    def read_force_backup(self):
-        # read force data
-        with open(self.force_file, 'r') as f:
-            lines = [s.strip() for s in f]
-        
-        # number of atoms
-        num_tot = np.sum(self.num_atoms)
-        num_pre = np.sum(self.num_atoms[:self.idx_target])
-        num_tar = self.num_atoms[self.idx_target]
-        
-        # save forces
-        forces = np.zeros((self.nsw, num_tar, 3))
-        for i in range(self.nsw):
-            start = (num_tot+1)*i + num_pre + 1
-            end = start + num_tar
-            forces[i] = np.array([s.split() for s in lines[start:end]], dtype=float)
-
-        # averaged forces
-        self.forces = np.zeros((self.num_step, num_tar, 3))
-        for i in range(self.num_step):
-            self.forces[i] = np.average(forces[self.interval*i:self.interval*(i+1)], axis=0)
 
 
     def distance_pbc(self, coord1, coord2):
@@ -521,7 +507,12 @@ class LatticeHopping:
             if idx_pre == idx_now:
                 continue
 
-            atom = np.where((self.occ_lat_point[:,i]==idx_pre)==True)[0][0]
+            try:
+                atom = np.where((self.occ_lat_point[:,i]==idx_pre)==True)[0][0]
+            except:
+                print(f'error raised at step {i}.')
+                print('please correct the vacancy-site your-self.')
+                sys.exit(0)
 
             coord = traj[i, atom]
             force = self.forces[i, atom]
@@ -558,6 +549,10 @@ class LatticeHopping:
             self.traj_vac_C[i] = self.traj_vac_C[i-1]
             self.occ_lat_point[atom][i] = self.occ_lat_point[atom][i-1]
             self.traj_on_lat_C[atom][i] = self.traj_on_lat_C[atom][i-1]
+
+        # update trace arrows
+        self.trace_arrows = {}
+        self.get_trace_lines()
 
 
     def get_trace_lines(self):
@@ -792,8 +787,6 @@ class LatticeHopping:
                 sys.exit(0)
             else:
                 atom_idx += [np.argmax(self.occ_lat_point[:,step[0]]==idx)]
-        # print(f"selected lattice points: \n\t{lat_point}  (step {step[0]})\n")
-        # print(f"corresponding atom index: \n\t{atom_idx}\n")
         
         check_first = True
         points_init = []
@@ -875,15 +868,18 @@ class LatticeHopping:
 
 
     def check_unique_vac(self):
-        num_vac = np.array([len(i) for i in self.idx_vac.values()])
-        check = np.where((num_vac==1) == False)[0]
+        check = np.array([len(i) for i in self.idx_vac.values()])
+        check = np.where((check==1) == False)[0]
+        
         if len(check) > 0:
             self.multi_vac = True
             print('multi-vacancy issue raised:')
             print('  step :', end=' ')
+
             for i in check:
                 print(i, end = ' ')
             print('')
+
         else:
             self.multi_vac = False
             print('vacancy is unique.')
@@ -899,11 +895,95 @@ class LatticeHopping:
         self.idx_vac[step] = [lat_point]
         self.traj_vac_C[step] = np.array([self.lat_points_C[lat_point]])
 
-    
+
     def check_connectivity(self, start=1):
         """
-        tracing vacancy from 'start' step
-        connectivity of vacancy movement is confirmed.
+        correction for multi-vacancy issue
+        correction starts from 'start' step
+        """
+        trace_lines = self.trace_arrows
+        vac_site = self.idx_vac[0][0]
+
+        for step in range(start, self.num_step):
+            # when only one vacancy exist
+            if len(self.idx_vac[step]) == 1:
+                vac_site = self.idx_vac[step][0]
+                self.update_vac(step, vac_site)
+                continue
+
+            # when multiple vacancies exsit
+            #    when vacancy is stationary
+            if vac_site in self.idx_vac[step]:
+                # correct fake vacancy
+                idx = np.where(self.idx_vac[step]==vac_site)[0][0]
+                fake_vac = np.delete(self.idx_vac[step], idx)
+                for vac in fake_vac:
+                    for i in range(step-1, 0, -1):
+                        if vac in self.occ_lat_point[:,i]:
+                            atom = np.where(self.occ_lat_point[:,i]==vac)[0][0]
+                            self.occ_lat_point[atom][step] = vac
+                            self.traj_on_lat_C[atom][step] = self.lat_points_C[vac]
+                            break
+
+                # update vacancy site
+                self.update_vac(step, vac_site)
+                continue
+
+            # when vacancy moves
+            #   find connected points with vacancy
+            points = [vac_site]
+            while True:
+                check1 = len(points)
+                for dic in trace_lines[step-1]:
+                    if len(list(set(points) & set(dic['lat_points']))) == 1:
+                        points += dic['lat_points']
+                        points = list(set(points))
+                
+                check2 = len(points)
+
+                # no more connected points
+                if check1 == check2:
+                    break
+
+            site = list(set(points) & set(self.idx_vac[step]))
+            
+            if len(site) == 1:
+                vac_site = site[0]
+
+                # correct fake vacancy
+                idx = np.where(self.idx_vac[step]==vac_site)[0][0]
+                fake_vac = np.delete(self.idx_vac[step], idx)
+                for vac in fake_vac:
+                    for i in range(step-1, 0, -1):
+                        if vac in self.occ_lat_point[:,i]:
+                            atom = np.where(self.occ_lat_point[:,i]==vac)[0][0]
+                            self.occ_lat_point[atom][step] = vac
+                            self.traj_on_lat_C[atom][step] = self.lat_points_C[vac]
+                            break
+
+                # updata vacancy site
+                self.update_vac(step, vac_site)
+                continue
+
+            elif len(site) == 0:
+                print("there is no connected site.")       
+                print(f"find the vacancy site for your self. (step: {step})")
+                break
+            
+            else:
+                print("there are multiple candidates.")       
+                print(f"find the vacancy site for your self. (step: {step})")
+                break
+
+        # update trace arrows
+        self.trace_arrows = {}
+        self.get_trace_lines()
+    
+
+    def check_connectivity_backup(self, start=1):
+        """
+        correction for multi-vacancy issue
+        correction starts from 'start' step
         """
         trace_lines = self.trace_arrows
         vac_site = self.idx_vac[0][0]
@@ -953,6 +1033,7 @@ class LatticeHopping:
                 print(f"find the vacancy site for your self. (step: {step})")
                 break
             
+
 
 class Analyzer:
     def __init__(self,
