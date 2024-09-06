@@ -1352,15 +1352,16 @@ class Analyzer:
         print('')
         print(f"maximum Ea : {Ea_max} eV")
         
-        self.plot_path_counts(figure=figure,
-                              text=text,
-                              disp=disp,
-                              save_figure=save_figure,
-                              save_text=save_text,
-                              bar_width=bar_width,
-                              bar_color=bar_color,
-                              dpi=dpi,
-                              sort=sort)
+        if disp or save_figure or save_text:
+            self.plot_path_counts(figure=figure,
+                                text=text,
+                                disp=disp,
+                                save_figure=save_figure,
+                                save_text=save_text,
+                                bar_width=bar_width,
+                                bar_color=bar_color,
+                                dpi=dpi,
+                                sort=sort)
 
 
 
@@ -1638,7 +1639,9 @@ class CumulativeCorrelationFactor:
             analyzer.unwrap_path()
 
         if self.verbose:
-            analyzer.print_summary(disp=False, save_figure=False, save_text=False)
+            analyzer.print_summary(disp=False, 
+                                   save_figure=False, 
+                                   save_text=False)
         print('')
 
         return analyzer
