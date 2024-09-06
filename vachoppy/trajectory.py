@@ -546,7 +546,7 @@ class LatticeHopping:
                 idx_pre = self.idx_vac[i-1][0]
                 idx_now = self.idx_vac[i][0]
             except:
-                print(f"error raised in step {i}. (correction TS)")
+                print(f"error occured in step {i}. (correction TS)")
                 print(f"step{i-1} : {self.idx_vac[i-1]}")
                 print(f"step{i} : {self.idx_vac[i]}")
                 continue
@@ -557,7 +557,7 @@ class LatticeHopping:
             try:
                 atom = np.where((self.occ_lat_point[:,i]==idx_pre)==True)[0][0]
             except:
-                print(f'error raised at step {i}.')
+                print(f'error occured at step {i}.')
                 print('please correct the vacancy-site your-self.')
                 sys.exit(0)
 
@@ -913,18 +913,18 @@ class LatticeHopping:
             plt.close()
 
 
-    def check_unique_vac(self):
+    def check_unique_vac(self, verbose=True):
         check = np.array([len(i) for i in self.idx_vac.values()])
         check = np.where((check==1) == False)[0]
         
         if len(check) > 0:
             self.multi_vac = True
-            print('multi-vacancy issue occurs:')
-            print('  step :', end=' ')
-
-            for i in check:
-                print(i, end = ' ')
-            print('')
+            if verbose:
+                print('multi-vacancy issue occurs:')
+                print('  step :', end=' ')
+                for i in check:
+                    print(i, end = ' ')
+                print('')
 
         else:
             self.multi_vac = False
@@ -1552,6 +1552,7 @@ class CumulativeCorrelationFactor:
         self.path_seq_cum = []
         self.msd_cum = 0
         self.num_enc_cum = 0
+        self.label_err = []
         self.getCorrelationFactors()
 
         # unknown path
@@ -1588,6 +1589,9 @@ class CumulativeCorrelationFactor:
 
             print(f"# Label : {label}")
             analyzer = self.getAnalyzer(label)
+            if analyzer is None:
+                end = time.time()
+                continue
             correlation = CorrelationFactor(analyzer, self.verbose)
 
             self.f_ensemble.append(correlation.f_cor)
@@ -1616,7 +1620,13 @@ class CumulativeCorrelationFactor:
         
         if self.multi_vac:
             traj.check_connectivity()
-            traj.check_unique_vac()
+            traj.check_unique_vac(verbose=False)
+        
+        if traj.multi_vac is True:
+            print(f'multi-vacancy issue in label {label}.')
+            print('the calculation is skipped.')
+            self.label_err.append(label)
+            return None
 
         if self.correction_TS:
             traj.correctionTS()
@@ -1675,6 +1685,12 @@ class CumulativeCorrelationFactor:
             time_tot = np.sum(np.array(self.times))
             print('')
             print(f'Total time : {time_tot:.3f} s')
+
+        if len(self.label_err) > 0:
+            print('Error occured : ', end='')
+            for label in self.label_err:
+                print(label, end=' ')
+            print('')
 
 
 
