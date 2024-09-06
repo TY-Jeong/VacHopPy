@@ -1372,6 +1372,7 @@ class CorrelationFactor:
         
         self.analyzer = analyzer
         self.traj = analyzer.traj
+        self.path = self.analyzer.path
         self.path_names = self.analyzer.path_names
 
         self.encounters = []
@@ -1461,6 +1462,12 @@ class CorrelationFactor:
                 self.path_names.append(self.path_unknown)
                 break
 
+        if self.unknown:
+            dic = {}
+            dic['name'] = self.path_unknown
+            dic['distance'] = 0
+            self.path.append(dic)
+
 
     def getMSD(self):
         for dic in self.encounters:
@@ -1477,7 +1484,11 @@ class CorrelationFactor:
 
 
     def getCorrelationFactor(self):
-        self.f_cor = self.msd / np.sum(self.path_counts * self.path_dist**2)
+        if np.sum(self.path_counts) > 0:
+            self.f_cor = self.msd / np.sum(self.path_counts * self.path_dist**2)
+        else:
+            print('no hopping detected : f_cor is set to 0')
+            self.f_cor = 0
 
 
     def print_summary(self):
