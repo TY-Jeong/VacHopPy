@@ -1597,7 +1597,7 @@ class CumulativeCorrelationFactor:
         for count in self.counts_cum * self.num_enc_cum:
             print("{:<10.3f}".format(count), end=" ")
         print('\n')
-        print(f"Mean       correlation factor : {self.f_avg:.3f}")
+        print(f"      Mean correlation factor : {self.f_avg:.3f}")
         print(f"Cumulative correlation factor : {self.f_cum:.3f}")
         print('')
 
