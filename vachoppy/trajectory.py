@@ -80,6 +80,52 @@ def extractForce(file_in,
 
 
 
+# Helper methods for lattice
+def pathTiO2(lattice):
+    names = ['OP', 'IP1', 'IP2']
+    d     = [2.80311, 2.56299, 2.96677]
+    Ea    = [1.07, 0.96, 2.16]
+    for i in range(len(names)):
+        lattice.addPath(names[i], 'vac', 'vac', d[i], Ea[i])
+    for lat_p in lattice.lat_points:
+        lat_p['site'] = 'vac'
+
+
+
+def pathHfO2(lattice):
+    final_A = ['cn4', 'cn3', 'cn3', 'cn3', 'cn4', 'cn4', 'cn4']
+    final_B = ['cn3', 'cn4', 'cn4', 'cn4', 'cn3', 'cn3', 'cn3']
+    d_A = [2.542, 2.574, 2.785, 2.837, 2.937, 2.965, 2.989]
+    d_B = [2.542, 2.576, 2.662, 2.724, 2.937, 2.965, 2.989]
+    Ea_A = [0.74, 0.84, 0.85, 1.35, 1.91, 2.07, 2.01]
+    Ea_B = [0.08, 0.32, 0.86, 0.98, 1.25, 1.42, 1.36]
+    for i in range(7):
+        lattice.addPath(f"A{i+1}", 'cn3', final_A[i], d_A[i], Ea_A[i])
+        lattice.addPath(f"B{i+1}", 'cn4', final_B[i], d_B[i], Ea_B[i])
+    for lat_p in lattice.lat_points:
+        x_coord = lat_p['coord'][0]
+        if 0.13796 < x_coord < 0.36204 or 0.63796 < x_coord < 0.86204:
+            lat_p['site'] = 'cn4'
+        else:
+            lat_p['site'] = 'cn3'
+
+
+
+def pathFe(lattice):
+    lattice.addPath('A', 'vac', 'vac', 2.38470, 0.0)
+    lattice.addPath('B', 'vac', 'vac', 2.75362, 0.0)
+    for lat_p in lattice.lat_points:
+        lat_p['site'] = 'vac'
+
+
+
+def pathAl(lattice):
+    lattice.addPath('hop', 'vac', 'vac', 2.85595, 0.622300)
+    for lat_p in lattice.lat_points:
+        lat_p['site'] = 'vac'
+
+
+
 class Lattice:
     def __init__(self,
                  poscar_perf,
