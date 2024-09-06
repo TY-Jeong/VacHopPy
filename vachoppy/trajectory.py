@@ -1633,7 +1633,7 @@ class CumulativeCorrelationFactor:
             self.label_err.append(label)
             return None
 
-        if self.correction_TS:
+        if self.correction_TS and (self.force_dir is not None):
             traj.correctionTS()
 
         analyzer = Analyzer(traj, self.lattice)
