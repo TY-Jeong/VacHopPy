@@ -1634,6 +1634,7 @@ class CumulativeCorrelationFactor:
 
 
     def printSummary(self):
+        print("## Summary")
         print("           ", end="")
         for name in self.path_name:
             print("{:<10}".format(name), end=" ")
