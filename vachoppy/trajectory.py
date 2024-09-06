@@ -1635,6 +1635,7 @@ class CumulativeCorrelationFactor:
 
     def printSummary(self):
         print("## Summary")
+        print("#  Total counts")
         print("           ", end="")
         for name in self.path_name:
             print("{:<10}".format(name), end=" ")
@@ -1643,9 +1644,10 @@ class CumulativeCorrelationFactor:
         for dist in self.path_dist:
             print("{:<10.3f}".format(dist), end=" ")
         print('')
-        print("<Counts>   ", end="")
+        print("Counts     ", end="")
         for count in self.counts_cum * self.num_enc_cum:
-            print("{:<10.3f}".format(count), end=" ")
+            count = int(count)
+            print("{:<10}".format(count), end=" ")
         print('\n')
         print(f"      Mean correlation factor : {self.f_avg:.3f}")
         print(f"Cumulative correlation factor : {self.f_cum:.3f}")
