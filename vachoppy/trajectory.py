@@ -1,11 +1,12 @@
 import os
 import sys
+import time
 import copy   
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 from tqdm import tqdm
-from vachoppy import einstein
+#from vachoppy import einstein
 # For Arrow3D
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import FancyArrowPatch
@@ -1316,197 +1317,495 @@ class Analyzer:
                               sort=sort)
 
 
+
 class CorrelationFactor:
-    def __init__(self, 
-                 lattice,
-                 xdatcar,
-                 label='auto',
-                 interval=1,
-                 verbose=True):
-        """
-        encounter MSD is calculated using projected vacancy path
-        """
-        # save arguments
-        self.lattice = lattice
-        self.xdatcar = xdatcar
-        self.interval = interval
-        self.label = self.getLabel() if label=='auto' else label
-        self.verbose = verbose
+    def __init__(self,
+                 analyzer,
+                 verbose=True,
+                 ):
         
-        # lattice information
-        self.symbol = lattice.symbol
-        self.path = lattice.path
-        for p in self.path:
-            p['counts'] = 0
-        
-        # unknown path
-        self.path_unknown = {}
-        self.path_unknown['name'] = 'unknown'
-        self.path_unknown['counts'] = 0
+        self.analyzer = analyzer
+        self.traj = analyzer.traj
+        self.path_names = self.analyzer.path_names
 
-        # (test)
-        self.cum_displacement = 0
+        self.encounters = []
+        self.getEncounters()
+        self.num_enc = len(self.encounters)
+
+        self.path_unknown = self.analyzer.path_unknown['name']
+        self.unknown = False
+        self.checkUnknown()
+
+        # mean squared displacement
+        self.msd = 0
+        self.path_sequence = []
+        self.getMSD()
+
+        # mean counts
+        self.path_counts = np.zeros(len(self.path_names))
+        self.path_dist = np.zeros_like(self.path_counts)
+        self.getCounts()
         
-        # correlation factor of each ensemble 
-        self.f_ensemble = []
+        # f_cor
+        self.f_cor = None
         self.getCorrelationFactor()
-        self.f_ensemble = np.array(self.f_ensemble)
 
-        # correlation factor
-        self.f_cor = self.f_ensemble[~np.isnan(self.f_ensemble)]
-        self.f_cor = np.average(self.f_cor)
+        # print results
+        if verbose:
+            self.print_summary()
+
+
+    def getEncounters(self):
+        path_diff = np.zeros_like(self.traj.occ_lat_point)
+        path_diff[:,1:] = np.diff(self.traj.occ_lat_point, axis=1)
+
+        atom_move, step_move = np.where(path_diff != 0)
+        self.encounters = []
         
-        if self.verbose:
-            self.print_fcor()
+        for atom in set(atom_move):
+            dic = {}
+            idx = np.where(atom_move==atom)[0]
+            step = np.concatenate((np.array([0]), step_move[idx]))
+            path = self.traj.occ_lat_point[atom, step]
+
+            dic['idx'] = atom
+            dic['path'] = path
+            dic['path_names'] = self.getPathName(path)
+            displacement = self.getDisplacement(path)
+            dic['squared_disp'] = np.sum(displacement**2)
+
+            self.encounters.append(dic)
+    
+
+    def getDisplacement(self, path):
+        coords = self.traj.lat_points[path]
+        
+        displacement = np.zeros_like(coords)
+        displacement[1:,:] = np.diff(coords, axis=0)
+
+        displacement[displacement > 0.5] -= 1.0
+        displacement[displacement < -0.5] += 1.0
+        displacement = np.sum(displacement, axis=0)
+        
+        displacement_C = np.dot(displacement, self.traj.lattice)
+
+        return displacement_C  
+    
+
+    def getPathName(self, path):
+        path_names = []
+        for i in range(1, len(path)):
+            idx_i, idx_f = path[i-1], path[i]
+            site_init = self.analyzer.lat_points[idx_i]['site']
+
+            coord_i = self.traj.lat_points[idx_i]
+            coord_f = self.traj.lat_points[idx_f]
+            distance = self.traj.distance_pbc(coord_i, coord_f)
+            
+            name = self.analyzer.get_path(site_init, distance)['name']
+            path_names.append(name)
+
+        return path_names
+    
+
+    def checkUnknown(self):
+        for dic in self.encounters:
+            if self.path_unknown in dic['path_names']:
+                self.unknown = True
+                self.path_names.append(self.path_unknown)
+                break
+
+
+    def getMSD(self):
+        for dic in self.encounters:
+            self.msd += dic['squared_disp']
+            self.path_sequence += dic['path_names']
+        self.msd /= self.num_enc
+
+
+    def getCounts(self):
+        for i, name in enumerate(self.path_names):
+            self.path_counts[i] = self.path_sequence.count(name)
+            self.path_dist[i] = self.analyzer.path[i]['distance']
+        self.path_counts /= self.num_enc
+
+
+    def getCorrelationFactor(self):
+        self.f_cor = self.msd / np.sum(self.path_counts * self.path_dist**2)
+
+
+    def print_summary(self):
+        print(f"Correlation factor        : {self.f_cor:.3f}")
+        print(f"Number of encounters      : {self.num_enc}")
+        count_tot = int(np.sum(self.path_counts*self.num_enc))
+        print(f"Total hopping counts      : {count_tot}")
+        print(f"Mean squared displacement : {self.msd:.3f}")
+        count_mean = np.sum(self.path_counts)
+        print(f"Mean hopping counts       : {count_mean:.3f}")
+        print('')
+        print("           ", end="")
+        for name in self.path_names:
+            print("{:<10}".format(name), end=" ")
+        print('')
+        print("Distance   ", end="")
+        for dist in self.path_dist:
+            print("{:<10.3f}".format(dist), end=" ")
+        print('')
+        print("<Counts>   ", end="")
+        for count in self.path_counts:
+            print("{:<10.3f}".format(count), end=" ")
+        print('\n')
+    
+class CumulativeCorrelationFactor:
+    def __init__(self,
+                 xdatcar,
+                 lattice,
+                 label='auto',
+                 force=None,
+                 interval=1,
+                 verbose=False,
+                 multi_vac=True,
+                 multi_path=True,
+                 correction_TS=True):
+        """
+        xdatcar : directory where XDATCAR_{label} exists
+        label   : label in XDATCAR_{label} (list or 'auto)
+        force   : directory where force_{label}.dat exists
+        """
+        
+        self.xdatcar = xdatcar
+        self.force_dir = force
+        self.lattice = lattice
+        self.label = self.getLabel() if label=='auto' else label
+        self.interval = interval
+        self.verbose = verbose
+        self.symbol = lattice.symbol
+        self.path = self.lattice.path
+
+        # corrections
+        self.multi_vac = multi_vac
+        self.multi_path = multi_path
+        self.correction_TS = correction_TS
+        
+        # f_cor
+        self.times = []
+        self.path_name = []
+        self.path_dist = []
+        self.f_ensemble = []
+        self.path_seq_cum = []
+        self.msd_cum = 0
+        self.num_enc_cum = 0
+        self.getCorrelationFactors()
+
+        # unknown path
+        self.path_name.append('unknown')
+        self.path_dist.append(0)
+        self.path_dist = np.array(self.path_dist)
+
+        # cumulative f_cor
+        self.f_avg = np.average(self.f_ensemble) # averaged over ensmebles
+        self.f_cum = None
+        self.getCumulCorFact()
+
+        # print results
+        self.printSummary()
+
 
     def getLabel(self):
         label = []
         for filename in os.listdir(self.xdatcar):
-                if len(filename.split('_')) == 2:
-                    first, second = filename.split('_')
-                    if first == 'XDATCAR':
-                        label.append(second)
+            if len(filename.split('_')) == 2:
+                first, second = filename.split('_')
+                if first == 'XDATCAR':
+                    label.append(second)
         label.sort()
         return label
-
-    def encounterMSD(self, analyzer):
-        path_vac_idx = []  
-        for i in range(analyzer.traj.num_step):
-            path_vac_idx += list(analyzer.idx_vac[i])
-
-        coord_vac = [analyzer.traj.lat_points[idx] for idx in path_vac_idx]
-        coord_vac = np.array(coord_vac)
-        
-        displacement = np.zeros_like(coord_vac)
-        displacement[1:,:] = np.diff(coord_vac, axis=0)
-
-        displacement[displacement > 0.5] -= 1.0
-        displacement[displacement < -0.5] += 1.0
-        
-        displacement = np.sum(displacement, axis=0)
-        self.cum_displacement += displacement # (test)
-
-        lattice = analyzer.traj.lattice
-        return np.sum(np.dot(displacement, lattice)**2)
     
-    def randomwalkMSD(self, analyzer):
-        path_vac = []
-        for p_vac in analyzer.path_vac:
-            print(p_vac['name'], end=' ')
-            path_vac.append(p_vac['name'])
-        print('')
+
+    def getCorrelationFactors(self):
+        for label in self.label:
+            start = time.time()
+
+            print(f"# Label : {label}")
+            analyzer = self.getAnalyzer(label)
+            correlation = CorrelationFactor(analyzer, self.verbose)
+
+            self.f_ensemble.append(correlation.f_cor)
+            self.msd_cum += correlation.msd * correlation.num_enc
+            self.num_enc_cum += correlation.num_enc
+            self.path_seq_cum += correlation.path_sequence
+
+            end = time.time()
+            self.times.append(end-start)
+
+        self.f_ensemble = np.array(self.f_ensemble, dtype=float)
+        self.msd_cum /= self.num_enc_cum
         
-        msd_rand = 0
-        for p in self.path:
-            num_p = path_vac.count(p['name'])
-            p['counts'] += num_p
-            msd_rand += num_p * p['distance']**2
-        self.path_unknown['counts'] += path_vac.count(self.path_unknown['name'])
-        return msd_rand
+        for path in self.path:
+            self.path_name.append(path['name'])
+            self.path_dist.append(path['distance'])
     
-    def makeAnalyzer(self, label):
+
+    def getAnalyzer(self, label):
         path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
+        path_force = os.path.join(self.force_dir, f"force_{label}.dat")
         traj = LatticeHopping(lattice=self.lattice,
                               xdatcar=path_xdatcar,
+                              force=path_force,
                               interval=self.interval)
-        traj.check_connectivity()
-        traj.check_unique_vac()
+        
+        if self.multi_vac:
+            traj.check_connectivity()
+            traj.check_unique_vac()
 
-        analyzer = Analyzer(traj=traj,
-                            lattice=self.lattice)
-        analyzer.search_path_vac(verbose=False)
-        analyzer.unwrap_path()
+        if self.correction_TS:
+            traj.correctionTS()
+
+        analyzer = Analyzer(traj, self.lattice)
+        analyzer.search_path_vac(verbose=self.verbose)
+
+        if self.multi_path:
+            analyzer.unwrap_path()
+
+        if self.verbose:
+            analyzer.print_summary(disp=False, save_figure=False, save_text=False)
+        print('')
+
         return analyzer
     
-    def getCorrelationFactor(self):
-        for label in tqdm(self.label,
-                          bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
-                          ascii=True,
-                          desc=f'{RED}f_cor{RESET}'):
-            print(label)
-            analyzer = self.makeAnalyzer(label)
-            
-            msd_enc = self.encounterMSD(analyzer)
-            msd_rand = self.randomwalkMSD(analyzer)
 
-            if msd_rand > 1e-5:
-                f_label = msd_enc/msd_rand
-                self.f_ensemble.append(f_label)
-                print(f"f_cor = {f_label}")
-            else:
-                self.f_ensemble.append(np.NaN)
-                print("no hopping detected.")
-            print('')
-    
-    def plotCounts(self,
-                   title='',
-                   disp=True,
-                   save=True,
-                   outfile='counts.png',
-                   dpi=300):
-        
-        name, Ea, counts = [], [], []
-        for p in self.path:
-            name.append(p['name'])
-            Ea.append(p['Ea'])
-            counts.append(p['counts'])
-        
-        # unknown path
-        name.append('U')
-        Ea.append(np.inf)
-        counts.append(self.path_unknown['counts'])
+    def getCumulCorFact(self):
+        self.counts_cum = np.zeros(len(self.path_name))
 
-        num_path = len(name)
-        Ea, counts = np.array(Ea), np.array(counts)
-        
-        # sort by activation energy
-        idx_sort = Ea.argsort()
-        counts_sort = counts[idx_sort]
-        name_sort = []
-        for idx in idx_sort:
-            name_sort.append(name[idx])
+        for i, name in enumerate(self.path_name):
+            self.counts_cum[i] = self.path_seq_cum.count(name)
 
-        # plot counts
-        x = np.arange(num_path)
-        plt.bar(x, counts_sort)
-        plt.xticks(x, name_sort)
-        plt.ylabel('Counts')
-        plt.title(title + f" (total counts: {np.sum(counts)})")
-        if save:
-            plt.savefig(outfile, dpi=dpi)
-        if disp:
-            plt.show()
+        self.counts_cum /= self.num_enc_cum
+        self.f_cum = self.msd_cum / np.sum(self.counts_cum * self.path_dist**2)
 
-    def printCounts(self):
-        name, Ea, counts = [], [], []
-        for p in self.path:
-            name.append(p['name'])
-            Ea.append(p['Ea'])
-            counts.append(p['counts'])
-        
-        # unknown path
-        name.append('U')
-        Ea.append(np.inf)
-        counts.append(self.path_unknown['counts'])
-        Ea, counts = np.array(Ea), np.array(counts)
-        
-        # sort by activation energy
-        idx_sort = Ea.argsort()
-        counts_sort = counts[idx_sort]
-        name_sort = []
-        for idx in idx_sort:
-            name_sort.append(name[idx])
-        
-        print(f"total counts : {np.sum(counts)} ")
-        for n, c in zip(name_sort, counts_sort):
-            print(f"{n}({c})", end=' ')
 
-    def print_fcor(self):
-        print("label\tf_cor")
-        for label, f in zip(self.label, self.f_ensemble):
-            print(f"{label}\t{f}")
+    def printSummary(self):
+        print("           ", end="")
+        for name in self.path_name:
+            print("{:<10}".format(name), end=" ")
         print('')
-        print(f"averaged f_cor = {self.f_cor}")
+        print("Distance   ", end="")
+        for dist in self.path_dist:
+            print("{:<10.3f}".format(dist), end=" ")
+        print('')
+        print("<Counts>   ", end="")
+        for count in self.counts_cum * self.num_enc_cum:
+            print("{:<10.3f}".format(count), end=" ")
+        print('\n')
+        print(f"Mean       correlation factor : {self.f_avg:.3f}")
+        print(f"Cumulative correlation factor : {self.f_cum:.3f}")
+        print('')
+
+        if self.verbose:
+            print("{:<10} {:<10}".format('Label', 'f_cor'))
+            for label, f in zip(self.label, self.f_ensemble):
+                print("{:<10} {:<10.3f}".format(label, f))
+            print('')
+            print("{:<10} {:<10}".format('Label', 'Time(s)'))
+            for label, time in zip(self.label, self.times):
+                print("{:<10} {:<10.3f}".format(label, time))
+            time_tot = np.sum(np.array(self.times))
+            print('')
+            print(f'Total time : {time_tot:.3f} s')
+
+
+
+# class CorrelationFactor:
+#     def __init__(self, 
+#                  lattice,
+#                  xdatcar,
+#                  label='auto',
+#                  interval=1,
+#                  verbose=True):
+#         """
+#         encounter MSD is calculated using projected vacancy path
+#         """
+#         # save arguments
+#         self.lattice = lattice
+#         self.xdatcar = xdatcar
+#         self.interval = interval
+#         self.label = self.getLabel() if label=='auto' else label
+#         self.verbose = verbose
+        
+#         # lattice information
+#         self.symbol = lattice.symbol
+#         self.path = lattice.path
+#         for p in self.path:
+#             p['counts'] = 0
+        
+#         # unknown path
+#         self.path_unknown = {}
+#         self.path_unknown['name'] = 'unknown'
+#         self.path_unknown['counts'] = 0
+
+#         # (test)
+#         self.cum_displacement = 0
+        
+#         # correlation factor of each ensemble 
+#         self.f_ensemble = []
+#         self.getCorrelationFactor()
+#         self.f_ensemble = np.array(self.f_ensemble)
+
+#         # correlation factor
+#         self.f_cor = self.f_ensemble[~np.isnan(self.f_ensemble)]
+#         self.f_cor = np.average(self.f_cor)
+        
+#         if self.verbose:
+#             self.print_fcor()
+
+#     def getLabel(self):
+#         label = []
+#         for filename in os.listdir(self.xdatcar):
+#                 if len(filename.split('_')) == 2:
+#                     first, second = filename.split('_')
+#                     if first == 'XDATCAR':
+#                         label.append(second)
+#         label.sort()
+#         return label
+
+#     def encounterMSD(self, analyzer):
+#         path_vac_idx = []  
+#         for i in range(analyzer.traj.num_step):
+#             path_vac_idx += list(analyzer.idx_vac[i])
+
+#         coord_vac = [analyzer.traj.lat_points[idx] for idx in path_vac_idx]
+#         coord_vac = np.array(coord_vac)
+        
+#         displacement = np.zeros_like(coord_vac)
+#         displacement[1:,:] = np.diff(coord_vac, axis=0)
+
+#         displacement[displacement > 0.5] -= 1.0
+#         displacement[displacement < -0.5] += 1.0
+        
+#         displacement = np.sum(displacement, axis=0)
+#         self.cum_displacement += displacement # (test)
+
+#         lattice = analyzer.traj.lattice
+#         return np.sum(np.dot(displacement, lattice)**2)
+    
+#     def randomwalkMSD(self, analyzer):
+#         path_vac = []
+#         for p_vac in analyzer.path_vac:
+#             print(p_vac['name'], end=' ')
+#             path_vac.append(p_vac['name'])
+#         print('')
+        
+#         msd_rand = 0
+#         for p in self.path:
+#             num_p = path_vac.count(p['name'])
+#             p['counts'] += num_p
+#             msd_rand += num_p * p['distance']**2
+#         self.path_unknown['counts'] += path_vac.count(self.path_unknown['name'])
+#         return msd_rand
+    
+#     def makeAnalyzer(self, label):
+#         path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
+#         traj = LatticeHopping(lattice=self.lattice,
+#                               xdatcar=path_xdatcar,
+#                               interval=self.interval)
+#         traj.check_connectivity()
+#         traj.check_unique_vac()
+
+#         analyzer = Analyzer(traj=traj,
+#                             lattice=self.lattice)
+#         analyzer.search_path_vac(verbose=False)
+#         analyzer.unwrap_path()
+#         return analyzer
+    
+#     def getCorrelationFactor(self):
+#         for label in tqdm(self.label,
+#                           bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
+#                           ascii=True,
+#                           desc=f'{RED}f_cor{RESET}'):
+#             print(label)
+#             analyzer = self.makeAnalyzer(label)
+            
+#             msd_enc = self.encounterMSD(analyzer)
+#             msd_rand = self.randomwalkMSD(analyzer)
+
+#             if msd_rand > 1e-5:
+#                 f_label = msd_enc/msd_rand
+#                 self.f_ensemble.append(f_label)
+#                 print(f"f_cor = {f_label}")
+#             else:
+#                 self.f_ensemble.append(np.NaN)
+#                 print("no hopping detected.")
+#             print('')
+    
+#     def plotCounts(self,
+#                    title='',
+#                    disp=True,
+#                    save=True,
+#                    outfile='counts.png',
+#                    dpi=300):
+        
+#         name, Ea, counts = [], [], []
+#         for p in self.path:
+#             name.append(p['name'])
+#             Ea.append(p['Ea'])
+#             counts.append(p['counts'])
+        
+#         # unknown path
+#         name.append('U')
+#         Ea.append(np.inf)
+#         counts.append(self.path_unknown['counts'])
+
+#         num_path = len(name)
+#         Ea, counts = np.array(Ea), np.array(counts)
+        
+#         # sort by activation energy
+#         idx_sort = Ea.argsort()
+#         counts_sort = counts[idx_sort]
+#         name_sort = []
+#         for idx in idx_sort:
+#             name_sort.append(name[idx])
+
+#         # plot counts
+#         x = np.arange(num_path)
+#         plt.bar(x, counts_sort)
+#         plt.xticks(x, name_sort)
+#         plt.ylabel('Counts')
+#         plt.title(title + f" (total counts: {np.sum(counts)})")
+#         if save:
+#             plt.savefig(outfile, dpi=dpi)
+#         if disp:
+#             plt.show()
+
+#     def printCounts(self):
+#         name, Ea, counts = [], [], []
+#         for p in self.path:
+#             name.append(p['name'])
+#             Ea.append(p['Ea'])
+#             counts.append(p['counts'])
+        
+#         # unknown path
+#         name.append('U')
+#         Ea.append(np.inf)
+#         counts.append(self.path_unknown['counts'])
+#         Ea, counts = np.array(Ea), np.array(counts)
+        
+#         # sort by activation energy
+#         idx_sort = Ea.argsort()
+#         counts_sort = counts[idx_sort]
+#         name_sort = []
+#         for idx in idx_sort:
+#             name_sort.append(name[idx])
+        
+#         print(f"total counts : {np.sum(counts)} ")
+#         for n, c in zip(name_sort, counts_sort):
+#             print(f"{n}({c})", end=' ')
+
+#     def print_fcor(self):
+#         print("label\tf_cor")
+#         for label, f in zip(self.label, self.f_ensemble):
+#             print(f"{label}\t{f}")
+#         print('')
+#         print(f"averaged f_cor = {self.f_cor}")
 
 
 # class CorrelationFactor_Einstein:
