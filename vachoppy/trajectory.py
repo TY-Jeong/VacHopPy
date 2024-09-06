@@ -1523,7 +1523,10 @@ class CumulativeCorrelationFactor:
     
 
     def getCorrelationFactors(self):
-        for label in self.label:
+        for label in tqdm(self.label, 
+                          bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}', 
+                          ascii=True, 
+                          desc=f'{RED}f_cor{RESET}'):
             start = time.time()
 
             print(f"# Label : {label}")
@@ -1718,9 +1721,9 @@ class CumulativeCorrelationFactor:
 #         return analyzer
     
 #     def getCorrelationFactor(self):
-#         for label in tqdm(self.label,
-#                           bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
-#                           ascii=True,
+#         for label in tqdm(self.label, 
+#                           bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}', 
+#                           ascii=True, 
 #                           desc=f'{RED}f_cor{RESET}'):
 #             print(label)
 #             analyzer = self.makeAnalyzer(label)
