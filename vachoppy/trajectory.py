@@ -1613,7 +1613,11 @@ class CumulativeCorrelationFactor:
 
     def getAnalyzer(self, label):
         path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
-        path_force = os.path.join(self.force_dir, f"force_{label}.dat")
+        if self.force_dir is not None:
+            path_force = os.path.join(self.force_dir, f"force_{label}.dat")
+        else:
+            path_force = None
+            
         traj = LatticeHopping(lattice=self.lattice,
                               xdatcar=path_xdatcar,
                               force=path_force,
