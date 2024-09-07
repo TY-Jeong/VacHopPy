@@ -1514,6 +1514,8 @@ class CorrelationFactor:
             print("{:<10.3f}".format(count), end=" ")
         print('\n')
     
+    
+    
 class CumulativeCorrelationFactor:
     def __init__(self,
                  xdatcar,
