@@ -36,7 +36,7 @@ class EinsteinRelation:
         # read outcar
         self.potim = None
         self.nblock = None
-        self.readOUTCAR()
+        self.read_outcar()
 
         # read XDATCAR
         self.TypeName = None    # List of atom species
@@ -46,10 +46,10 @@ class EinsteinRelation:
         self.Niter = None       # Number of steps
         self.position = None    # Direct coordination of atoms
         self.cell = None        # Lattice of cell
-        self.readXDATCAR()
+        self.read_xdatcar()
 
         self.ChemSymb = None
-        self.symbolList()
+        self.list_symbol()
 
         # Parameters for skip
         self.segments = segments    # Dividing whole MD steps into segments
@@ -63,7 +63,7 @@ class EinsteinRelation:
 
         # Mean square distance
         self.msd = None
-        self.getMSD()
+        self.get_msd()
         
         # Diffusivity.
         # For ensemble calculation, please set getD = False to save time
@@ -72,13 +72,13 @@ class EinsteinRelation:
         self.ddiffcoeff = None  # Deviation of D
 
         if getD is True:
-            self.getDiff()
+            self.get_diffcoeff()
 
         if self.verbose:
-            self.plotMSD()
+            self.plot_msd()
     
     
-    def readOUTCAR(self):
+    def read_outcar(self):
         if self.verbose:
             print(f"reading {self.outcar}...")
         with open(self.outcar, 'r') as file:
@@ -100,7 +100,7 @@ class EinsteinRelation:
             print(f"\tnblock = {self.nblock}\n")
     
     
-    def readXDATCAR(self):
+    def read_xdatcar(self):
         if self.verbose:
             print(f"reading {self.xdatcar}...")
         with open(self.xdatcar,'r') as file:
@@ -131,14 +131,14 @@ class EinsteinRelation:
             print(f"\tshape of position = {self.position.shape} #(nsw, number of atom, xyz)\n")
 
 
-    def symbolList(self):
+    def list_symbol(self):
         self.ChemSymb = []
         for i in range(self.Ntype):
             self.ChemSymb += [np.tile(self.TypeName[i], self.Nelem[i])]
         self.ChemSymb = np.concatenate(self.ChemSymb)
     
     
-    def getMSD(self):
+    def get_msd(self):
         # length of segment
         seglength = int(np.floor((self.Niter-self.skip)/self.segments))
         if self.verbose:
@@ -181,7 +181,7 @@ class EinsteinRelation:
             print(f"\tshape of msd = {self.msd.shape} #(segment, number of type, nsw - skip, xyz)\n")
                 
                 
-    def getDiff(self):
+    def get_diffcoeff(self):
         self.diffcoeff = np.zeros(shape=(self.segments, self.Ntype, 3))
         self.intercept = np.zeros(shape=(self.segments, self.Ntype, 3))
         self.ddiffcoeff = np.zeros(shape=(self.Ntype, 3))
@@ -209,8 +209,8 @@ class EinsteinRelation:
         self.ddiffcoeff = np.std(self.diffcoeff, axis=0) / 2
     
     
-    def getMSD_Atom(self, 
-                    symbol):
+    def get_msd_atom(self, 
+                     symbol):
         if symbol in self.TypeName:
             idx = np.where(np.array(self.TypeName) == symbol)[0][0]
             return self.msd[:,idx,:,:]  # shape: [1, steps, 3:xyz]
@@ -219,10 +219,10 @@ class EinsteinRelation:
             return None
         
         
-    def plotMSD(self):
+    def plot_msd(self):
         time = np.arange(self.skip, self.Niter) * self.potim / 1000
         for type in self.TypeName:
-            msd = np.sum(self.getMSD_Atom(symbol=type).squeeze(), axis=1)
+            msd = np.sum(self.get_msd_atom(symbol=type).squeeze(), axis=1)
             plt.plot(time, msd, label=type)
         plt.xlabel('t (ps)', fontsize=13)
         plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
@@ -281,16 +281,16 @@ class EnsembleEinstein:
         self.end = end
         self.timestep = None        # [ps]
 
-        self.getEnsembleMSD()
+        self.get_ensemble_msd()
 
         if start is not None and end is not None:
-            _, __ = self.getEnsembleD()
-            _, __ = self.getEnsembleD_x()
-            _, __ = self.getEnsembleD_y()
-            _, __ = self.getEnsembleD_z()
+            _, __ = self.get_ensembleD()
+            _, __ = self.get_ensembleD_x()
+            _, __ = self.get_ensembleD_y()
+            _, __ = self.get_ensembleD_z()
 
 
-    def getEnsembleMSD(self):
+    def get_ensemble_msd(self):
         desc = self.prefix.split('/')[-1] if len(self.prefix.split('/')[-1]) > 0 \
             else  self.prefix.split('/')[-2]
         for label in tqdm(self.labels,
@@ -306,20 +306,20 @@ class EnsembleEinstein:
                                         verbose=False,
                                         getD=False)
             if self.msd_xyz is None:
-                self.msd_xyz = ensemble.getMSD_Atom(symbol=self.symbol)
+                self.msd_xyz = ensemble.get_msd_atom(symbol=self.symbol)
                 self.potim = ensemble.potim
                 self.nblock = ensemble.nblock
             else:
                 self.msd_xyz = np.append(self.msd_xyz, 
-                                         ensemble.getMSD_Atom(symbol=self.symbol), axis=0)
+                                         ensemble.get_msd_atom(symbol=self.symbol), axis=0)
         
         self.msd_xyz = np.mean(self.msd_xyz, axis=0)
         self.msd = np.sum(self.msd_xyz, axis=1)
         self.timestep = np.arange(self.msd[:].shape[0]) * self.potim * self.nblock / 1000
 
 
-    def getEnsembleD(self, 
-                     *args):
+    def get_ensembleD(self, 
+                      *args):
         if len(args) == 2:
             self.start, self.end = args[0], args[1]
         if self.start is None or self.end is None:
@@ -330,7 +330,7 @@ class EnsembleEinstein:
                                                     deg=1)
         return self.diffcoeff, self.intercept
     
-    def plotEnsembleMSD(self):
+    def plot_ensemble_msd(self):
         temp = self.prefix.split('/')[-2].split('.')[-1]
         plt.plot(self.timestep, self.msd[:], label=f"{temp}")
 
@@ -349,8 +349,8 @@ class EnsembleEinstein:
         plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
 
 
-    def getEnsembleD_x(self, 
-                       *args):
+    def get_ensembleD_x(self, 
+                        *args):
         if len(args) == 2:
             self.start, self.end = args[0], args[1]
         if self.start is None or self.end is None:
@@ -364,7 +364,7 @@ class EnsembleEinstein:
         return self.diffcoeff_x, self.intercept_x
     
     
-    def plotEnsembleMSD_x(self):
+    def plot_ensemble_msd_x(self):
         temp = self.prefix.split('/')[-2].split('.')[-1]
         plt.plot(self.timestep, self.msd_x[:], label=f"{temp}")
 
@@ -384,8 +384,8 @@ class EnsembleEinstein:
         plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
 
 
-    def getEnsembleD_y(self, 
-                       *args):
+    def get_ensembleD_y(self, 
+                        *args):
         if len(args) == 2:
             self.start, self.end = args[0], args[1]
         if self.start is None or self.end is None:
@@ -399,7 +399,7 @@ class EnsembleEinstein:
         return self.diffcoeff_y, self.intercept_y
     
     
-    def plotEnsembleMSD_y(self):
+    def plot_ensemble_msd_y(self):
         temp = self.prefix.split('/')[-2].split('.')[-1]
         plt.plot(self.timestep, self.msd_y[:], label=f"{temp}")
 
@@ -419,8 +419,8 @@ class EnsembleEinstein:
         plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
 
 
-    def getEnsembleD_z(self, 
-                       *args):
+    def get_ensembleD_z(self, 
+                        *args):
         if len(args) == 2:
             self.start, self.end = args[0], args[1]
         if self.start is None or self.end is None:
@@ -434,7 +434,7 @@ class EnsembleEinstein:
         return self.diffcoeff_z, self.intercept_z
     
     
-    def plotEnsembleMSD_z(self):
+    def plot_ensemble_msd_z(self):
         temp = self.prefix.split('/')[-2].split('.')[-1]
         plt.plot(self.timestep, self.msd_z[:], label=f"{temp}")
 
@@ -454,7 +454,7 @@ class EnsembleEinstein:
         plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
     
     
-    def saveMSD(self):
+    def save_msd(self):
         if not os.path.isdir('msd'):
             os.mkdir('msd')
         prefix = './msd/'
@@ -542,10 +542,10 @@ class getDiffusivity:
             self.end = end
 
         self.ensembles = []
-        self.getEnsembles()
+        self.get_ensembles()
 
         self.diffcoeffs = []
-        self.getD()
+        self.get_D()
         self.diffcoeffs = np.array(self.diffcoeffs)
 
         # get Ea and D0
@@ -555,9 +555,9 @@ class getDiffusivity:
         self.Ea = -slop * self.kb
         self.D0 = np.exp(intercept)
 
-        self.plotMSD()
-        self.plotArrhenius(self.diffcoeffs)
-        self.saveD()
+        self.plot_msd()
+        self.plot_Arrhenius(self.diffcoeffs)
+        self.save_D()
 
         print("")
         print("Ea = %.3f eV"%(self.Ea))
@@ -567,14 +567,14 @@ class getDiffusivity:
             self.diffcoeffs_x = []
             self.diffcoeffs_y = []
             self.diffcoeffs_z = []
-            self.getDx()
-            self.getDy()
-            self.getDz()
+            self.get_Dx()
+            self.get_Dy()
+            self.get_Dz()
             self.plot_xyz()
-            self.saveDxyz()
+            self.save_Dxyz()
 
 
-    def getEnsembles(self):
+    def get_ensembles(self):
         for t in tqdm(self.temp, 
                       bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'% (Fore.GREEN, Fore.RESET),
                       ascii=False,
@@ -587,28 +587,28 @@ class getDiffusivity:
                                         start=self.start,
                                         end=self.end)
             self.ensembles += [ensemble]
-            ensemble.saveMSD()
+            ensemble.save_msd()
 
 
-    def getD(self):
+    def get_D(self):
         self.diffcoeffs = [ensemble.diffcoeff for ensemble in self.ensembles]
 
 
-    def getDx(self):
+    def get_Dx(self):
         self.diffcoeffs_x = [ensemble.diffcoeff_x for ensemble in self.ensembles]
 
 
-    def getDy(self):
+    def get_Dy(self):
         self.diffcoeffs_y = [ensemble.diffcoeff_y for ensemble in self.ensembles]
 
 
-    def getDz(self):
+    def get_Dz(self):
         self.diffcoeffs_z = [ensemble.diffcoeff_z for ensemble in self.ensembles]
 
 
-    def plotMSD(self):
+    def plot_msd(self):
         for ensemble in self.ensembles:
-            ensemble.plotEnsembleMSD()
+            ensemble.plot_ensemble_msd()
             plt.legend(loc='upper left')
             plt.xlabel('t (ps)', fontsize=13)
             plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
@@ -617,9 +617,9 @@ class getDiffusivity:
         plt.close()
 
 
-    def plotArrhenius(self, 
-                      diffcoeffs, 
-                      disp=True):
+    def plot_Arrhenius(self, 
+                       diffcoeffs, 
+                       disp=True):
         kb = 8.617332478E-5 # eV/K
         slop, intercept = np.polyfit(1/self.temp, np.log(diffcoeffs), deg=1)
         tick = [r'$\frac{{1}}{{{}}}$'.format(t) for t in self.temp]
@@ -644,7 +644,7 @@ class getDiffusivity:
             plt.close()
 
 
-    def saveD(self):
+    def save_D(self):
         with open('D.txt', 'w') as f:
             f.write(f"Ea = {self.Ea} eV\n")
             f.write(f"D0 = {self.D0} m2/s\n\n")
@@ -663,33 +663,33 @@ class getDiffusivity:
         # x
         plt.subplot(321)
         for ensemble in self.ensembles:
-            ensemble.plotEnsembleMSD_x()
+            ensemble.plot_ensemble_msd_x()
         
         plt.subplot(322)
-        self.plotArrhenius(self.diffcoeffs_x, disp=False)
+        self.plot_Arrhenius(self.diffcoeffs_x, disp=False)
 
         # y
         plt.subplot(323)
         for ensemble in self.ensembles:
-            ensemble.plotEnsembleMSD_y()
+            ensemble.plot_ensemble_msd_y()
         
         plt.subplot(324)
-        self.plotArrhenius(self.diffcoeffs_y, disp=False)
+        self.plot_Arrhenius(self.diffcoeffs_y, disp=False)
 
         # z
         plt.subplot(325)
         for ensemble in self.ensembles:
-            ensemble.plotEnsembleMSD_z()
+            ensemble.plot_ensemble_msd_z()
         
         plt.subplot(326)
-        self.plotArrhenius(self.diffcoeffs_z, disp=False)
+        self.plot_Arrhenius(self.diffcoeffs_z, disp=False)
 
         plt.savefig('Dxyz.png', dpi=300, transparent=False)
         plt.show()
         plt.close()
 
 
-    def saveDxyz(self):
+    def save_Dxyz(self):
         with open('Dxyz.txt', 'w') as f:
             f.write("x-component\n")
             f.write("T (K) \tD (m2/s)\n")
@@ -724,7 +724,9 @@ class CompareNEB:
         self.site_E = []
 
 
-    def addEinstein(self, temp, D):
+    def add_Einstein(self, 
+                     temp, 
+                     D):
         if len(temp) != len(D):
             print("length of temp and D should be the same.")
             sys.exit(0)
@@ -737,7 +739,7 @@ class CompareNEB:
             self.D_ER.append(dic_D)
 
 
-    def printEinstein(self):
+    def print_Einstein(self):
         D_ER_sorted = sorted(self.D_ER,
                              key=lambda x:list(x.values()))
         
@@ -747,9 +749,9 @@ class CompareNEB:
             print("%.2e"%dic_D['D'])
 
 
-    def addSite(self, 
-                site, 
-                E):
+    def add_site(self, 
+                 site, 
+                 E):
         if len(site) != len(E):
             print("length of site and E should be the same.")
             sys.exit(0)
@@ -770,11 +772,11 @@ class CompareNEB:
             self.site.append(dic_site)
 
 
-    def addPath(self, 
-                init_site, 
-                distance, 
-                Ea, 
-                z):
+    def add_path(self, 
+                 init_site, 
+                 distance, 
+                 Ea, 
+                 z):
         num_path = len(init_site)
 
         for i in range(num_path):
@@ -789,7 +791,7 @@ class CompareNEB:
             self.site[idx]['z'].append(z[i])
     
     
-    def printPath(self):
+    def print_path(self):
         print("site\td(Å)\tEa(eV)\tE(eV)\tz")
         for dic_site in self.site:
             num_path = len(dic_site['d'])
@@ -802,9 +804,9 @@ class CompareNEB:
                 print("%d"%dic_site['z'][i], end='\n')
 
 
-    def getD_NEB(self, 
-                 T, 
-                 f=1e13):
+    def get_D_neb(self, 
+                  T, 
+                  f=1e13):
         T = np.array(T, dtype=float)
         E = np.array(self.site_E, dtype=float).reshape(-1, 1)
         
@@ -825,16 +827,16 @@ class CompareNEB:
         return np.sum(prob * D_site, axis=0)
     
     
-    def plotNEB(self, 
-                T, 
-                f=1e13, 
-                label=None):
+    def plot_neb(self, 
+                 T, 
+                 f=1e13, 
+                 label=None):
         T = np.array(T)
-        D_NEB = self.getD_NEB(T, f)
+        D_NEB = self.get_D_neb(T, f)
         plt.plot(1/T, np.log(D_NEB), 'k:', label=label)
 
 
-    def plotER(self):
+    def plot_Einstein(self):
         # plot D from ER
         T_ER = np.array([dic['T'] for dic in self.D_ER])
         D_ER = np.array([dic['D'] for dic in self.D_ER])
@@ -853,30 +855,30 @@ class CompareNEB:
             plt.xticks(1/T_ER, ticks)
         
         
-    def plotArrhenius(self,
-                      T,
-                      f=[],
-                      save=True,
-                      outfig='Arrhenius.png',
-                      dpi=300,
-                      fmin=1e12,
-                      fmax=1e14,
-                      step=10000):
+    def plot_Arrhenius(self,
+                       T,
+                       f=[],
+                       save=True,
+                       outfig='Arrhenius.png',
+                       dpi=300,
+                       fmin=1e12,
+                       fmax=1e14,
+                       step=10000):
         # plot NEB
         label_NEB = None
         if len(f) == 0:
-            f = [self.getFrequency(fmin, fmax, step)]
+            f = [self.get_frequency(fmin, fmax, step)]
             label_NEB = "NEB " + "(" + "%.2e"%f[0] + " Hz)"
 
         if label_NEB is None:
             label_NEB = "NEB"
 
         for freq in f:
-            self.plotNEB(T, freq, label=label_NEB)
+            self.plot_neb(T, freq, label=label_NEB)
             label_NEB = None
         
         # plot ER
-        self.plotER()
+        self.plot_Einstein()
 
         plt.xlabel('1/T (1/K)', fontsize=12)
         plt.ylabel('ln D', fontsize=12)
@@ -887,10 +889,10 @@ class CompareNEB:
         plt.show()
 
 
-    def getFrequency(self,
-                     fmin=1e12,
-                     fmax=1e14,
-                     step=10000):
+    def get_frequency(self,
+                      fmin=1e12,
+                      fmax=1e14,
+                      step=10000):
         
         freq = np.linspace(fmin, fmax, step)
         T_ER = np.array([dic['T'] for dic in self.D_ER])
@@ -899,7 +901,7 @@ class CompareNEB:
         err_min = np.inf
         f_opt = None
         for f in freq:
-            D_NEB = self.getD_NEB(T_ER, f)
+            D_NEB = self.get_D_neb(T_ER, f)
             err = np.sum((D_NEB - D_ER)**2)
             if err < err_min:
                 err_min = err

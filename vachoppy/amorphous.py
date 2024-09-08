@@ -21,11 +21,11 @@ class genAmorphous:
         self.prefix_data = '../data/'
 
         self.atomMass = {}
-        self.readAtomicMass()
+        self.read_atomic_mass()
 
         self.atom_name = []
         self.atom_num = []
-        self.readChemFormula()
+        self.read_chem_formula()
 
         # check atom name
         for name in self.atom_name:
@@ -35,10 +35,10 @@ class genAmorphous:
 
         self.alat = None
         self.alat_pbc = None
-        self.getDimension_cubic()
+        self.get_dimension_cubic()
 
-        self.writePDB()
-        self.writeInputPackmol()
+        self.write_pdb()
+        self.write_packmol_input()
 
         # run packmol
         try:
@@ -55,13 +55,13 @@ class genAmorphous:
              sys.exit(1)
 
         # write POSCAR
-        self.covertPDB2POSCAR(outfile)
+        self.covert_pdb2poscar(outfile)
 
         if clear_dummy:
-            self.clearDummy()
+            self.clear_dummy()
 
 
-    def readAtomicMass(self):
+    def read_atomic_mass(self):
         atomic_mass_table_path = os.path.join(os.path.dirname(__file__),
                                               self.prefix_data,'atomic_mass_table.dat')
         if not os.path.isfile(atomic_mass_table_path):
@@ -77,7 +77,7 @@ class genAmorphous:
             self.atomMass[name] = float(mass)
 
 
-    def readChemFormula(self):
+    def read_chem_formula(self):
         check, word = 'alpha', ''
         for letter in self.chem_formula:
             if letter.isalpha():
@@ -98,7 +98,7 @@ class genAmorphous:
         self.atom_num = np.array(self.atom_num)
 
 
-    def getDimension_cubic(self):
+    def get_dimension_cubic(self):
         u  =  1.660539e-24 # g
         mass = [self.atomMass[name]*u for name in self.atom_name]
         mass = np.array(mass)
@@ -107,7 +107,7 @@ class genAmorphous:
         self.alat_pbc = self.alat*0.98 - 2
 
 
-    def writePDB(self):
+    def write_pdb(self):
         for name in self.atom_name:
             with open(f"./{name}.pdb",'w') as f:
                 f.write(f"COMPND    {name}_atom\n")
@@ -116,7 +116,7 @@ class genAmorphous:
                 f.write("END")
 
 
-    def writeInputPackmol(self):
+    def write_packmol_input(self):
         with open("./packmol.inp",'w') as f:
             f.write("tolerance 2.0\n")
             f.write("filetype pdb\n")
@@ -129,7 +129,7 @@ class genAmorphous:
                 f.write("end structure\n\n")
 
 
-    def covertPDB2POSCAR(self, 
+    def covert_pdb2poscar(self, 
                          outfile):
         with open ('packmol_output.pdb','r') as file:
             lines = [line.strip() for line in file]
@@ -154,7 +154,7 @@ class genAmorphous:
                 f.write("    %.6f    %.6f   %.6f\n"%(coord[0], coord[1], coord[2]))
     
     
-    def clearDummy(self):
+    def clear_dummy(self):
         for name in self.atom_name:
             os.remove(f"{name}.pdb")
         os.remove('packmol.inp')
@@ -189,30 +189,30 @@ class genInput:
         self.prefix_data = '../data/'
 
         # write KPOINTS
-        self.writeKPOINTS()
+        self.write_kpoints()
         
         # write POTCAR
         self.pot_recommend = {}
-        self.readPOTCAR_recommended()
+        self.read_pot_recommended()
 
         self.prefix_pot = None
-        self.readPathPOTCAR()
+        self.read_pot_path()
 
         self.atom_name = None
         self.atom_num = None
         self.zval =[]
         self.enmax = []
-        self.writePOTCAR()
+        self.write_potcar()
 
         # write INCAR
         self.atom_num = np.array(self.atom_num)
         self.zval = np.array(self.zval)
         self.nelect = np.sum(self.atom_num*self.zval)-self.charge
 
-        self.writeINCAR()
+        self.write_incar()
 
 
-    def readPOTCAR_recommended(self):
+    def read_pot_recommended(self):
         recommended_potcar_path = os.path.join(
             os.path.dirname(__file__), self.prefix_data+'recommended_potcar.dat')
         if not os.path.isfile(recommended_potcar_path):
@@ -228,7 +228,7 @@ class genInput:
             self.pot_recommend[name] = recommend
     
     
-    def readPathPOTCAR(self):
+    def read_pot_path(self):
         path_dat_path = os.path.join(os.path.dirname(__file__), self.prefix_data+'path.dat')
         if not os.path.isfile(path_dat_path):
             print('path.dat is not found.\n')
@@ -240,7 +240,7 @@ class genInput:
         self.prefix_pot = lines[0].split('=')[1] if self.potcar == 'pbe' else lines[1].split('=')[1]
         
 
-    def writeKPOINTS(self):
+    def write_kpoints(self):
         with open('./KPOINTS','w') as f:
             f.write("kpoints\n")
             f.write("0\n")
@@ -249,7 +249,7 @@ class genInput:
             f.write("0 0 0")
             
             
-    def writePOTCAR(self):
+    def write_potcar(self):
         if not os.path.isfile('POSCAR'):
             print('no POSCAR file exists.')
             sys.exit(0)
@@ -272,7 +272,7 @@ class genInput:
                         self.enmax += [float(line.split()[2].split(';')[0])]
 
 
-    def writeINCAR(self):
+    def write_incar(self):
         system = ''
         for name, num in zip(self.atom_name, self.atom_num):
             system += name+str(num)
@@ -336,20 +336,20 @@ class xdat2pos:
 
         if len(args) == 1:
             step = int(args[0])
-            self.writePOSCAR(step, label=f"step{step}")
+            self.write_poscar(step, label=f"step{step}")
         elif len(args) == 3:
             start, end, interval = int(args[0]), int(args[1]), int(args[2]) 
             steps = np.arange(start, end+1, interval)
             if not os.path.isdir('ensembles'):
                 os.mkdir('ensembles')
             for i, step in enumerate(steps):
-                self.writePOSCAR(step, label=format(i+1,'02'), prefix='ensembles/')
+                self.write_poscar(step, label=format(i+1,'02'), prefix='ensembles/')
         else:
             print("check your arguments.\nexpected number of argumnets is 2 or 4.")
             sys.exit(0)
     
     
-    def writePOSCAR(self, step, label, prefix='./'):
+    def write_poscar(self, step, label, prefix='./'):
         check = False
         file_out = f"POSCAR_{label}"
         with open(prefix+file_out, 'w') as f:

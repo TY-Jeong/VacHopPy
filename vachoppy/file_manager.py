@@ -39,10 +39,10 @@ class getMDset:
                         self.label += [label]
         
         self.foldername=[]
-        self.makeFolder()
+        self.make_input_set()
 
 
-    def makeFolder(self):
+    def make_input_set(self):
         path_now = os.getcwd()
         for t in self.temp:
             outer_folder = f"{t}K"
@@ -57,7 +57,7 @@ class getMDset:
                 to_pos_path = os.path.join(path_dir, 'POSCAR')
                 shutil.copyfile(from_pos_path, to_pos_path)
                 
-                # make inpur files
+                # make input files
                 os.chdir(path_dir)
                 _ = genInput(potcar=self.potcar,
                              nsw=self.nsw,
@@ -86,7 +86,7 @@ class getMDresult:
         # folders where MD was conducted
         self.foldername=[]
         if self.temp is None and self.label is None:
-            self.autoSearch()
+            self.auto_search()
         else:
             for t in self.temp:
                 for l in self.label:
@@ -122,7 +122,7 @@ class getMDresult:
                     shutil.copyfile(from_out_path, to_out_path)
 
 
-    def autoSearch(self):
+    def auto_search(self):
         path_now = os.getcwd()
         for name_out in os.listdir(path_now):
             if os.path.isdir(name_out) and name_out[-1]=='K':

@@ -53,11 +53,11 @@ class FingerPrint:
         self.atom_species = None
         self.atom_num = None
         self.position = []
-        self.readPOSCAR()
+        self.read_poscar()
         
         # Search indices of A and B
-        self.idx_A = self.searchAtomInex(self.A)
-        self.idx_B = self.searchAtomInex(self.B)
+        self.idx_A = self.search_atom_index(self.A)
+        self.idx_B = self.search_atom_index(self.B)
         
         # volume of unit cell
         self.V_unit = np.abs(
@@ -66,13 +66,13 @@ class FingerPrint:
         
         # extended coordinaitons of B
         self.B_ext = None
-        self.getExtendedCoords_B()
+        self.get_extended_coords_B()
 
         # calculate fingerprint
-        self.getFingerprint()
+        self.get_fingerprint()
     
     
-    def readPOSCAR(self):
+    def read_poscar(self):
         with open(self.poscar, 'r') as f:
             lines = [line.strip() for line in f]
         
@@ -115,14 +115,14 @@ class FingerPrint:
             raise ValueError(f"{self.dirac} is not defined.")
             
             
-    def searchAtomInex(self, atom_name):
+    def search_atom_index(self, atom_name):
         for i, atom in enumerate(self.position):
             if atom['name'] == atom_name:
                 return i
         raise ValueError(f"Atom {atom_name} not found in POSCAR file.")
     
     
-    def getExtendedCoords_B(self):
+    def get_extended_coords_B(self):
         # supercells within Rmax
         l_lat = np.linalg.norm(self.lattice, axis=1)
         m = np.floor(self.Rmax / l_lat) + 1
@@ -136,16 +136,15 @@ class FingerPrint:
         self.B_ext = np.vstack([shifts + coord for coord in coords_B])
              
              
-    def getFingerprint(self):
+    def get_fingerprint(self):
         for coord_A in self.position[self.idx_A]['coords']:
-            self.fingerprint += self.getFingerprint_i(coord_A)
+            self.fingerprint += self.get_fingerprint_i(coord_A)
         
         self.fingerprint *= self.V_unit / self.position[self.idx_A]['num']
         self.fingerprint -= 1
         
         
-    def getFingerprint_i(self, 
-                         coord_A_i):
+    def get_fingerprint_i(self, coord_A_i):
         # calculate R_ij
         disp = self.B_ext - coord_A_i
         disp_cart = np.dot(disp[:,:], self.lattice)
@@ -169,7 +168,7 @@ class FingerPrint:
         return fingerprint_i
     
     
-    def plotFingerprint(self, 
+    def plot_fingerprint(self, 
                          disp=True,
                          save=False,
                          label=None,

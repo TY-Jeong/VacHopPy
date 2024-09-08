@@ -39,10 +39,10 @@ class getMDset:
                         self.label += [label]
         
         self.foldername=[]
-        self.makeFolder()
+        self.make_input_set()
 
 
-    def makeFolder(self):
+    def make_input_set(self):
         path_now = os.getcwd()
         for t in self.temp:
             outer_folder = f"{t}K"
@@ -86,7 +86,7 @@ class getMDresult:
         # folders where MD was conducted
         self.foldername=[]
         if self.temp is None and self.label is None:
-            self.autoSearch()
+            self.auto_search()
         else:
             for t in self.temp:
                 for l in self.label:
@@ -122,7 +122,7 @@ class getMDresult:
                     shutil.copyfile(from_out_path, to_out_path)
 
 
-    def autoSearch(self):
+    def auto_search(self):
         path_now = os.getcwd()
         for name_out in os.listdir(path_now):
             if os.path.isdir(name_out) and name_out[-1]=='K':
@@ -137,7 +137,7 @@ class getMDresult:
 
 
 
-def concatXDATCAR(xdatcar1, 
+def concat_xdatcar(xdatcar1, 
                   xdatcar2, 
                   outcar1, 
                   outcar2, 
@@ -210,7 +210,7 @@ def concatXDATCAR(xdatcar1,
                 f.write("   %.8f  %.8f  %.8f\n"%(x,y,z))
 
 
-def concatForce(force1, 
+def concat_force(force1, 
                 force2, 
                 force_out):
     if not os.path.isfile(force1):
@@ -240,7 +240,7 @@ def concatForce(force1,
                 f.write(s)
                 
 
-def extractForce(file_in, 
+def extract_force(file_in, 
                  file_out='force.dat'):
     """
     extract force profile from vasprun.xml
