@@ -1581,7 +1581,7 @@ class CumulativeCorrelationFactor:
         # cumulative f_cor
         self.f_avg = np.average(self.f_ensemble) # averaged over ensmebles
         self.f_cum = None
-        self.get_cumul_corrleation_factor()
+        self.get_cumulative_correlation_factor()
 
         # print results
         self.print_summary()
@@ -1669,7 +1669,7 @@ class CumulativeCorrelationFactor:
         return analyzer
     
 
-    def get_cumul_corrleation_factor(self):
+    def get_cumulative_correlation_factor(self):
         self.counts_cum = np.zeros(len(self.path_name))
 
         for i, name in enumerate(self.path_name):
