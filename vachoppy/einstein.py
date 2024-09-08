@@ -36,7 +36,7 @@ class EinsteinRelation:
         # read outcar
         self.potim = None
         self.nblock = None
-        self.read_outcar()
+        self.readOUTCAR()
 
         # read XDATCAR
         self.TypeName = None    # List of atom species
@@ -46,10 +46,10 @@ class EinsteinRelation:
         self.Niter = None       # Number of steps
         self.position = None    # Direct coordination of atoms
         self.cell = None        # Lattice of cell
-        self.read_xdatcar()
+        self.readXDATCAR()
 
         self.ChemSymb = None
-        self.symbol_list()
+        self.symbolList()
 
         # Parameters for skip
         self.segments = segments    # Dividing whole MD steps into segments
@@ -63,7 +63,7 @@ class EinsteinRelation:
 
         # Mean square distance
         self.msd = None
-        self.getmsd()
+        self.getMSD()
         
         # Diffusivity.
         # For ensemble calculation, please set getD = False to save time
@@ -72,12 +72,13 @@ class EinsteinRelation:
         self.ddiffcoeff = None  # Deviation of D
 
         if getD is True:
-            self.getdiff()
+            self.getDiff()
 
         if self.verbose:
-            self.plot_msd()
+            self.plotMSD()
     
-    def read_outcar(self):
+    
+    def readOUTCAR(self):
         if self.verbose:
             print(f"reading {self.outcar}...")
         with open(self.outcar, 'r') as file:
@@ -98,7 +99,8 @@ class EinsteinRelation:
             print(f"\tpotim = {self.potim}")
             print(f"\tnblock = {self.nblock}\n")
     
-    def read_xdatcar(self):
+    
+    def readXDATCAR(self):
         if self.verbose:
             print(f"reading {self.xdatcar}...")
         with open(self.xdatcar,'r') as file:
@@ -128,13 +130,15 @@ class EinsteinRelation:
         if self.verbose:
             print(f"\tshape of position = {self.position.shape} #(nsw, number of atom, xyz)\n")
 
-    def symbol_list(self):
+
+    def symbolList(self):
         self.ChemSymb = []
         for i in range(self.Ntype):
             self.ChemSymb += [np.tile(self.TypeName[i], self.Nelem[i])]
         self.ChemSymb = np.concatenate(self.ChemSymb)
     
-    def getmsd(self):
+    
+    def getMSD(self):
         # length of segment
         seglength = int(np.floor((self.Niter-self.skip)/self.segments))
         if self.verbose:
@@ -176,7 +180,8 @@ class EinsteinRelation:
         if self.verbose:
             print(f"\tshape of msd = {self.msd.shape} #(segment, number of type, nsw - skip, xyz)\n")
                 
-    def getdiff(self):
+                
+    def getDiff(self):
         self.diffcoeff = np.zeros(shape=(self.segments, self.Ntype, 3))
         self.intercept = np.zeros(shape=(self.segments, self.Ntype, 3))
         self.ddiffcoeff = np.zeros(shape=(self.Ntype, 3))
@@ -203,7 +208,9 @@ class EinsteinRelation:
         self.diffcoeff /= 2      # x, y, z 각각에 대해 계산되었음 -> 1차원임 -> 2로 나누어짐
         self.ddiffcoeff = np.std(self.diffcoeff, axis=0) / 2
     
-    def get_msd_specific_atom(self, symbol):
+    
+    def getMSD_Atom(self, 
+                    symbol):
         if symbol in self.TypeName:
             idx = np.where(np.array(self.TypeName) == symbol)[0][0]
             return self.msd[:,idx,:,:]  # shape: [1, steps, 3:xyz]
@@ -211,10 +218,11 @@ class EinsteinRelation:
             print("No matched atom!")
             return None
         
-    def plot_msd(self):
+        
+    def plotMSD(self):
         time = np.arange(self.skip, self.Niter) * self.potim / 1000
         for type in self.TypeName:
-            msd = np.sum(self.get_msd_specific_atom(symbol=type).squeeze(), axis=1)
+            msd = np.sum(self.getMSD_Atom(symbol=type).squeeze(), axis=1)
             plt.plot(time, msd, label=type)
         plt.xlabel('t (ps)', fontsize=13)
         plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
@@ -223,8 +231,16 @@ class EinsteinRelation:
         plt.show()
 
 
+
 class EnsembleEinstein:
-    def __init__(self, symbol, prefix, labels, segments, skip, start=None, end=None):
+    def __init__(self, 
+                 symbol, 
+                 prefix, 
+                 labels, 
+                 segments, 
+                 skip, 
+                 start=None, 
+                 end=None):
         ## XDATCAR format : XDATCAR_{label}
         ## OUTCAR format : OUTCAR
 
@@ -273,6 +289,7 @@ class EnsembleEinstein:
             _, __ = self.getEnsembleD_y()
             _, __ = self.getEnsembleD_z()
 
+
     def getEnsembleMSD(self):
         desc = self.prefix.split('/')[-1] if len(self.prefix.split('/')[-1]) > 0 \
             else  self.prefix.split('/')[-2]
@@ -289,18 +306,20 @@ class EnsembleEinstein:
                                         verbose=False,
                                         getD=False)
             if self.msd_xyz is None:
-                self.msd_xyz = ensemble.get_msd_specific_atom(symbol=self.symbol)
+                self.msd_xyz = ensemble.getMSD_Atom(symbol=self.symbol)
                 self.potim = ensemble.potim
                 self.nblock = ensemble.nblock
             else:
                 self.msd_xyz = np.append(self.msd_xyz, 
-                                         ensemble.get_msd_specific_atom(symbol=self.symbol), axis=0)
+                                         ensemble.getMSD_Atom(symbol=self.symbol), axis=0)
         
         self.msd_xyz = np.mean(self.msd_xyz, axis=0)
         self.msd = np.sum(self.msd_xyz, axis=1)
         self.timestep = np.arange(self.msd[:].shape[0]) * self.potim * self.nblock / 1000
 
-    def getEnsembleD(self, *args):
+
+    def getEnsembleD(self, 
+                     *args):
         if len(args) == 2:
             self.start, self.end = args[0], args[1]
         if self.start is None or self.end is None:
@@ -329,7 +348,9 @@ class EnsembleEinstein:
         plt.xlabel('t (ps)', fontsize=13)
         plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
 
-    def getEnsembleD_x(self, *args):
+
+    def getEnsembleD_x(self, 
+                       *args):
         if len(args) == 2:
             self.start, self.end = args[0], args[1]
         if self.start is None or self.end is None:
@@ -341,6 +362,7 @@ class EnsembleEinstein:
                                                         1E-5*self.msd_x[self.start:self.end],
                                                         deg=1)
         return self.diffcoeff_x, self.intercept_x
+    
     
     def plotEnsembleMSD_x(self):
         temp = self.prefix.split('/')[-2].split('.')[-1]
@@ -361,7 +383,9 @@ class EnsembleEinstein:
         plt.xlabel('t (ps)', fontsize=13)
         plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
 
-    def getEnsembleD_y(self, *args):
+
+    def getEnsembleD_y(self, 
+                       *args):
         if len(args) == 2:
             self.start, self.end = args[0], args[1]
         if self.start is None or self.end is None:
@@ -373,6 +397,7 @@ class EnsembleEinstein:
                                                         1E-5*self.msd_y[self.start:self.end],
                                                         deg=1)
         return self.diffcoeff_y, self.intercept_y
+    
     
     def plotEnsembleMSD_y(self):
         temp = self.prefix.split('/')[-2].split('.')[-1]
@@ -393,7 +418,9 @@ class EnsembleEinstein:
         plt.xlabel('t (ps)', fontsize=13)
         plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
 
-    def getEnsembleD_z(self, *args):
+
+    def getEnsembleD_z(self, 
+                       *args):
         if len(args) == 2:
             self.start, self.end = args[0], args[1]
         if self.start is None or self.end is None:
@@ -405,6 +432,7 @@ class EnsembleEinstein:
                                                         1E-5 * self.msd_z[self.start:self.end],
                                                         deg=1)
         return self.diffcoeff_z, self.intercept_z
+    
     
     def plotEnsembleMSD_z(self):
         temp = self.prefix.split('/')[-2].split('.')[-1]
@@ -425,6 +453,7 @@ class EnsembleEinstein:
         plt.xlabel('t (ps)', fontsize=13)
         plt.ylabel(r'MSD ($Å^2$)', fontsize=13)
     
+    
     def saveMSD(self):
         if not os.path.isdir('msd'):
             os.mkdir('msd')
@@ -436,6 +465,7 @@ class EnsembleEinstein:
         temp = self.prefix.split('/')[-2].split('.')[-1]
         filename = prefix+'msd_'+temp+'.txt'
         np.savetxt(filename, data_save)
+
 
 
 class getDiffusivity:
@@ -543,6 +573,7 @@ class getDiffusivity:
             self.plot_xyz()
             self.saveDxyz()
 
+
     def getEnsembles(self):
         for t in tqdm(self.temp, 
                       bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'% (Fore.GREEN, Fore.RESET),
@@ -562,14 +593,18 @@ class getDiffusivity:
     def getD(self):
         self.diffcoeffs = [ensemble.diffcoeff for ensemble in self.ensembles]
 
+
     def getDx(self):
         self.diffcoeffs_x = [ensemble.diffcoeff_x for ensemble in self.ensembles]
+
 
     def getDy(self):
         self.diffcoeffs_y = [ensemble.diffcoeff_y for ensemble in self.ensembles]
 
+
     def getDz(self):
         self.diffcoeffs_z = [ensemble.diffcoeff_z for ensemble in self.ensembles]
+
 
     def plotMSD(self):
         for ensemble in self.ensembles:
@@ -581,7 +616,10 @@ class getDiffusivity:
         plt.show()
         plt.close()
 
-    def plotArrhenius(self, diffcoeffs, disp=True):
+
+    def plotArrhenius(self, 
+                      diffcoeffs, 
+                      disp=True):
         kb = 8.617332478E-5 # eV/K
         slop, intercept = np.polyfit(1/self.temp, np.log(diffcoeffs), deg=1)
         tick = [r'$\frac{{1}}{{{}}}$'.format(t) for t in self.temp]
@@ -605,6 +643,7 @@ class getDiffusivity:
             plt.show()
             plt.close()
 
+
     def saveD(self):
         with open('D.txt', 'w') as f:
             f.write(f"Ea = {self.Ea} eV\n")
@@ -612,6 +651,7 @@ class getDiffusivity:
             f.write("T (K) \tD (m2/s)\n")
             for t, D in zip(self.temp, self.diffcoeffs):
                 f.write(f"{t}\t{D}\n")
+
 
     def plot_xyz(self):
         figsize = (10,15)
@@ -648,6 +688,7 @@ class getDiffusivity:
         plt.show()
         plt.close()
 
+
     def saveDxyz(self):
         with open('Dxyz.txt', 'w') as f:
             f.write("x-component\n")
@@ -668,6 +709,8 @@ class getDiffusivity:
                 f.write(f"{t}\t{D}\n")
             f.write("\n")
 
+
+
 class CompareNEB:
     def __init__(self):
         self.kb = 8.617332478e-5 # eV/K
@@ -679,6 +722,7 @@ class CompareNEB:
         self.site = []
         self.site_name = []
         self.site_E = []
+
 
     def addEinstein(self, temp, D):
         if len(temp) != len(D):
@@ -692,6 +736,7 @@ class CompareNEB:
 
             self.D_ER.append(dic_D)
 
+
     def printEinstein(self):
         D_ER_sorted = sorted(self.D_ER,
                              key=lambda x:list(x.values()))
@@ -701,7 +746,10 @@ class CompareNEB:
             print("%d"%dic_D['T'], end='\t')
             print("%.2e"%dic_D['D'])
 
-    def addSite(self, site, E):
+
+    def addSite(self, 
+                site, 
+                E):
         if len(site) != len(E):
             print("length of site and E should be the same.")
             sys.exit(0)
@@ -721,7 +769,12 @@ class CompareNEB:
             self.site_E.append(energy)
             self.site.append(dic_site)
 
-    def addPath(self, init_site, distance, Ea, z):
+
+    def addPath(self, 
+                init_site, 
+                distance, 
+                Ea, 
+                z):
         num_path = len(init_site)
 
         for i in range(num_path):
@@ -735,6 +788,7 @@ class CompareNEB:
             self.site[idx]['Ea'].append(Ea[i])
             self.site[idx]['z'].append(z[i])
     
+    
     def printPath(self):
         print("site\td(Å)\tEa(eV)\tE(eV)\tz")
         for dic_site in self.site:
@@ -747,7 +801,10 @@ class CompareNEB:
                 print("%.2f"%dic_site['E'], end='\t')
                 print("%d"%dic_site['z'][i], end='\n')
 
-    def getD_NEB(self, T, f=1e13):
+
+    def getD_NEB(self, 
+                 T, 
+                 f=1e13):
         T = np.array(T, dtype=float)
         E = np.array(self.site_E, dtype=float).reshape(-1, 1)
         
@@ -767,10 +824,15 @@ class CompareNEB:
 
         return np.sum(prob * D_site, axis=0)
     
-    def plotNEB(self, T, f=1e13, label=None):
+    
+    def plotNEB(self, 
+                T, 
+                f=1e13, 
+                label=None):
         T = np.array(T)
         D_NEB = self.getD_NEB(T, f)
         plt.plot(1/T, np.log(D_NEB), 'k:', label=label)
+
 
     def plotER(self):
         # plot D from ER
@@ -789,6 +851,7 @@ class CompareNEB:
         else:
             ticks = [f"1/{temp}" for temp in T_ER]
             plt.xticks(1/T_ER, ticks)
+        
         
     def plotArrhenius(self,
                       T,
@@ -822,6 +885,7 @@ class CompareNEB:
         if save:
             plt.savefig(outfig, dpi=dpi)
         plt.show()
+
 
     def getFrequency(self,
                      fmin=1e12,

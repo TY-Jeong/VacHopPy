@@ -24,14 +24,20 @@ RESET = '\033[0m'  # Reset to default color
 
 
 class Arrow3D(FancyArrowPatch):
-    def __init__(self, xs, ys, zs, *args, **kwargs):
+    def __init__(self, 
+                 xs, 
+                 ys, 
+                 zs, 
+                 *args, 
+                 **kwargs):
         """
         helper class to drqw 3D arrows
         """
         super().__init__((0,0), (0,0), *args, **kwargs)
         self._verts3d = xs, ys, zs
         
-    def do_3d_projection(self, renderer=None):
+    def do3dProjection(self, 
+                       renderer=None):
         xs3d, ys3d, zs3d = self._verts3d
         xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
@@ -139,7 +145,7 @@ class Lattice:
         # information on lattice points
         self.lattice = None
         self.lat_points = []
-        self.read_poscar()
+        self.readPOSCAR()
 
         # information on hopping path
         self.path = []
@@ -147,7 +153,7 @@ class Lattice:
         self.site_names = []
 
 
-    def read_poscar(self):
+    def readPOSCAR(self):
         with open(self.path_poscar, 'r') as f:
             lines = np.array([line.strip() for line in f])
 
@@ -270,18 +276,18 @@ class LatticeHopping:
         self.num_step = None # (=nsw/interval)
         self.position = []
         self.idx_target = None
-        self.read_xdatcar()
+        self.readXDATCAR()
 
         # read force data
         self.force_file = force
         self.forces = None
         if self.force_file is not None:
-            self.read_force()
+            self.readForce()
 
         # trajectory of atom
         self.traj_on_lat_C = None
         self.occ_lat_point = None
-        self.traj_on_lattice()
+        self.trajOnLattice()
 
         # number of atoms preceding target
         self.count_before = 0 
@@ -291,17 +297,17 @@ class LatticeHopping:
         # trajectory of vacancy
         self.idx_vac = {}
         self.traj_vac_C = {} 
-        self.find_vacancy()
+        self.findVacancy()
 
         # trace arrows
         self.trace_arrows = None
-        self.get_trace_lines()
+        self.getTraceArrows()
 
         # check multi-vacancy issue
         self.multi_vac = None
 
 
-    def read_xdatcar(self):
+    def readXDATCAR(self):
         # read xdatcar
         with open(self.xdatcar, 'r') as f:
             lines = np.array([s.strip() for s in f])
@@ -371,7 +377,7 @@ class LatticeHopping:
             self.position += [atom]
 
 
-    def read_force(self):
+    def readForce(self):
         # read force data
         with open(self.force_file, 'r') as f:
             lines = [s.strip() for s in f]
@@ -392,7 +398,9 @@ class LatticeHopping:
         self.forces = np.average(self.forces, axis=1)
 
 
-    def distance_pbc(self, coord1, coord2):
+    def distancePBC(self, 
+                    coord1, 
+                    coord2):
         """
         coord1 and coord2 are direct coordinations.
         coord1 is one point or multiple points.
@@ -409,14 +417,16 @@ class LatticeHopping:
             return np.sqrt(np.sum(np.dot(distance, self.lattice)**2,axis=1))
 
 
-    def getDisplacement(self, r1, r2):
+    def getDisplacement(self, 
+                        r1, 
+                        r2):
         disp = r2 - r1
         disp[disp > 0.5] -= 1.0
         disp[disp < -0.5] += 1.0
         return np.dot(disp, self.lattice)
             
 
-    def traj_on_lattice(self):
+    def trajOnLattice(self):
         traj = self.position[self.idx_target]['traj']
 
         # distance from lattice points
@@ -430,10 +440,10 @@ class LatticeHopping:
         self.traj_on_lat_C = self.lat_points_C[self.occ_lat_point]
 
 
-    def save_traj(self,
-                  interval_traj=1,
-                  foldername='traj',
-                  label=False):
+    def saveTraj(self,
+                 interval_traj=1,
+                 foldername='traj',
+                 label=False):
         """
         interval_traj: trajectory is plotted with step interval of "interval_traj"
         folder: path to directory where traj files are saved
@@ -453,7 +463,7 @@ class LatticeHopping:
             # plot lattice and lattice points
             fig = plt.figure()
             ax = fig.add_subplot(111, projection = '3d')
-            self.plot_lattice(ax, label=label)
+            self.plotLattice(ax, label=label)
 
             # plot trajectory
             ax.plot(*coords.T, 'b-', marker=None)
@@ -468,7 +478,9 @@ class LatticeHopping:
             plt.close()
 
 
-    def plot_lattice(self, ax, label=False):
+    def plotLattice(self, 
+                    ax, 
+                    label=False):
         coord_origin = np.zeros([1,3])
 
         # plot edges
@@ -530,7 +542,7 @@ class LatticeHopping:
         ax.set_zlabel('z (Å)')
 
 
-    def find_vacancy(self):
+    def findVacancy(self):
         idx_lat = np.arange(self.num_lat_points)
         for i in range(self.num_step):
             idx_i = np.setdiff1d(idx_lat, self.occ_lat_point[:,i])
@@ -538,7 +550,7 @@ class LatticeHopping:
             self.traj_vac_C[i] = self.lat_points_C[idx_i]
 
 
-    def correctionTS(self):
+    def correctTS(self):
         traj = np.transpose(self.position[self.idx_target]['traj'], (1, 0, 2))
         for i in range(1, self.num_step):
             # check whether vacancy moves
@@ -598,10 +610,10 @@ class LatticeHopping:
             self.traj_on_lat_C[atom][i] = self.traj_on_lat_C[atom][i-1]
 
         # update trace arrows
-        self.get_trace_lines()
+        self.getTraceArrows()
 
 
-    def get_trace_lines(self):
+    def getTraceArrows(self):
         """
         displaying trajectory of moving atom at each step.
         """
@@ -628,11 +640,11 @@ class LatticeHopping:
                 self.trace_arrows[step] = []
 
 
-    def save_gif_PIL(self, 
-                     filename, 
-                     files, 
-                     fps=5, 
-                     loop=0):
+    def saveGIF(self, 
+                filename, 
+                files, 
+                fps=5, 
+                loop=0):
         """
         helper method to generate gif files
         """
@@ -685,7 +697,7 @@ class LatticeHopping:
             ax = fig.add_subplot(111, projection='3d')
 
             # plot lattice and lattice points
-            self.plot_lattice(ax, label=label)
+            self.plotLattice(ax, label=label)
 
             # plot points
             for i, idx in enumerate(index):
@@ -736,18 +748,18 @@ class LatticeHopping:
         # make gif file
         if gif:
             print(f"Generating {filename}...")
-            self.save_gif_PIL(filename=filename,
+            self.saveGIF(filename=filename,
                               files=files,
                               fps=fps,
                               loop=loop)
             print(f"{filename} was generated.")
         
 
-    def save_poscar(self,
-                    step,
-                    outdir='./',
-                    vac=False,
-                    expression_vac='XX'):
+    def savePOSCAR(self,
+                   step,
+                   outdir='./',
+                   vac=False,
+                   expression_vac='XX'):
         """
         if vac=True, vacancy is labelled by 'XX'
         """
@@ -791,29 +803,29 @@ class LatticeHopping:
                     f.write("%.6f %.6f %.6f\n"%(coord[0], coord[1], coord[2])) 
 
 
-    def show_poscar(self,
-                    step=None,
-                    filename=None,
-                    vac=False):
+    def showPOSCAR(self,
+                   step=None,
+                   filename=None,
+                   vac=False):
         """
         recieve step or filename
         """
         if step is not None:
-            self.save_poscar(step=step, vac=vac)
+            self.savePOSCAR(step=step, vac=vac)
             filename = f"POSCAR_{step}"
         
         poscar = read_vasp(filename)
         view(poscar)
 
 
-    def save_traj_on_lat(self,
-                         lat_point=[],
-                         step=[],
-                         foldername='traj_on_lat',
-                         vac=True,
-                         label=False,
-                         potim=2,
-                         dpi=300):
+    def saveTrajOnLattice(self,
+                          lat_point=[],
+                          step=[],
+                          foldername='traj_on_lat',
+                          vac=True,
+                          label=False,
+                          potim=2,
+                          dpi=300):
         """
         lat_point: label of lattice points at the first element of step array.
         step: steps interested in
@@ -844,7 +856,7 @@ class LatticeHopping:
             # plot lattice and lattice points
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
-            self.plot_lattice(ax, label=label)
+            self.plotLattice(ax, label=label)
             
             color_atom = {}
             for i, idx in enumerate(atom_idx):
@@ -913,7 +925,7 @@ class LatticeHopping:
             plt.close()
 
 
-    def check_unique_vac(self, verbose=True):
+    def checkMultiVacancy(self, verbose=True):
         check = np.array([len(i) for i in self.idx_vac.values()])
         check = np.where((check==1) == False)[0]
         
@@ -931,9 +943,9 @@ class LatticeHopping:
             print('vacancy is unique.')
 
 
-    def update_vac(self,
-                   step,
-                   lat_point):
+    def updateVacancy(self,
+                      step,
+                      lat_point):
         """
         step: step which the user want to update the vacancy site
         lat_point: label of lattice point where vacancy exist at the step
@@ -942,7 +954,8 @@ class LatticeHopping:
         self.traj_vac_C[step] = np.array([self.lat_points_C[lat_point]])
 
 
-    def check_connectivity(self, start=1):
+    def correctMultiVacancy(self, 
+                            start=1):
         """
         correction for multi-vacancy issue
         correction starts from 'start' step
@@ -954,7 +967,7 @@ class LatticeHopping:
             # when only one vacancy exist
             if len(self.idx_vac[step]) == 1:
                 vac_site = self.idx_vac[step][0]
-                self.update_vac(step, vac_site)
+                self.updateVacancy(step, vac_site)
                 continue
 
             # when multiple vacancies exsit
@@ -972,7 +985,7 @@ class LatticeHopping:
                             break
 
                 # update vacancy site
-                self.update_vac(step, vac_site)
+                self.updateVacancy(step, vac_site)
                 continue
 
             # when vacancy moves
@@ -1008,7 +1021,7 @@ class LatticeHopping:
                             break
 
                 # updata vacancy site
-                self.update_vac(step, vac_site)
+                self.updateVacancy(step, vac_site)
                 continue
 
             elif len(site) == 0:
@@ -1022,7 +1035,7 @@ class LatticeHopping:
                 break
 
         # update trace arrows
-        self.get_trace_lines()
+        self.getTraceArrows()
             
 
 
@@ -1062,7 +1075,8 @@ class Analyzer:
         self.idx_vac = self.traj.idx_vac # (dic) index of vacancy
             
 
-    def search_path_vac(self, verbose=True):
+    def getPathVacancy(self, 
+                       verbose=True):
         step_unknown = []
         self.path_vac = []
         idx = 0 # index in self.path_vac
@@ -1072,11 +1086,11 @@ class Analyzer:
             coord_final = self.lat_points[self.traj.idx_vac[step+1][0]]['coord']
             
             # check whether vacancy moves
-            distance = self.traj.distance_pbc(coord_init, coord_final)
+            distance = self.traj.distancePBC(coord_init, coord_final)
             
             if distance > self.tolerance:
                 site_init = self.lat_points[self.traj.idx_vac[step][0]]['site']
-                path = self.get_path(site_init, distance)
+                path = self.getPath(site_init, distance)
                 
                 path['step'] = step+1
                 
@@ -1090,9 +1104,9 @@ class Analyzer:
             print(f"unknown steps are detected.: {step_unknown}")
         
 
-    def get_path(self,
-                 site_init,
-                 distance):
+    def getPath(self,
+                site_init,
+                distance):
         """
         path is determined based on initial site and distance.
         """
@@ -1123,10 +1137,10 @@ class Analyzer:
             return candidate[0]
             
 
-    def print_path_vac(self):
+    def printPathVacancy(self):
         if self.path_vac is None:
             print("path_vac is not defines.")
-            print("please run 'search_path_vac'.")
+            print("please run 'getPathVacancy'.")
 
         else:
             print("path of vacancy :")
@@ -1135,16 +1149,16 @@ class Analyzer:
             print('')
     
 
-    def plot_path_counts(self, 
-                         figure='counts.png',
-                         text='counts.txt',
-                         disp=True,
-                         save_figure=True,
-                         save_text=True,
-                         bar_width=0.6,
-                         bar_color='c',
-                         dpi=300,
-                         sort = True):
+    def plotPathCounts(self, 
+                       figure='counts.png',
+                       text='counts.txt',
+                       disp=True,
+                       save_figure=True,
+                       save_text=True,
+                       bar_width=0.6,
+                       bar_color='c',
+                       dpi=300,
+                       sort=True):
         
         path_vac_names = [p_vac['name'] for p_vac in self.path_vac]
         path_type = copy.deepcopy(self.path_names)
@@ -1211,10 +1225,10 @@ class Analyzer:
                     f.write(f"unknown\t{num_unknown}")
         
 
-    def path_tracer(self,
-                    paths,
-                    p_init,
-                    p_goal):
+    def pathTracer(self,
+                   paths,
+                   p_init,
+                   p_goal):
         """
         find sequential paths connection p_init and p_goal
         """
@@ -1237,14 +1251,14 @@ class Analyzer:
             
             else:
                 for i in intersect:
-                    answer += self.path_tracer(paths, paths[i][1], p_goal)
+                    answer += self.pathTracer(paths, paths[i][1], p_goal)
                 
                 if answer[-1] != p_goal:
                     return []
     
 
-    def path_decomposer(self,
-                        index):
+    def pathDecomposer(self,
+                       index):
         """
         index : index in self.path_vac
         """
@@ -1258,7 +1272,7 @@ class Analyzer:
         vac_now = self.traj.idx_vac[step][0]
         vac_pre = self.traj.idx_vac[step-1][0]
         
-        path = self.path_tracer(arrows, vac_now, vac_pre)
+        path = self.pathTracer(arrows, vac_now, vac_pre)
         path = np.array(path, dtype=int)
 
         # update index of lattice points occupied by vacancy
@@ -1267,7 +1281,7 @@ class Analyzer:
         return path
     
 
-    def unwrap_path(self):
+    def correctMultiPath(self):
         path_unwrap = []
         
         for idx, path in enumerate(self.path_vac):
@@ -1279,7 +1293,7 @@ class Analyzer:
             # unknown path
             else:
                 try:
-                    p = self.path_decomposer(idx)
+                    p = self.pathDecomposer(idx)
                     p = np.flip(p)
                 except:
                     print(f"error in unwrapping path_vac[{idx}].")
@@ -1303,9 +1317,9 @@ class Analyzer:
                     coord_final = self.lat_points[p[i+1]]['coord']
                     
                     site_init = self.lat_points[p[i]]['site']
-                    distance = self.traj.distance_pbc(coord_init, coord_final)
+                    distance = self.traj.distancePBC(coord_init, coord_final)
                     
-                    p_new = self.get_path(site_init, distance)
+                    p_new = self.getPath(site_init, distance)
                     p_new['step'] = step
                     
                     path_unwrap += [copy.deepcopy(p_new)]
@@ -1329,16 +1343,16 @@ class Analyzer:
             print(")")
         
 
-    def print_summary(self,
-                      figure='counts.png',
-                      text='counts.txt',
-                      disp=True,
-                      save_figure=False,
-                      save_text=False,
-                      bar_width=0.6,
-                      bar_color='c',
-                      dpi=300,
-                      sort=True):
+    def printSummary(self,
+                     figure='counts.png',
+                     text='counts.txt',
+                     disp=True,
+                     save_figure=False,
+                     save_text=False,
+                     bar_width=0.6,
+                     bar_color='c',
+                     dpi=300,
+                     sort=True):
         
         counts_tot = len(self.path_vac)
         print(f"total counts : {counts_tot}")
@@ -1353,7 +1367,7 @@ class Analyzer:
         print(f"maximum Ea : {Ea_max} eV")
         
         if disp or save_figure or save_text:
-            self.plot_path_counts(figure=figure,
+            self.plotPathCounts(figure=figure,
                                 text=text,
                                 disp=disp,
                                 save_figure=save_figure,
@@ -1400,7 +1414,7 @@ class CorrelationFactor:
 
         # print results
         if verbose:
-            self.print_summary()
+            self.printSummary()
 
 
     def getEncounters(self):
@@ -1425,7 +1439,8 @@ class CorrelationFactor:
             self.encounters.append(dic)
     
 
-    def getDisplacement(self, path):
+    def getDisplacement(self, 
+                        path):
         coords = self.traj.lat_points[path]
         
         displacement = np.zeros_like(coords)
@@ -1440,7 +1455,8 @@ class CorrelationFactor:
         return displacement_C  
     
 
-    def getPathName(self, path):
+    def getPathName(self, 
+                    path):
         path_names = []
         for i in range(1, len(path)):
             idx_i, idx_f = path[i-1], path[i]
@@ -1448,9 +1464,9 @@ class CorrelationFactor:
 
             coord_i = self.traj.lat_points[idx_i]
             coord_f = self.traj.lat_points[idx_f]
-            distance = self.traj.distance_pbc(coord_i, coord_f)
+            distance = self.traj.distancePBC(coord_i, coord_f)
             
-            name = self.analyzer.get_path(site_init, distance)['name']
+            name = self.analyzer.getPath(site_init, distance)['name']
             path_names.append(name)
 
         return path_names
@@ -1492,7 +1508,7 @@ class CorrelationFactor:
             self.f_cor = 0
 
 
-    def print_summary(self):
+    def printSummary(self):
         print(f"Correlation factor        : {self.f_cor:.3f}")
         print(f"Number of encounters      : {self.num_enc}")
         count_tot = int(np.sum(self.path_counts*self.num_enc))
@@ -1613,7 +1629,8 @@ class CumulativeCorrelationFactor:
             self.path_dist.append(path['distance'])
     
 
-    def getAnalyzer(self, label):
+    def getAnalyzer(self, 
+                    label):
         path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
         if self.force_dir is not None:
             path_force = os.path.join(self.force_dir, f"force_{label}.dat")
@@ -1626,8 +1643,8 @@ class CumulativeCorrelationFactor:
                               interval=self.interval)
         
         if self.multi_vac:
-            traj.check_connectivity()
-            traj.check_unique_vac(verbose=False)
+            traj.correctMultiVacancy()
+            traj.checkMultiVacancy(verbose=False)
         
         if traj.multi_vac is True:
             print(f'multi-vacancy issue in label {label}.')
@@ -1636,16 +1653,16 @@ class CumulativeCorrelationFactor:
             return None
 
         if self.correction_TS and (self.force_dir is not None):
-            traj.correctionTS()
+            traj.correctTS()
 
         analyzer = Analyzer(traj, self.lattice)
-        analyzer.search_path_vac(verbose=self.verbose)
+        analyzer.getPathVacancy(verbose=self.verbose)
 
         if self.multi_path:
-            analyzer.unwrap_path()
+            analyzer.correctMultiPath()
 
         if self.verbose:
-            analyzer.print_summary(disp=False, 
+            analyzer.printSummary(disp=False, 
                                    save_figure=False, 
                                    save_text=False)
         print('')
@@ -1700,367 +1717,3 @@ class CumulativeCorrelationFactor:
             for label in self.label_err:
                 print(label, end=' ')
             print('')
-
-
-
-# class CorrelationFactor:
-#     def __init__(self, 
-#                  lattice,
-#                  xdatcar,
-#                  label='auto',
-#                  interval=1,
-#                  verbose=True):
-#         """
-#         encounter MSD is calculated using projected vacancy path
-#         """
-#         # save arguments
-#         self.lattice = lattice
-#         self.xdatcar = xdatcar
-#         self.interval = interval
-#         self.label = self.getLabel() if label=='auto' else label
-#         self.verbose = verbose
-        
-#         # lattice information
-#         self.symbol = lattice.symbol
-#         self.path = lattice.path
-#         for p in self.path:
-#             p['counts'] = 0
-        
-#         # unknown path
-#         self.path_unknown = {}
-#         self.path_unknown['name'] = 'unknown'
-#         self.path_unknown['counts'] = 0
-
-#         # (test)
-#         self.cum_displacement = 0
-        
-#         # correlation factor of each ensemble 
-#         self.f_ensemble = []
-#         self.getCorrelationFactor()
-#         self.f_ensemble = np.array(self.f_ensemble)
-
-#         # correlation factor
-#         self.f_cor = self.f_ensemble[~np.isnan(self.f_ensemble)]
-#         self.f_cor = np.average(self.f_cor)
-        
-#         if self.verbose:
-#             self.print_fcor()
-
-#     def getLabel(self):
-#         label = []
-#         for filename in os.listdir(self.xdatcar):
-#                 if len(filename.split('_')) == 2:
-#                     first, second = filename.split('_')
-#                     if first == 'XDATCAR':
-#                         label.append(second)
-#         label.sort()
-#         return label
-
-#     def encounterMSD(self, analyzer):
-#         path_vac_idx = []  
-#         for i in range(analyzer.traj.num_step):
-#             path_vac_idx += list(analyzer.idx_vac[i])
-
-#         coord_vac = [analyzer.traj.lat_points[idx] for idx in path_vac_idx]
-#         coord_vac = np.array(coord_vac)
-        
-#         displacement = np.zeros_like(coord_vac)
-#         displacement[1:,:] = np.diff(coord_vac, axis=0)
-
-#         displacement[displacement > 0.5] -= 1.0
-#         displacement[displacement < -0.5] += 1.0
-        
-#         displacement = np.sum(displacement, axis=0)
-#         self.cum_displacement += displacement # (test)
-
-#         lattice = analyzer.traj.lattice
-#         return np.sum(np.dot(displacement, lattice)**2)
-    
-#     def randomwalkMSD(self, analyzer):
-#         path_vac = []
-#         for p_vac in analyzer.path_vac:
-#             print(p_vac['name'], end=' ')
-#             path_vac.append(p_vac['name'])
-#         print('')
-        
-#         msd_rand = 0
-#         for p in self.path:
-#             num_p = path_vac.count(p['name'])
-#             p['counts'] += num_p
-#             msd_rand += num_p * p['distance']**2
-#         self.path_unknown['counts'] += path_vac.count(self.path_unknown['name'])
-#         return msd_rand
-    
-#     def makeAnalyzer(self, label):
-#         path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
-#         traj = LatticeHopping(lattice=self.lattice,
-#                               xdatcar=path_xdatcar,
-#                               interval=self.interval)
-#         traj.check_connectivity()
-#         traj.check_unique_vac()
-
-#         analyzer = Analyzer(traj=traj,
-#                             lattice=self.lattice)
-#         analyzer.search_path_vac(verbose=False)
-#         analyzer.unwrap_path()
-#         return analyzer
-    
-#     def getCorrelationFactor(self):
-#         for label in tqdm(self.label, 
-#                           bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}', 
-#                           ascii=True, 
-#                           desc=f'{RED}f_cor{RESET}'):
-#             print(label)
-#             analyzer = self.makeAnalyzer(label)
-            
-#             msd_enc = self.encounterMSD(analyzer)
-#             msd_rand = self.randomwalkMSD(analyzer)
-
-#             if msd_rand > 1e-5:
-#                 f_label = msd_enc/msd_rand
-#                 self.f_ensemble.append(f_label)
-#                 print(f"f_cor = {f_label}")
-#             else:
-#                 self.f_ensemble.append(np.NaN)
-#                 print("no hopping detected.")
-#             print('')
-    
-#     def plotCounts(self,
-#                    title='',
-#                    disp=True,
-#                    save=True,
-#                    outfile='counts.png',
-#                    dpi=300):
-        
-#         name, Ea, counts = [], [], []
-#         for p in self.path:
-#             name.append(p['name'])
-#             Ea.append(p['Ea'])
-#             counts.append(p['counts'])
-        
-#         # unknown path
-#         name.append('U')
-#         Ea.append(np.inf)
-#         counts.append(self.path_unknown['counts'])
-
-#         num_path = len(name)
-#         Ea, counts = np.array(Ea), np.array(counts)
-        
-#         # sort by activation energy
-#         idx_sort = Ea.argsort()
-#         counts_sort = counts[idx_sort]
-#         name_sort = []
-#         for idx in idx_sort:
-#             name_sort.append(name[idx])
-
-#         # plot counts
-#         x = np.arange(num_path)
-#         plt.bar(x, counts_sort)
-#         plt.xticks(x, name_sort)
-#         plt.ylabel('Counts')
-#         plt.title(title + f" (total counts: {np.sum(counts)})")
-#         if save:
-#             plt.savefig(outfile, dpi=dpi)
-#         if disp:
-#             plt.show()
-
-#     def printCounts(self):
-#         name, Ea, counts = [], [], []
-#         for p in self.path:
-#             name.append(p['name'])
-#             Ea.append(p['Ea'])
-#             counts.append(p['counts'])
-        
-#         # unknown path
-#         name.append('U')
-#         Ea.append(np.inf)
-#         counts.append(self.path_unknown['counts'])
-#         Ea, counts = np.array(Ea), np.array(counts)
-        
-#         # sort by activation energy
-#         idx_sort = Ea.argsort()
-#         counts_sort = counts[idx_sort]
-#         name_sort = []
-#         for idx in idx_sort:
-#             name_sort.append(name[idx])
-        
-#         print(f"total counts : {np.sum(counts)} ")
-#         for n, c in zip(name_sort, counts_sort):
-#             print(f"{n}({c})", end=' ')
-
-#     def print_fcor(self):
-#         print("label\tf_cor")
-#         for label, f in zip(self.label, self.f_ensemble):
-#             print(f"{label}\t{f}")
-#         print('')
-#         print(f"averaged f_cor = {self.f_cor}")
-
-
-# class CorrelationFactor_Einstein:
-#     def __init__(self,
-#                  lattice,
-#                  fraction,
-#                  xdatcar,
-#                  label='auto',
-#                  interval=1):
-#         """
-#         encounter MSD is calculated by Einstein relation
-#         """
-        
-#         self.lattice = lattice
-#         self.xdatcar = xdatcar
-#         self.fraction = fraction
-#         self.interval = interval
-#         self.label = self.getLabel() if label=='auto' else label
-        
-#         # lattice information
-#         self.symbol = lattice.symbol
-#         self.path = lattice.path
-
-#         # unknown path
-#         self.path_unknown = {}
-#         self.path_unknown['name'] = 'unknown'
-#         self.path_unknown['counts'] = 0
-
-#         # encounter MSD
-#         # print("Calculating encounter MSD...")
-#         msd_enc = self.encounterMSD()
-
-#         # random walk MSD
-#         # print("\nCalculating random walk MSD...")
-#         msd_random = self.randomMSD()
-
-#         # correlation factor
-#         self.f = msd_enc / msd_random
-#         print(f"correlation factor = {self.f}")
-
-#     def getLabel(self):
-#         label = []
-#         for filename in os.listdir(self.xdatcar):
-#                 if len(filename.split('_')) == 2:
-#                     first, second = filename.split('_')
-#                     if first == 'XDATCAR':
-#                         label.append(second)
-#         label.sort()
-#         return label
-
-#     def encounterMSD(self):
-#         ensembleEin = einstein.EnsembleEinstein(symbol=self.symbol,
-#                                                 prefix=self.xdatcar,
-#                                                 labels=self.label,
-#                                                 segments=1,
-#                                                 skip=0,
-#                                                 start=None)
-#         return ensembleEin.msd[-1] / self.fraction
-    
-#     def makeAnalyzer(self, label):
-#         path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
-
-#         traj = LatticeHopping(lattice=self.lattice,
-#                               xdatcar=path_xdatcar,
-#                               interval=self.interval)
-#         traj.check_connectivity()
-#         traj.check_unique_vac()
-
-#         analyzer = Analyzer(traj=traj,
-#                             lattice=self.lattice)
-#         analyzer.search_path_vac(verbose=False)
-#         analyzer.unwrap_path()
-#         return analyzer
-    
-#     def randomMSD(self):
-#         # path of vacancy
-#         path_vac = []
-#         for l in tqdm(self.label,
-#                       bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
-#                       ascii=True,
-#                       desc=f'{RED}MSD_rand_walk{RESET}'):
-#             print(l)
-#             analyzer = self.makeAnalyzer(label=l)
-#             for p_vac in analyzer.path_vac:
-#                 print(p_vac['name'], end=' ')
-#                 path_vac.append(p_vac['name'])
-#             print('\n')
-
-#         msd_random = 0
-#         self.path_unknown['counts'] = path_vac.count(self.path_unknown['name'])
-#         for p in self.path:
-#             p['counts'] = path_vac.count(p['name'])
-#             msd_random += p['counts'] * p['distance']**2
-#         msd_random /= len(self.label)
-#         return msd_random
-    
-#     def plotCounts(self,
-#                    title='',
-#                    disp=True,
-#                    save=True,
-#                    outfile='counts.png',
-#                    dpi=300):
-        
-#         name, Ea, counts = [], [], []
-#         for p in self.path:
-#             name.append(p['name'])
-#             Ea.append(p['Ea'])
-#             counts.append(p['counts'])
-        
-#         # unknown path
-#         name.append('U')
-#         Ea.append(np.inf)
-#         counts.append(self.path_unknown['counts'])
-
-#         num_path = len(name)
-#         Ea, counts = np.array(Ea), np.array(counts)
-        
-#         # sort by activation energy
-#         idx_sort = Ea.argsort()
-#         counts_sort = counts[idx_sort]
-#         name_sort = []
-#         for idx in idx_sort:
-#             name_sort.append(name[idx])
-
-#         # plot counts
-#         x = np.arange(num_path)
-#         plt.bar(x, counts_sort)
-#         plt.xticks(x, name_sort)
-#         plt.ylabel('Counts')
-#         plt.title(title + f" (total counts: {np.sum(counts)})")
-#         if save:
-#             plt.savefig(outfile, dpi=dpi)
-#         if disp:
-#             plt.show()
-
-#     def printCounts(self):
-#         name, Ea, counts = [], [], []
-#         for p in self.path:
-#             name.append(p['name'])
-#             Ea.append(p['Ea'])
-#             counts.append(p['counts'])
-        
-#         # unknown path
-#         name.append('U')
-#         Ea.append(np.inf)
-#         counts.append(self.path_unknown['counts'])
-#         Ea, counts = np.array(Ea), np.array(counts)
-        
-#         # sort by activation energy
-#         idx_sort = Ea.argsort()
-#         counts_sort = counts[idx_sort]
-#         name_sort = []
-#         for idx in idx_sort:
-#             name_sort.append(name[idx])
-        
-#         print(f"total counts : {np.sum(counts)}")
-#         for n, c in zip(name_sort, counts_sort):
-#             print(f"{n}({c})", end=' ')
-
-
-
-
-        
-
-
-
-                
-    
-
-

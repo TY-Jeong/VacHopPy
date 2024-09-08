@@ -3,8 +3,7 @@ import sys
 import shutil
 import numpy as np
 from .amorphous import genInput
-#sys.path.append(os.path.join(os.path.dirname(__file__), '../amorphous'))
-#from amorphous import genInput
+
 
 class getMDset:
     def __init__(self,
@@ -42,6 +41,7 @@ class getMDset:
         self.foldername=[]
         self.makeFolder()
 
+
     def makeFolder(self):
         path_now = os.getcwd()
         for t in self.temp:
@@ -66,6 +66,8 @@ class getMDset:
                              charge=self.charge,
                              ncore=self.ncore)
                 os.chdir(path_now)                
+
+
 
 class getMDresult:
     def __init__(self,
@@ -118,6 +120,7 @@ class getMDresult:
                 else:
                     check_temp += [temp]
                     shutil.copyfile(from_out_path, to_out_path)
+
 
     def autoSearch(self):
         path_now = os.getcwd()

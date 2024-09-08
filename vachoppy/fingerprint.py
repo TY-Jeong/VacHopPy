@@ -3,6 +3,20 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+def CosineDistance(fp1, fp2):
+    """
+    fp1 : fingerprint of structure 1
+    fp2 : fingerprint of structure 2
+    """
+    dot = np.dot(fp1, fp2)
+    norm1 = np.linalg.norm(fp1, ord=2)
+    norm2 = np.linalg.norm(fp2, ord=2)
+
+    return 0.5 * (1 - dot/(norm1*norm2))
+
+
+
 class FingerPrint:
     def __init__(self,
                  A,
@@ -39,11 +53,11 @@ class FingerPrint:
         self.atom_species = None
         self.atom_num = None
         self.position = []
-        self.read_poscar()
+        self.readPOSCAR()
         
         # Search indices of A and B
-        self.idx_A = self.search_atom_index(self.A)
-        self.idx_B = self.search_atom_index(self.B)
+        self.idx_A = self.searchAtomInex(self.A)
+        self.idx_B = self.searchAtomInex(self.B)
         
         # volume of unit cell
         self.V_unit = np.abs(
@@ -52,12 +66,13 @@ class FingerPrint:
         
         # extended coordinaitons of B
         self.B_ext = None
-        self.get_extended_coords_B()
+        self.getExtendedCoords_B()
 
         # calculate fingerprint
-        self.get_fingerprint()
+        self.getFingerprint()
     
-    def read_poscar(self):
+    
+    def readPOSCAR(self):
         with open(self.poscar, 'r') as f:
             lines = [line.strip() for line in f]
         
@@ -80,13 +95,16 @@ class FingerPrint:
             coords = np.array(coords, dtype=float)
             self.position.append({'name': atom, 'num': num, 'coords':coords})
             start += num
+           
             
     def gaussian_func(self, x):
         return (1/np.sqrt(2*np.pi*self.sigma**2)) *\
                np.exp(-x**2 / (2*self.sigma**2))
     
+    
     def square_func(self, x):
         return np.array(np.abs(x) <= self.sigma)/(2*self.sigma)
+    
     
     def dirac_func(self, x):
         if self.dirac[0] == 'g':
@@ -96,13 +114,15 @@ class FingerPrint:
         else:
             raise ValueError(f"{self.dirac} is not defined.")
             
-    def search_atom_index(self, atom_name):
+            
+    def searchAtomInex(self, atom_name):
         for i, atom in enumerate(self.position):
             if atom['name'] == atom_name:
                 return i
         raise ValueError(f"Atom {atom_name} not found in POSCAR file.")
     
-    def get_extended_coords_B(self):
+    
+    def getExtendedCoords_B(self):
         # supercells within Rmax
         l_lat = np.linalg.norm(self.lattice, axis=1)
         m = np.floor(self.Rmax / l_lat) + 1
@@ -115,14 +135,17 @@ class FingerPrint:
         coords_B = self.position[self.idx_B]['coords']
         self.B_ext = np.vstack([shifts + coord for coord in coords_B])
              
-    def get_fingerprint(self):
+             
+    def getFingerprint(self):
         for coord_A in self.position[self.idx_A]['coords']:
-            self.fingerprint += self.get_fingerprint_i(coord_A)
+            self.fingerprint += self.getFingerprint_i(coord_A)
         
         self.fingerprint *= self.V_unit / self.position[self.idx_A]['num']
         self.fingerprint -= 1
         
-    def get_fingerprint_i(self, coord_A_i):
+        
+    def getFingerprint_i(self, 
+                         coord_A_i):
         # calculate R_ij
         disp = self.B_ext - coord_A_i
         disp_cart = np.dot(disp[:,:], self.lattice)
@@ -145,7 +168,8 @@ class FingerPrint:
 
         return fingerprint_i
     
-    def plot_fingerprint(self, 
+    
+    def plotFingerprint(self, 
                          disp=True,
                          save=False,
                          label=None,
@@ -174,14 +198,3 @@ class FingerPrint:
             plt.savefig(outfig, dpi=dpi)
         if disp:
             plt.show()
-
-def CosineDistance(fp1, fp2):
-    """
-    fp1 : fingerprint of structure 1
-    fp2 : fingerprint of structure 2
-    """
-    dot = np.dot(fp1, fp2)
-    norm1 = np.linalg.norm(fp1, ord=2)
-    norm2 = np.linalg.norm(fp2, ord=2)
-
-    return 0.5 * (1 - dot/(norm1*norm2))
