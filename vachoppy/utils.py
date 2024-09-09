@@ -253,7 +253,7 @@ def extract_force(file_in,
     nsw, num_atoms = None, None
     for line in lines:
         if 'NSW' in line:
-            nsw = int(line.split()[-1].split('<')[0])
+            nsw = int(line.split('>')[-2].split('<')[0])
         if '<atoms>' in line:
             num_atoms = int(line.split()[1])
         if nsw and num_atoms:
