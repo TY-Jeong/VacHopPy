@@ -417,7 +417,7 @@ class LatticeHopping:
             return np.sqrt(np.sum(np.dot(distance, self.lattice)**2,axis=1))
 
 
-    def get_displacement(self, 
+    def displacement_PBC(self, 
                          r1, 
                          r2):
         disp = r2 - r1
@@ -576,8 +576,8 @@ class LatticeHopping:
             coord = traj[i, atom]
             force = self.forces[i, atom]
 
-            r_pre = self.get_displacement(coord, self.lat_points[idx_now])
-            r_now = self.get_displacement(coord, self.lat_points[idx_pre])
+            r_pre = self.displacement_PBC(coord, self.lat_points[idx_now])
+            r_now = self.displacement_PBC(coord, self.lat_points[idx_pre])
 
             d_site = np.linalg.norm(r_now - r_pre)
             d_atom = np.linalg.norm(r_pre)
@@ -1432,13 +1432,13 @@ class CorrelationFactor:
             dic['idx'] = atom
             dic['path'] = path
             dic['path_names'] = self.get_path_name(path)
-            displacement = self.get_displacement(path)
+            displacement = self.displacement_PBC(path)
             dic['squared_disp'] = np.sum(displacement**2)
 
             self.encounters.append(dic)
     
 
-    def get_displacement(self, 
+    def displacement_PBC(self, 
                          path):
         coords = self.traj.lat_points[path]
         
