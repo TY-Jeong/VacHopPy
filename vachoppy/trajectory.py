@@ -569,8 +569,9 @@ class LatticeHopping:
             try:
                 atom = np.where((self.occ_lat_point[:,i]==idx_pre)==True)[0][0]
             except:
+                print(f"idx_pre = {idx_pre}") ## 240912
                 print(f'error occured at step {i}.')
-                print('please correct the vacancy-site your-self.')
+                print('please correct the vacancy site yourself.')
                 sys.exit(0)
 
             coord = traj[i, atom]
@@ -819,13 +820,13 @@ class LatticeHopping:
 
 
     def save_traj_on_lattice(self,
-                          lat_point=[],
-                          step=[],
-                          foldername='traj_on_lat',
-                          vac=True,
-                          label=False,
-                          potim=2,
-                          dpi=300):
+                             lat_point=[],
+                             step=[],
+                             foldername='traj_on_lat',
+                             vac=True,
+                             label=False,
+                             potim=2,
+                             dpi=300):
         """
         lat_point: label of lattice points at the first element of step array.
         step: steps interested in
