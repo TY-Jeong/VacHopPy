@@ -237,6 +237,157 @@ class Lattice:
 
 
 
+class RandomWalk:
+    def __init__(self, T, lattice):
+        """
+        Calculate probability according to site and path
+        Args:
+            T       : temperature range (list)
+            lattice : lattice (Lattice)
+        """
+        self.T = np.array(T, dtype=float)
+        self.lattice = lattice
+
+        # physical constant
+        self.kb = 8.61733326e-5
+
+        # energy of site
+        self.energy_site = None
+
+        # probability
+        self.prob_site = None # (site, T)
+        self.prob_path = None # (site, T, path)
+        self.U = None         # (site, T)
+
+        # random walk diffusion coeff
+        self.D = None
+
+        # Arrhenius fit
+        self.Ea = None
+        self.D0 = None
+
+
+    def get_energy(self):
+        energy_site = [None] * len(self.lattice.site_names)
+        energy_site[0] = 0
+
+        i, repeat = 0, 0
+        while True:
+            idx_i = self.lattice.site_names.index(self.lattice.path[i]['site_init'])
+            idx_f = self.lattice.site_names.index(self.lattice.path[i]['site_final'])
+
+            if (energy_site[idx_f] is None) and (energy_site[idx_i] is not None):
+                energy_site[idx_f] = energy_site[idx_i] + self.lattice.path[i]['dE']
+            if not(None in energy_site):
+                break
+            if repeat > 10:
+                print('cannot define energy.')
+                break
+
+            repeat += 1
+            i = (i+1) % len(self.lattice.path)
+    
+        self.energy_site = np.array(energy_site)
+
+
+    def get_probability(self):
+        if self.energy_site is None:
+            self.get_energy()
+        
+        # probability for site
+        name_site = [dic['site'] for dic in self.lattice.lat_points]
+        frac_site = np.array([name_site.count(s) for s in self.lattice.site_names], dtype=float)
+        frac_site /= np.sum(frac_site)
+
+        prob = np.exp(-self.energy_site / (self.kb*self.T[:, np.newaxis]))
+        prob *= frac_site
+        prob /= np.sum(prob, axis=1).reshape(-1,1)
+        self.prob_site = prob.T
+
+        # probability for path
+        z_path = []
+        Ea_path = []
+        for site in self.lattice.site_names:
+            _z_path = [p['z'] for p in self.lattice.path if p['site_init'] == site]
+            _Ea_path = [p['Ea'] for p in self.lattice.path if p['site_init'] == site]
+            z_path.append(_z_path)
+            Ea_path.append(_Ea_path)
+            
+        self.prob_path = []
+        self.U = []
+        for z, Ea in zip(z_path, Ea_path):
+            z = np.array(z, dtype=float)
+            Ea = np.array(Ea, dtype=float)
+
+            prob = np.exp(-Ea / (self.kb*self.T[:, np.newaxis]))
+            prob *= z
+            U_i = np.sum(prob, axis=1)
+            prob /= U_i.reshape(-1,1)
+            self.prob_path.append(prob)
+            self.U.append(U_i)
+        self.U = np.array(self.U)
+
+
+    def D_rand(self, nu=1e13):
+        """
+        Diffusion coefficient for Random walk diffusion
+        Args:
+            nu : jump attemp frequency in Hz (float)
+        Return:
+            Drand : random walk diffusion coefficient
+        """
+        if self.prob_site is None:
+            self.get_probability()
+        
+        # hopping distance
+        a_path = []
+        for site in self.lattice.site_names:
+            _a_path = [p['distance'] for p in self.lattice.path if p['site_init']==site]
+            a_path.append(np.array(_a_path, dtype=float))
+
+        num_site = len(self.lattice.site_names)
+        inner_sum = np.zeros((num_site, len(self.T)))
+        for i in range(num_site):
+            inner_sum[i] = np.sum(self.prob_path[i] * a_path[i]**2 * 1e-20, axis=1)
+
+        D = self.prob_site * self.U * inner_sum
+        D = np.sum(D, axis=0)
+        D *= nu/6
+        self.D = D
+        
+        return D
+    
+
+    def linear_fitting(self,
+                       verbose=False,
+                       plot=False):
+        """
+        Arrhnius fitting for the random walk diffusion coefficient
+        Args:
+            verbose (bool) : if True, Ea and D0 are displayed.
+            plot (bool)    : if True, fitting result will be displayed
+        """
+        if self.D is None:
+            print('D is not defined.')
+            sys.exit(0)
+        slop, intersect = np.polyfit(1/self.T, np.log(self.D), deg=1)
+        self.Ea = -self.kb * slop
+        self.D0 = np.exp(intersect)
+
+        if verbose:
+            print(f"Ea (rand) = {self.Ea :.3f} eV")
+            print(f"D0 (rand) = {self.D0 :.3e} m2/s")
+
+        if plot:
+            plt.plot(1/self.T, np.log(self.D), 'k-', label=r'$D_{rand}$')
+            plt.plot(1/self.T, slop*(1/self.T)+intersect, 'r:', label=r'Linear fit.')
+            plt.ylabel('ln D', fontsize=12)
+            plt.xlabel('1/T (1/K)', fontsize=12)
+            plt.legend(fontsize=11)
+            plt.show()
+
+
+
 class LatticeHopping:
     def __init__(self,
                  xdatcar,
