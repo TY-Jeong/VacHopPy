@@ -106,8 +106,8 @@ def path_HfO2(lattice):
     Ea_A = [0.74, 0.84, 0.85, 1.35, 1.91, 2.07, 2.01]
     Ea_B = [0.08, 0.32, 0.86, 0.98, 1.25, 1.42, 1.36]
     for i in range(7):
-        lattice.add_path(f"A{i+1}", 'cn3', final_A[i], d_A[i], Ea_A[i])
-        lattice.add_path(f"B{i+1}", 'cn4', final_B[i], d_B[i], Ea_B[i])
+        lattice.add_path(f"A{i+1}", 'cn3', final_A[i], d_A[i], Ea_A[i], 0)
+        lattice.add_path(f"B{i+1}", 'cn4', final_B[i], d_B[i], Ea_B[i], 0.65)
     for lat_p in lattice.lat_points:
         x_coord = lat_p['coord'][0]
         if 0.13796 < x_coord < 0.36204 or 0.63796 < x_coord < 0.86204:
