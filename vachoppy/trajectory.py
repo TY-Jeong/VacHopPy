@@ -91,8 +91,9 @@ def path_TiO2(lattice):
     names = ['OP', 'IP1', 'IP2']
     d     = [2.80311, 2.56299, 2.96677]
     Ea    = [1.07, 0.96, 2.16]
+    z     = [8, 1, 2]
     for i in range(len(names)):
-        lattice.add_path(names[i], 'vac', 'vac', d[i], Ea[i])
+        lattice.add_path(names[i], 'vac', 'vac', d[i], Ea[i], 0, z[i])
     for lat_p in lattice.lat_points:
         lat_p['site'] = 'vac'
 
@@ -105,9 +106,15 @@ def path_HfO2(lattice):
     d_B = [2.542, 2.576, 2.662, 2.724, 2.937, 2.965, 2.989]
     Ea_A = [0.74, 0.84, 0.85, 1.35, 1.91, 2.07, 2.01]
     Ea_B = [0.08, 0.32, 0.86, 0.98, 1.25, 1.42, 1.36]
+    z_A = [1, 1, 2, 2, 1, 1, 1]
+    z_B = [1, 1, 2, 1, 1, 1, 1]
+
     for i in range(7):
-        lattice.add_path(f"A{i+1}", 'cn3', final_A[i], d_A[i], Ea_A[i], 0)
-        lattice.add_path(f"B{i+1}", 'cn4', final_B[i], d_B[i], Ea_B[i], 0.65)
+        dE_A = 0.0 if final_A[i]=='cn3' else 0.65
+        dE_B = 0.0 if final_A[i]=='cn4' else -0.65
+        lattice.add_path(f"A{i+1}", 'cn3', final_A[i], d_A[i], Ea_A[i], dE_A, z_A[i])
+        lattice.add_path(f"B{i+1}", 'cn4', final_B[i], d_B[i], Ea_B[i], dE_B, z_B[i])
+
     for lat_p in lattice.lat_points:
         x_coord = lat_p['coord'][0]
         if 0.13796 < x_coord < 0.36204 or 0.63796 < x_coord < 0.86204:
@@ -117,16 +124,8 @@ def path_HfO2(lattice):
 
 
 
-def path_Fe(lattice):
-    lattice.add_path('A', 'vac', 'vac', 2.38470, 0.0)
-    lattice.add_path('B', 'vac', 'vac', 2.75362, 0.0)
-    for lat_p in lattice.lat_points:
-        lat_p['site'] = 'vac'
-
-
-
 def path_Al(lattice):
-    lattice.add_path('hop', 'vac', 'vac', 2.85595, 0.622300)
+    lattice.add_path('hop', 'vac', 'vac', 2.85595, 0.622300, 0, 12)
     for lat_p in lattice.lat_points:
         lat_p['site'] = 'vac'
 
@@ -183,7 +182,8 @@ class Lattice:
                  site_final,
                  d,
                  Ea,
-                 dE='Nan'):
+                 dE='Nan',
+                 z='Nan'):
         
         if name in self.path_names:
             print(f"{name} already exsits.")
@@ -196,6 +196,7 @@ class Lattice:
         dic_path['distance'] = d
         dic_path['Ea'] = Ea
         dic_path['dE'] = dE
+        dic_path['z'] = z
         
         self.path.append(dic_path)
         self.path_names.append(name)
