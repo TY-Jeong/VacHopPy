@@ -1881,6 +1881,7 @@ class CumulativeCorrelationFactor:
         self.prob_site = None
         self.prob_path = None
         self.a_path = None
+        self.label_success = []
         self.get_correlation_factors()
 
         # unknown path
@@ -1936,6 +1937,7 @@ class CumulativeCorrelationFactor:
 
             end = time.time()
             self.times.append(end-start)
+            self.label_success.append(label)
 
         self.f_ensemble = np.array(self.f_ensemble, dtype=float)
         self.msd_cum /= self.num_enc_cum
@@ -2023,11 +2025,11 @@ class CumulativeCorrelationFactor:
 
         if self.verbose:
             print("{:<10} {:<10}".format('Label', 'f_cor'))
-            for label, f in zip(self.label, self.f_ensemble):
+            for label, f in zip(self.label_success, self.f_ensemble):
                 print("{:<10} {:<10.3f}".format(label, f))
             print('')
             print("{:<10} {:<10}".format('Label', 'Time(s)'))
-            for label, time in zip(self.label, self.times):
+            for label, time in zip(self.label_success, self.times):
                 print("{:<10} {:<10.3f}".format(label, time))
             time_tot = np.sum(np.array(self.times))
             print('')
