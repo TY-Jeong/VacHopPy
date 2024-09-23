@@ -535,7 +535,7 @@ class getDiffusivity:
             for line in reversed(lines):
                 contents = line.split()
                 if contents[0] == 'Direct':
-                    nsw = int(contents[-1])
+                    nsw = int(line.split('=')[-1])
                     break
             self.end = int((nsw - self.skip)/self.segment)
         else:
