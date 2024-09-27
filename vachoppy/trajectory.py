@@ -87,10 +87,13 @@ def extract_force(file_in,
 
 
 # Helper methods for lattice
-def path_TiO2(lattice):
+def path_TiO2(lattice, acc='high'):
     names = ['OP', 'IP1', 'IP2']
     d     = [2.80311, 2.56299, 2.96677]
-    Ea    = [1.07, 0.96, 2.16]
+    if acc == 'high':
+        Ea = [1.046, 0.9571, 2.1531]
+    else:
+        Ea = [0.9654, 0.6977, 1.98]
     z     = [8, 1, 2]
     for i in range(len(names)):
         lattice.add_path(names[i], 'vac', 'vac', d[i], Ea[i], 0, z[i])
@@ -99,13 +102,17 @@ def path_TiO2(lattice):
 
 
 
-def path_HfO2(lattice):
+def path_HfO2(lattice, acc='high'):
     final_A = ['cn4', 'cn3', 'cn3', 'cn3', 'cn4', 'cn4', 'cn4']
     final_B = ['cn3', 'cn4', 'cn4', 'cn4', 'cn3', 'cn3', 'cn3']
     d_A = [2.542, 2.574, 2.785, 2.837, 2.937, 2.965, 2.989]
     d_B = [2.542, 2.576, 2.662, 2.724, 2.937, 2.965, 2.989]
-    Ea_A = [0.74, 0.84, 0.85, 1.35, 1.91, 2.07, 2.01]
-    Ea_B = [0.08, 0.32, 0.86, 0.98, 1.25, 1.42, 1.36]
+    if acc == 'high':
+        Ea_A = [0.74, 0.84, 0.85, 1.35, 1.91, 2.07, 2.01]
+        Ea_B = [0.08, 0.32, 0.86, 0.98, 1.25, 1.42, 1.36]
+    else:
+        Ea_A = [0.7084, 0.8449, 0.8689, 1.366, 1.8806, 2.0373, 2.0027]
+        Ea_B = [0.0809, 0.2983, 0.8571, 0.9904, 1.2531, 1.4098, 1.3752]
     z_A = [1, 1, 2, 2, 1, 1, 1]
     z_B = [1, 1, 2, 1, 1, 1, 1]
 
