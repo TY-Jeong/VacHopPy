@@ -133,8 +133,9 @@ def path_HfO2(lattice, acc='high'):
 
 
 
-def path_Al(lattice):
-    lattice.add_path('hop', 'vac', 'vac', 2.85595, 0.622300, 0, 12)
+def path_Al(lattice, acc='high'):
+    Ea = 0.622300 if acc=='high' else 0.456500
+    lattice.add_path('hop', 'vac', 'vac', 2.85595, Ea, 0, 12)
     for lat_p in lattice.lat_points:
         lat_p['site'] = 'vac'
 
