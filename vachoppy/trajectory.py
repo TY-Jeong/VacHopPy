@@ -115,10 +115,12 @@ def path_HfO2(lattice, acc='high'):
         Ea_B = [0.0809, 0.2983, 0.8571, 0.9904, 1.2531, 1.4098, 1.3752]
     z_A = [1, 1, 2, 2, 1, 1, 1]
     z_B = [1, 1, 2, 1, 1, 1, 1]
+    
+    deltaE = 0.65 if acc=='high' else 0.63
 
     for i in range(7):
-        dE_A = 0.0 if final_A[i]=='cn3' else 0.65
-        dE_B = 0.0 if final_A[i]=='cn4' else -0.65
+        dE_A = 0.0 if final_A[i]=='cn3' else deltaE
+        dE_B = 0.0 if final_A[i]=='cn4' else -deltaE
         lattice.add_path(f"A{i+1}", 'cn3', final_A[i], d_A[i], Ea_A[i], dE_A, z_A[i])
         lattice.add_path(f"B{i+1}", 'cn4', final_B[i], d_B[i], Ea_B[i], dE_B, z_B[i])
 
