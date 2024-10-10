@@ -89,12 +89,13 @@ def extract_force(file_in,
 # Helper methods for lattice
 def path_TiO2(lattice, acc='high'):
     names = ['OP', 'IP1', 'IP2']
-    d     = [2.80311, 2.56299, 2.96677]
+    d = [2.80311, 2.56299, 2.96677]
     if acc == 'high':
         Ea = [1.046, 0.9571, 2.1531]
     else:
-        Ea = [0.9654, 0.6977, 1.98]
-    z     = [8, 1, 2]
+        # Ea = [0.9654, 0.6977, 1.98]
+        Ea = [0.983800, 1.045000, 1.98]
+    z = [8, 1, 2]
     for i in range(len(names)):
         lattice.add_path(names[i], 'vac', 'vac', d[i], Ea[i], 0, z[i])
     for lat_p in lattice.lat_points:
@@ -712,9 +713,12 @@ class LatticeHopping:
             self.traj_vac_C[i] = self.lat_points_C[idx_i]
 
 
-    def correct_transition_state(self):
+    def correct_transition_state(self,
+                                 step_ignore=[]):
         traj = np.transpose(self.position[self.idx_target]['traj'], (1, 0, 2))
         for i in range(1, self.num_step):
+            if i in step_ignore:
+                continue
             # check whether vacancy moves
             try:
                 idx_pre = self.idx_vac[i-1][0]
@@ -729,7 +733,7 @@ class LatticeHopping:
                 continue
 
             try:
-                atom = np.where((self.occ_lat_point[:,i]==idx_pre)==True)[0][0]
+                atom = np.where((self.occ_lat_point[:,i]==idx_pre)==True)[0][0] # 움직인 atom 찾기
             except:
                 print(f"idx_pre = {idx_pre}") ## 240912
                 print(f'error occured at step {i}.')
@@ -1853,7 +1857,9 @@ class CumulativeCorrelationFactor:
                  verbose=False,
                  multi_vac=True,
                  multi_path=True,
-                 correction_TS=True):
+                 correction_TS=True,
+                 update_vacancy={},
+                 step_ignore={}):
         """
         Cumulative correlation function
         
@@ -1862,6 +1868,11 @@ class CumulativeCorrelationFactor:
             label   : label in XDATCAR_{label} (list or 'auto)
             temp    : temperature in K to calculate Boltzmann distribution
             force   : directory where force_{label}.dat exists
+            
+            update_vacancy : (dic) used to fix error in multi-vacancy correction
+            : key = label ; item = list ex. [[2978, 11]]
+            step_ignore : (dic) steps to ignore for the TS correction
+            : key = label; item = list of steps
         """
         
         self.xdatcar = xdatcar
@@ -1878,6 +1889,8 @@ class CumulativeCorrelationFactor:
         self.multi_vac = multi_vac
         self.multi_path = multi_path
         self.correction_TS = correction_TS
+        self.update_vacancy = update_vacancy
+        self.step_ignore = step_ignore
         
         # f_cor
         self.times = []
@@ -1971,7 +1984,11 @@ class CumulativeCorrelationFactor:
                               interval=self.interval)
         
         if self.multi_vac:
-            traj.correct_multivacancy()
+            traj.correct_multivacancy(start=1)
+            if label in self.update_vacancy.keys():
+                for [step, site] in self.update_vacancy[label]:
+                    traj.update_vacancy(step, site)
+                    traj.correct_multivacancy(start=step)
             traj.check_multivacancy(verbose=False)
         
         if traj.multi_vac is True:
@@ -1981,7 +1998,8 @@ class CumulativeCorrelationFactor:
             return None
 
         if self.correction_TS and (self.force_dir is not None):
-            traj.correct_transition_state()
+            step_ignore = self.step_ignore[label] if label in self.step_ignore.keys() else []
+            traj.correct_transition_state(step_ignore=step_ignore)
 
         analyzer = Analyzer(traj, self.lattice)
         analyzer.get_path_vacancy(verbose=self.verbose)
