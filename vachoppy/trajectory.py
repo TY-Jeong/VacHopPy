@@ -89,12 +89,15 @@ def extract_force(file_in,
 # Helper methods for lattice
 def path_TiO2(lattice, acc='high'):
     names = ['OP', 'IP1', 'IP2']
-    d = [2.80311, 2.56299, 2.96677]
     if acc == 'high':
+        d = [2.80311, 2.56299, 2.96677]
         Ea = [1.046, 0.9571, 2.1531]
     else:
+        d = [2.85322, 2.24167, 2.96678]
         # Ea = [0.9654, 0.6977, 1.98]
-        Ea = [0.983800, 1.045000, 1.98]
+        # Ea = [0.983800, 1.045000, 1.98]
+        Ea = [0.870000, 0.697700, 1.980000]
+        # Ea = [0.983800, 1.045000, 2.205200]
     z = [8, 1, 2]
     for i in range(len(names)):
         lattice.add_path(names[i], 'vac', 'vac', d[i], Ea[i], 0, z[i])
