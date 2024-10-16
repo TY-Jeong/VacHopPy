@@ -94,11 +94,10 @@ def path_TiO2(lattice, acc='high'):
         Ea = [1.046, 0.9571, 2.1531]
     else:
         d = [2.85322, 2.24167, 2.96678]
-        # Ea = [0.9654, 0.6977, 1.98]
-        # Ea = [0.983800, 1.045000, 1.98]
-        Ea = [0.870000, 0.697700, 1.980000]
-        # Ea = [0.983800, 1.045000, 2.205200]
-    z = [8, 1, 2]
+        Ea = [0.870400, 1.044100, 1.965600] # EDIFFG = -0.02
+        Ea = [0.983500, 1.045100, 2.203200] # EDIFFG = -0.05
+    
+z = [8, 1, 2]
     for i in range(len(names)):
         lattice.add_path(names[i], 'vac', 'vac', d[i], Ea[i], 0, z[i])
     for lat_p in lattice.lat_points:
