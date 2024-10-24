@@ -427,9 +427,9 @@ class LatticeHopping:
         self.interval = interval
 
         # color map for arrows
-        self.cmap = ['b', 'c', 'g', 'deeppink', 'darkorange', 
-                     'sienna', 'darkkhaki', 'lawngreen', 'grey', 'red', 
-                     'navy', 'slateblue', 'purple', 'pink']
+        self.cmap = ['b', 'c', 'black', 'deeppink', 'darkorange', 
+                     'saddlebrown', 'red', 'lawngreen', 'grey', 'darkkhaki', 
+                     'slateblue', 'purple', 'g']
 
         # lattice information
         self.target = lattice.symbol
