@@ -428,7 +428,7 @@ class LatticeHopping:
 
         # color map for arrows
         self.cmap = ['b', 'c', 'g', 'deeppink', 'darkorange', 
-                     'sienna', 'darkkhaki', 'lawngreen', 'grey', 'wheat', 
+                     'sienna', 'darkkhaki', 'lawngreen', 'grey', 'red', 
                      'navy', 'slateblue', 'purple', 'pink']
 
         # lattice information
