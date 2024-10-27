@@ -81,19 +81,18 @@ class EinsteinRelation:
     def read_outcar(self):
         if self.verbose:
             print(f"reading {self.outcar}...")
-        with open(self.outcar, 'r') as file:
-            lines_outcar = [line.strip() for line in file]
-
-        self.potim, self.nblock, lm = 0, 0, 0
-        for num, line in enumerate(lines_outcar):
-            if 'POTIM ' in line:
-                self.potim = float(line.split()[2])
-            if 'NBLOCK' in line:
-                self.nblock = int(line.split()[2].replace(';',''))
-            if 'Mass of Ions in am' in line:
-                lm = num + 1
-            if self.potim and self.nblock and lm:
-                break
+        
+        check_potim, check_nblock = False, False
+        with open(self.outcar, 'r') as f:
+            for line in f:
+                if 'POTIM ' in line:
+                    self.potim = float(line.split()[2])
+                    check_potim = True
+                if 'NBLOCK' in line:
+                    self.nblock = int(line.split()[2].replace(';',''))
+                    check_nblock = True
+                if check_potim and check_nblock:
+                    break
 
         if self.verbose:
             print(f"\tpotim = {self.potim}")
@@ -293,10 +292,11 @@ class EnsembleEinstein:
     def get_ensemble_msd(self):
         desc = self.prefix.split('/')[-1] if len(self.prefix.split('/')[-1]) > 0 \
             else  self.prefix.split('/')[-2]
+        desc = desc.split('.')[-1]
         for label in tqdm(self.labels,
                           bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
                           ascii=True,
-                          desc=f'{RED}{desc}{RESET}'):
+                          desc=f'{RED}{desc:>9s}{RESET}'):
             xdatcar = self.prefix + "XDATCAR_" + str(label)
             outcar = self.prefix + "OUTCAR"
             ensemble = EinsteinRelation(xdatcar=xdatcar,

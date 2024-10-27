@@ -88,16 +88,16 @@ def extract_force(file_in,
 
 # Helper methods for lattice
 def path_TiO2(lattice, acc='high'):
-    names = ['OP', 'IP1', 'IP2']
+    names = ['T1', 'T2', 'T3']
     if acc == 'high':
-        d = [2.80311, 2.56299, 2.96677]
-        Ea = [1.046, 0.9571, 2.1531]
+        d = [2.56299, 2.80311, 2.96677]
+        Ea = [0.9571, 1.046, 2.1531]
     else:
-        d = [2.85322, 2.24167, 2.96678]
+        d = [2.24167, 2.85322, 2.96678]
         # Ea = [0.870400, 1.044100, 1.965600] # EDIFFG = -0.02
-        Ea = [0.983500, 1.045100, 2.203200] # EDIFFG = -0.05
+        Ea = [1.045100, 0.983500, 2.203200] # EDIFFG = -0.05
     
-    z = [8, 1, 2]
+    z = [1, 8, 2]
     
     for i in range(len(names)):
         lattice.add_path(names[i], 'vac', 'vac', d[i], Ea[i], 0, z[i])
@@ -188,7 +188,7 @@ class Lattice:
         # lattice points
         for coord in coords:
             dic_lat = {}
-            dic_lat['site'] = 'Nan'
+            dic_lat['site'] = str(coord.split()[3])
             dic_lat['coord'] = np.array(coord.split()[:3], dtype=float)
             dic_lat['coord_C'] = np.dot(dic_lat['coord'], self.lattice)
             self.lat_points.append(dic_lat)
@@ -233,17 +233,18 @@ class Lattice:
         path_sorted = sorted(self.path,
                              key=lambda x:list(x.values()))
 
-        print("name\tinit\tfinal\td (Å)\tEa (eV)\tdE (eV)")
+        print("name\tinit\tfinal\td(Å) \tEa(eV) \tdE(eV) \tz")
         for path in path_sorted:
             print(f"{path['name']}", end='\t')
             print(f"{path['site_init']}", end='\t')
             print(f"{path['site_final']}", end='\t')
             print("%.3f"%path['distance'], end='\t')
-            print("%.2f"%path['Ea'], end='\t')
+            print("%.3f"%path['Ea'], end='\t')
             if path['dE'] == 'Nan':
-                print(f"{path['dE']}", end='\n')
+                print(f"{path['dE']}", end='\t')
             else:
-                print("%.2f"%path['dE'], end='\n')
+                print("%.3f"%path['dE'], end='\t')
+            print(f"{path['z']}", end='\n')
 
 
     def print_lattice_points(self):
@@ -411,7 +412,8 @@ class LatticeHopping:
                  xdatcar,
                  lattice,
                  force=None,
-                 interval=1):
+                 interval=1,
+                 verbose=True):
         """
         xdatcar: (str) path for XDATCAR.
         lattice: trajectory.Lattice class
@@ -425,6 +427,7 @@ class LatticeHopping:
             sys.exit(0)
 
         self.interval = interval
+        self.verbose = verbose
 
         # color map for arrows
         self.cmap = ['b', 'c', 'black', 'deeppink', 'darkorange', 
@@ -740,11 +743,13 @@ class LatticeHopping:
                 continue
 
             try:
-                atom = np.where((self.occ_lat_point[:,i]==idx_pre)==True)[0][0] # 움직인 atom 찾기
+                atom = np.where((self.occ_lat_point[:,i]==idx_pre)==True)[0][0]
             except:
-                print(f"idx_pre = {idx_pre}") ## 240912
-                print(f'error occured at step {i}.')
-                print('please correct the vacancy site yourself.')
+                if self.verbose:
+                    print(f"idx_pre = {idx_pre}") 
+                    print(f'error occured at step {i}.')
+                    print('please correct the vacancy site yourself.')
+                    print('')
                 sys.exit(0)
 
             coord = traj[i, atom]
@@ -1099,13 +1104,13 @@ class LatticeHopping:
             plt.close()
 
 
-    def check_multivacancy(self, verbose=True):
+    def check_multivacancy(self):
         check = np.array([len(i) for i in self.idx_vac.values()])
         check = np.where((check==1) == False)[0]
         
         if len(check) > 0:
             self.multi_vac = True
-            if verbose:
+            if self.verbose:
                 print('multi-vacancy issue occurs:')
                 print('  step :', end=' ')
                 for i in check:
@@ -1114,7 +1119,8 @@ class LatticeHopping:
 
         else:
             self.multi_vac = False
-            print('vacancy is unique.')
+            if self.verbose:
+                print('vacancy is unique.')
 
 
     def update_vacancy(self,
@@ -1199,13 +1205,15 @@ class LatticeHopping:
                 continue
 
             elif len(site) == 0:
-                print("there is no connected site.")       
-                print(f"find the vacancy site for your self. (step: {step})")
+                if self.verbose:
+                    print("there is no connected site.")       
+                    print(f"find the vacancy site for your self. (step: {step})")
                 break
             
             else:
-                print("there are multiple candidates.")       
-                print(f"find the vacancy site for your self. (step: {step})")
+                if self.verbose:
+                    print("there are multiple candidates.")       
+                    print(f"find the vacancy site for your self. (step: {step})")
                 break
 
         # update trace arrows
@@ -1216,7 +1224,8 @@ class LatticeHopping:
 class Analyzer:
     def __init__(self,
                  traj,
-                 lattice):
+                 lattice,
+                 verbose=True):
         """
         module to analyze trajectory.
         this module search diffusion paths in MD trajectory.
@@ -1225,6 +1234,7 @@ class Analyzer:
         self.traj_backup = traj
         self.lattice = lattice
         self.tolerance = 0.001
+        self.verbose = verbose
         
         # check whether hopping paths are defined
         if len(lattice.path) == 0:
@@ -1509,14 +1519,16 @@ class Analyzer:
                 check_unknown += [p_vac]
         
         if len(check_unknown) == 0:
-            print("no unknown path exist.")
+            if self.verbose:
+                print("no unknown path exist.")
         
         else:
-            print("unknown path exist.", end=' ')
-            print("( step:", end=' ')
-            for p in check_unknown:
-                print(p['step'], end=' ')
-            print(")")
+            if self.verbose:
+                print("unknown path exist.", end=' ')
+                print("( step:", end=' ')
+                for p in check_unknown:
+                    print(p['step'], end=' ')
+                print(")")
         
 
     def print_summary(self,
@@ -1874,7 +1886,7 @@ class CumulativeCorrelationFactor:
             xdatcar : directory where XDATCAR_{label} exists
             label   : label in XDATCAR_{label} (list or 'auto)
             temp    : temperature in K to calculate Boltzmann distribution
-            force   : directory where force_{label}.dat exists
+            force   : directory where FORCE_{label} exists
             
             update_vacancy : (dic) used to fix error in multi-vacancy correction
             : key = label ; item = list ex. [[2978, 11]]
@@ -1925,7 +1937,8 @@ class CumulativeCorrelationFactor:
         self.get_cumulative_correlation_factor()
 
         # print results
-        self.print_summary()
+        if self.verbose:
+            self.print_summary()
 
 
     def get_label(self):
@@ -1941,13 +1954,15 @@ class CumulativeCorrelationFactor:
 
     def get_correlation_factors(self):
         check_first = True
+        desc = str(self.temp)+'K'
         for label in tqdm(self.label, 
                           bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}', 
                           ascii=True, 
-                          desc=f'{RED}f_cor{RESET}'):
+                          desc=f'{RED}{desc:>9s}{RESET}'):
+            
             start = time.time()
-
-            print(f"# Label : {label}")
+            if self.verbose:
+                print(f"# Label : {label}")
             analyzer = self.get_analyzer(label)
             if analyzer is None:
                 end = time.time()
@@ -1977,18 +1992,18 @@ class CumulativeCorrelationFactor:
             self.path_dist.append(path['distance'])
     
 
-    def get_analyzer(self, 
-                     label):
+    def get_analyzer(self, label):
         path_xdatcar = os.path.join(self.xdatcar, f"XDATCAR_{label}")
         if self.force_dir is not None:
-            path_force = os.path.join(self.force_dir, f"force_{label}.dat")
+            path_force = os.path.join(self.force_dir, f"FORCE_{label}")
         else:
             path_force = None
             
         traj = LatticeHopping(lattice=self.lattice,
                               xdatcar=path_xdatcar,
                               force=path_force,
-                              interval=self.interval)
+                              interval=self.interval,
+                              verbose=self.verbose)
         
         if self.multi_vac:
             traj.correct_multivacancy(start=1)
@@ -1996,19 +2011,24 @@ class CumulativeCorrelationFactor:
                 for [step, site] in self.update_vacancy[label]:
                     traj.update_vacancy(step, site)
                     traj.correct_multivacancy(start=step)
-            traj.check_multivacancy(verbose=False)
+            traj.check_multivacancy()
         
         if traj.multi_vac is True:
-            print(f'multi-vacancy issue in label {label}.')
-            print('the calculation is skipped.')
+            if self.verbose:
+                print(f'correction for multi-vacancy was failed.')
+                print('')
             self.label_err.append(label)
             return None
 
         if self.correction_TS and (self.force_dir is not None):
             step_ignore = self.step_ignore[label] if label in self.step_ignore.keys() else []
-            traj.correct_transition_state(step_ignore=step_ignore)
+            try:
+                traj.correct_transition_state(step_ignore=step_ignore)
+            except:
+                self.label_err.append(label)
+                return None
 
-        analyzer = Analyzer(traj, self.lattice)
+        analyzer = Analyzer(traj, self.lattice, verbose=self.verbose)
         analyzer.get_path_vacancy(verbose=self.verbose)
 
         if self.multi_path:
@@ -2018,7 +2038,7 @@ class CumulativeCorrelationFactor:
             analyzer.print_summary(disp=False, 
                                    save_figure=False, 
                                    save_text=False)
-        print('')
+            print('')
 
         return analyzer
     
@@ -2057,24 +2077,22 @@ class CumulativeCorrelationFactor:
         print(f"      Mean correlation factor : {self.f_avg:.3f}")
         print(f"Cumulative correlation factor : {self.f_cum:.3f}")
         print('')
-
-        if self.verbose:
-            print("{:<10} {:<10}".format('Label', 'f_cor'))
-            for label, f in zip(self.label_success, self.f_ensemble):
-                print("{:<10} {:<10.3f}".format(label, f))
-            print('')
-            print("{:<10} {:<10}".format('Label', 'Time(s)'))
-            for label, time in zip(self.label_success, self.times):
-                print("{:<10} {:<10.3f}".format(label, time))
-            time_tot = np.sum(np.array(self.times))
-            print('')
-            print(f'Total time : {time_tot:.3f} s')
+        print("{:<10} {:<10}".format('Label', 'f_cor'))
+        for label, f in zip(self.label_success, self.f_ensemble):
+            print("{:<10} {:<10.3f}".format(label, f))
+        print('')
+        print("{:<10} {:<10}".format('Label', 'Time(s)'))
+        for label, time in zip(self.label_success, self.times):
+            print("{:<10} {:<10.3f}".format(label, time))
+        time_tot = np.sum(np.array(self.times))
+        print('')
+        print(f'Total time : {time_tot:.3f} s') 
 
         if len(self.label_err) > 0:
-            print('Error occured : ', end='')
+            print('Step where error occured : ', end='')
             for label in self.label_err:
                 print(label, end=' ')
-            print('')
+            print('These steps were excluded from the calculations.\n')
 
 
 
