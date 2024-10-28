@@ -9,7 +9,7 @@ class DataInfo:
                  verbose=False):
         self.prefix1 = prefix1
         self.prefix2 = prefix2
-        if prefix1 not in os.listdir(os.getcwd()):
+        if not os.path.isdir(self.prefix1):
             print(f'{self.prefix1} directory is not found.')
             sys.exit(0)
             
