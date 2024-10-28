@@ -77,6 +77,10 @@ if check_mode:
             parser.add_argument('-v', '--verbose',
                                 action='store_true',
                                 help='verbosity for parameter calculation')
+            parser.add_argument('-f', '--fix_Ea',
+                                action='store_true',
+                                help='fix Ea for residence time to <Ea_hop>_vhp (experiment)')
+            
 args = parser.parse_args()
 print(f'{CYAN}{BOLD}VacHopPy is in progress{RESET}')
 print(f'{GREEN}{BOLD}Arguments and Values :{RESET}')
@@ -103,6 +107,7 @@ def main():
                         poscar=args.lattice,
                         neb=args.neb,
                         einstein=args.einstein,
-                        verbose=args.verbose)
+                        verbose=args.verbose,
+                        fix_Ea_t_res=args.fix_Ea)
             
 

@@ -182,6 +182,8 @@ class MSD:
         print(f'  Ea = {-kb * slop :.3f} eV')
         print('')
         
+        
+        
 class Parameter:
     def __init__(self,
                  data,
@@ -190,7 +192,8 @@ class Parameter:
                  neb='neb.csv',
                  einstein='Einstein.txt',
                  symbol='O',
-                 verbose=False):
+                 verbose=False,
+                 fix_Ea_t_res=False):
         
         self.data = data
         self.interval = interval
@@ -202,6 +205,7 @@ class Parameter:
         self.verbose = verbose
         self.cmap = plt.get_cmap("Set1")
         self.kb = 8.61733326e-5
+        self.fix_Ea_t_res = fix_Ea_t_res
         
         # check file
         if not os.path.isfile(self.poscar):
@@ -257,7 +261,10 @@ class Parameter:
         
         # representative z
         self.z_rep = None
-        self.plot_z()
+        if self.fix_Ea_t_res:
+            self.plot_z_fixed_Ea()
+        else:
+            self.plot_z()
         
         # representative a
         self.a_rep = np.sqrt(6*self.D0/(self.z_rep*self.nu_rep*self.f0))*1e10
@@ -560,6 +567,77 @@ class Parameter:
                         transparent=True, dpi=600, bbox_inches="tight")
             print(f'prob_{self.lattice.site_names[i]}.svg is created.')
             plt.close()
+            
+    def plot_z_fixed_Ea(self):
+        '''
+        Ea for residence time is fixed to <Ea_hop>_vhp.
+        '''
+        # residence time from MD
+        time = self.data.potim * self.data.nsw / 1000
+        count = np.sum(self.count, axis=1)
+        num_label = np.array([len(label) for label in self.data.label])
+        num_label_err = np.array([len(label) for label in self.label_err])
+        count = count / (num_label - num_label_err)
+        self.t_res = time / count 
+        
+        # <Ea_hop>_vhp
+        path_name = self.cor[0].path_name[:-1]
+        col = [[] for i in range(len(self.lattice.site_names))]
+        name = [[] for i in range(len(self.lattice.site_names))]
+        for i, n in enumerate(path_name):
+            site = self.lattice.path[i]['site_init']
+            idx = self.lattice.site_names.index(site)
+            col[idx].append(i)
+            name[idx].append(n)
+            
+        prob, Ea_hop_vhp= [], []
+        for i in range(len(self.lattice.site_names)):
+            count = self.count[:, np.array(col[i])]
+            Ea = np.array([self.lattice.path[idx]['Ea'] for idx in col[i]])
+            prob_site = count / np.sum(count, axis=1).reshape(-1, 1)
+            prob.append(prob_site)
+            Ea_hop_vhp.append(np.average(np.dot(prob_site,Ea)))
+
+        rand = RandomWalk(self.temp, self.lattice)
+        rand.get_probability()
+        prob_site = np.average(rand.prob_site, axis=1)
+        self.Ea_hop_mean = np.dot(Ea_hop_vhp, prob_site)
+        
+        # z_rep
+        result = minimize_scalar(self.error_z)
+        t0 = result.x
+        self.z_rep = 1/(self.nu_rep * t0) * 1e12
+        
+        # plot residence time
+        plt.style.use('default')
+        plt.rcParams['figure.figsize'] = (3.8, 3.8)
+        plt.rcParams['font.size'] = 11
+        fig, ax = plt.subplots()
+        for axis in ['top','bottom','left','right']:
+            ax.spines[axis].set_linewidth(1.2)
+            
+        for i, temp in enumerate(self.temp):
+            ax.bar(temp, self.t_res[i], width=50, edgecolor='k', color=self.cmap(i))
+            ax.scatter(temp, self.t_res[i], marker='o', edgecolors='k', color='k')    
+       
+        x = np.linspace(0.99*self.temp[0], 1.01*self.temp[-1], 1000)
+        ax.plot(x, t0*np.exp(self.Ea_hop_mean/(self.kb*x)), 'k:')
+        
+        plt.xlabel('T (K)', fontsize=14)
+        plt.ylabel(r'<$t_{res}$> (ps)', fontsize=14)
+        plt.savefig('t_res.svg', transparent=True, dpi=600, bbox_inches="tight")
+        print('t_res.svg is created')
+         
+        # save result
+        with open('t_res.txt', 'w') as f:
+            f.write(f'pre-exponential for t_res = {t0 :.6e} ps\n')
+            f.write(f'Ea for t_res (<Ea_hop>_vhp)= {self.Ea_hop_mean :.6f} eV\n')
+            f.write(f'representative z = {self.z_rep :.6f}')
+        print('t_res.txt is created')
+        
+    def error_z(self, t0):
+        self.t_res_vhp = t0 * np.exp(self.Ea_hop_mean / (self.kb * self.temp))     
+        return np.sum((self.t_res_vhp - self.t_res)**2)
             
 # data = DataInfo()
 
