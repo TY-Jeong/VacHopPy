@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from colorama import Fore   # color map for tqdm
 
+BOLD = '\033[1m'
+CYAN = '\033[36m'
+MAGENTA = '\033[35m'
 GREEN = '\033[92m' # Green color
 RED = '\033[91m'   # Red color
 RESET = '\033[0m'  # Reset to default color
@@ -296,7 +299,7 @@ class EnsembleEinstein:
         for label in tqdm(self.labels,
                           bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
                           ascii=True,
-                          desc=f'{RED}{desc:>9s}{RESET}'):
+                          desc=f'{RED}{BOLD}{desc:>9s}{RESET}'):
             xdatcar = self.prefix + "XDATCAR_" + str(label)
             outcar = self.prefix + "OUTCAR"
             ensemble = EinsteinRelation(xdatcar=xdatcar,
@@ -578,7 +581,7 @@ class getDiffusivity:
         for t in tqdm(self.temp, 
                       bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'% (Fore.GREEN, Fore.RESET),
                       ascii=False,
-                      desc=f'{GREEN}TOTAL{RESET}'):
+                      desc=f'{GREEN}{BOLD}TOTAL{RESET}'):
             ensemble = EnsembleEinstein(symbol=self.symbol,
                                         prefix=os.path.join(self.prefix,f"xdatcar.{t}K"),
                                         labels=self.label[t],

@@ -17,6 +17,10 @@ from ase.visualize import view
 from ase.io.vasp import read_vasp
 # color map for tqdm
 from colorama import Fore
+
+BOLD = '\033[1m'
+CYAN = '\033[36m'
+MAGENTA = '\033[35m'
 GREEN = '\033[92m' # Green color
 RED = '\033[91m'   # Red color
 RESET = '\033[0m'  # Reset to default color
@@ -629,7 +633,7 @@ class LatticeHopping:
         for i in tqdm(range(self.position[self.idx_target]['num']),
                       bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'% (Fore.GREEN, Fore.RESET),
                       ascii=False,
-                      desc=f'{RED}save traj{RESET}'):
+                      desc=f'{RED}{BOLD}save traj{RESET}'):
             
             coords = self.position[self.idx_target]['coords_C'][i][0:-1:interval_traj]
             
@@ -870,7 +874,7 @@ class LatticeHopping:
         for step in tqdm(step,
                          bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
                          ascii=False,
-                         desc=f'{RED}save gif{RESET}'):
+                         desc=f'{RED}{BOLD}save gif{RESET}'):
             
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
@@ -1030,7 +1034,7 @@ class LatticeHopping:
         for s in tqdm(step,
                       bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
                       ascii=False,
-                      desc=f'{RED}save traj_on_lat{RESET}'):
+                      desc=f'{RED}{BOLD}save traj_on_lat{RESET}'):
             
             # plot lattice and lattice points
             fig = plt.figure()
@@ -1958,7 +1962,7 @@ class CumulativeCorrelationFactor:
         for label in tqdm(self.label, 
                           bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}', 
                           ascii=True, 
-                          desc=f'{RED}{desc:>9s}{RESET}'):
+                          desc=f'{RED}{BOLD}{desc:>9s}{RESET}'):
             
             start = time.time()
             if self.verbose:
