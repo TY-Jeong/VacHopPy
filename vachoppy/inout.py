@@ -113,4 +113,4 @@ class DataInfo:
             print(f'  potim = {self.potim[i]}')
             print(f'  nblock = {self.nblock[i]}')
             print(f'  total md time = {self.nsw[i]*self.potim[i]/1000} ps')
-            print('')           
+            print('')   
