@@ -95,19 +95,20 @@ def main():
 
     if 'e' in mode_value:
         msd = MSD(data=data, 
-                tmax=args.t_width, 
-                skip=args.skip,
-                start=args.start,
-                symbol=args.symbol, 
-                x_vac=float(Fraction(args.x_vac)))
+                  tmax=args.t_width, 
+                  skip=args.skip,
+                  start=args.start,
+                  symbol=args.symbol, 
+                  x_vac=float(Fraction(args.x_vac)))
         
     if 'p' in mode_value:
         params = Parameter(data=data,
-                        interval=args.interval,
-                        poscar=args.lattice,
-                        neb=args.neb,
-                        einstein=args.einstein,
-                        verbose=args.verbose,
-                        fix_Ea_t_res=args.fix_Ea)
+                           symbol=args.symbol,
+                           interval=args.interval,
+                           poscar=args.lattice,
+                           neb=args.neb,
+                           einstein=args.einstein,
+                           verbose=args.verbose,
+                           fix_Ea_t_res=args.fix_Ea)
             
 
