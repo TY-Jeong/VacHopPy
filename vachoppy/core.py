@@ -501,7 +501,7 @@ class Parameter:
             f.write('Representative parameters related to D0\n')
             f.write(f"  D0     = {self.D0 :.3e} m2/s # obtained from Einstein relation\n")
             f.write(f"  nu_rep = {self.nu_rep :.3e} Hz   # attempt frequency\n")
-            f.write(f"  z_rep  = {self.z_rep :2.3f}         # coordination number\n")
+            f.write(f"  z_rep  = {self.z_rep :<6.3f}         # coordination number\n")
             f.write(f"  a_rep  = {self.a_rep :.3f} Å        # hopping distance\n")
             f.write(f"  f0     = {self.f0 :.3f}          # pre-exponential for correlation factor\n")
             f.write("\n")
