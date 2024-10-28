@@ -631,7 +631,10 @@ class Parameter:
         # save result
         with open('t_res.txt', 'w') as f:
             f.write(f'pre-exponential for t_res = {t0 :.6e} ps\n')
-            f.write(f'Ea for t_res (<Ea_hop>_vhp)= {self.Ea_hop_mean :.6f} eV\n')
+            if self.fix_Ea_t_res:
+                f.write(f'Ea for t_res (fixed to <Ea_hop>_vhp)= {self.Ea_hop_mean :.6f} eV\n')
+            else:
+                f.write(f'Ea for t_res = {self.Ea_hop_mean :.6f} eV\n')
             f.write(f'representative z = {self.z_rep :.6f}')
         print('t_res.txt is created')
         
@@ -639,16 +642,3 @@ class Parameter:
         self.t_res_vhp = t0 * np.exp(self.Ea_hop_mean / (self.kb * self.temp))     
         return np.sum((self.t_res_vhp - self.t_res)**2)
             
-# data = DataInfo()
-
-# msd = MSD(data=data, tmax=50, skip=1, x_vac=1/48)
-
-# params = Parameter(data=data,
-#                    interval=0.1,
-#                    poscar='POSCAR',
-#                    neb='neb_tio2.csv',
-#                    einstein='Einstein.txt',
-#                    symbol='O',
-#                    verbose=False)
-
-
