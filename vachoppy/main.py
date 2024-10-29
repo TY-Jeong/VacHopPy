@@ -83,9 +83,13 @@ if check_mode:
             
 args = parser.parse_args()
 print(f'{CYAN}{BOLD}VacHopPy is in progress{RESET}')
-print(f'{GREEN}{BOLD}Arguments and Values :{RESET}')
-for arg, value in vars(args).items():
-    print(f'    {arg} = {value}')
+
+with open('arg.txt', 'w') as f:
+    print(f'{GREEN}{BOLD}Arguments and Values :{RESET}')
+    f.write('Arguments and Values :\n')
+    for arg, value in vars(args).items():
+        print(f'    {arg} = {value}')
+        f.write(f'    {arg} = {value}\n')
 print('')
 
 def main():
