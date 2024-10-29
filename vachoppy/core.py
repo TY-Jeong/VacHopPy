@@ -497,7 +497,11 @@ class Parameter:
         with open('t_res.txt', 'w', encoding='UTF-8') as f:
             f.write(f'pre-exponential for t_res = {t0 * 1e12 :.6e} ps\n')
             f.write(f'Ea for t_res = {self.kb * slop :.6f} eV\n')
-            f.write(f'representative z = {self.z_rep :.6f}')
+            f.write(f'representative z = {self.z_rep :.6f}\n\n')
+            f.write('Raw data :\n')
+            f.write(f'     T(K)  t_res(ps)\n')
+            for i, temp in enumerate(self.temp):
+                f.write(f'{str(temp):>9s}  {t_res[i]:.3f}\n')   
         print('t_res.txt is created')
             
     def save_parameter(self):
@@ -639,7 +643,11 @@ class Parameter:
         with open('t_res.txt', 'w', encoding='UTF-8') as f:
             f.write(f'pre-exponential for t_res = {t0 :.6e} ps\n')
             f.write(f'Ea for t_res (fixed to <Ea_hop>_vhp)= {self.Ea_hop_vhp :.6f} eV\n')
-            f.write(f'representative z = {self.z_rep :.6f}')
+            f.write(f'representative z = {self.z_rep :.6f}\n\n')
+            f.write('Raw data :\n')
+            f.write(f'     T(K)  t_res(ps)\n')
+            for i, temp in enumerate(self.temp):
+                f.write(f'{str(temp):>9s}  {self.t_res[i]:.3f}\n')
         print('t_res.txt is created')
         
     def error_z(self, t0):
