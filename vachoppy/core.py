@@ -600,8 +600,12 @@ class Parameter:
 
         rand = RandomWalk(self.temp, self.lattice)
         rand.get_probability()
-        prob_site = np.average(rand.prob_site, axis=1)
-        self.Ea_hop_mean = np.dot(Ea_hop_vhp, prob_site)
+        rand.prob_path = prob
+        rand.D_rand()
+        rand.linear_fitting()
+        self.Ea_hop_mean = rand.Ea
+        # prob_site = np.average(rand.prob_site, axis=1)
+        # self.Ea_hop_mean = np.dot(Ea_hop_vhp, prob_site)
         
         # z_rep
         result = minimize_scalar(self.error_z)
@@ -631,10 +635,7 @@ class Parameter:
         # save result
         with open('t_res.txt', 'w') as f:
             f.write(f'pre-exponential for t_res = {t0 :.6e} ps\n')
-            if self.fix_Ea_t_res:
-                f.write(f'Ea for t_res (fixed to <Ea_hop>_vhp)= {self.Ea_hop_mean :.6f} eV\n')
-            else:
-                f.write(f'Ea for t_res = {self.Ea_hop_mean :.6f} eV\n')
+            f.write(f'Ea for t_res (fixed to <Ea_hop>_vhp)= {self.Ea_hop_mean :.6f} eV\n')
             f.write(f'representative z = {self.z_rep :.6f}')
         print('t_res.txt is created')
         
