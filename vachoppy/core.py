@@ -517,7 +517,7 @@ class Parameter:
             f.write(f"  Ea_D        = {self.Ea_D :.3f} eV  # obtained from Einstein relation\n")
             f.write(f"  Ea_hop_rand = {self.Ea_hop_rand :.3f} eV  # hopping barrier averaged using Boltzmann\n")
             f.write(f"  Ea_hop_vhp = {self.Ea_hop_vhp :.3f} eV   # hopping barrier averaged using probabilities from vachoppy\n")
-            f.write(f"  Ea_f        = {self.Ea_f :.3f} eV  # activation for correlation factor\n")
+            f.write(f"  Ea_f        = {self.Ea_f :.3e} eV  # activation for correlation factor\n")
         print('parameter.txt is created.')
         
         
