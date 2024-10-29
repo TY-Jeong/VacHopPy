@@ -259,6 +259,10 @@ class Parameter:
         self.rand.linear_fitting()
         self.Ea_hop_rand = self.rand.Ea
         
+        # <Ea_hop>_vhp
+        self.Ea_hop_vhp = None
+        self.mean_Ea_hop_vhp()
+        
         # representative z
         self.z_rep = None
         if self.fix_Ea_t_res:
@@ -316,7 +320,7 @@ class Parameter:
             self.cor.append(cor)
             
     def save_correlation_factor(self):
-        with open('f_cor.txt', 'w') as f:
+        with open('f_cor.txt', 'w', encoding='UTF-8') as f:
             f.write(f'Data        : {self.data.prefix1}\n')
             temp_str = ' '.join(list(map(str, self.temp)))
             f.write(f'Temperature : {temp_str} (in K)\n')
@@ -386,7 +390,7 @@ class Parameter:
         print('f_cor.svg is created.')
     
     def read_einstein(self):
-        with open(self.einstein, 'r') as f:
+        with open(self.einstein, 'r', encoding='UTF-8') as f:
             lines = [line.strip() for line in f]
             
         for i, line in enumerate(lines):
@@ -490,14 +494,14 @@ class Parameter:
         self.z_rep = 1/(self.nu_rep * t0)
         
         # save result
-        with open('t_res.txt', 'w') as f:
+        with open('t_res.txt', 'w', encoding='UTF-8') as f:
             f.write(f'pre-exponential for t_res = {t0 * 1e12 :.6e} ps\n')
             f.write(f'Ea for t_res = {self.kb * slop :.6f} eV\n')
             f.write(f'representative z = {self.z_rep :.6f}')
         print('t_res.txt is created')
             
     def save_parameter(self):
-        with open('parameter.txt', 'w') as f:
+        with open('parameter.txt', 'w', encoding='UTF-8') as f:
             f.write('Representative parameters related to D0\n')
             f.write(f"  D0     = {self.D0 :.3e} m2/s # obtained from Einstein relation\n")
             f.write(f"  nu_rep = {self.nu_rep :.3e} Hz   # attempt frequency\n")
@@ -508,6 +512,7 @@ class Parameter:
             f.write("Representative Parameters related to Ea\n")
             f.write(f"  Ea_D        = {self.Ea_D :.3f} eV  # obtained from Einstein relation\n")
             f.write(f"  Ea_hop_rand = {self.Ea_hop_rand :.3f} eV  # hopping barrier averaged using Boltzmann\n")
+            f.write(f"  Ea_hop_vhp = {self.Ea_hop_vhp :.3f} eV   # hopping barrier averaged using probabilities from vachoppy\n")
             f.write(f"  Ea_f        = {self.Ea_f :.3f} eV  # activation for correlation factor\n")
         print('parameter.txt is created.')
         
@@ -568,19 +573,7 @@ class Parameter:
             print(f'prob_{self.lattice.site_names[i]}.svg is created.')
             plt.close()
             
-    def plot_z_fixed_Ea(self):
-        '''
-        Ea for residence time is fixed to <Ea_hop>_vhp.
-        '''
-        # residence time from MD
-        time = self.data.potim * self.data.nsw / 1000
-        count = np.sum(self.count, axis=1)
-        num_label = np.array([len(label) for label in self.data.label])
-        num_label_err = np.array([len(label) for label in self.label_err])
-        count = count / (num_label - num_label_err)
-        self.t_res = time / count 
-        
-        # <Ea_hop>_vhp
+    def mean_Ea_hop_vhp(self):
         path_name = self.cor[0].path_name[:-1]
         col = [[] for i in range(len(self.lattice.site_names))]
         name = [[] for i in range(len(self.lattice.site_names))]
@@ -589,7 +582,6 @@ class Parameter:
             idx = self.lattice.site_names.index(site)
             col[idx].append(i)
             name[idx].append(n)
-            
         prob, Ea_hop_vhp= [], []
         for i in range(len(self.lattice.site_names)):
             count = self.count[:, np.array(col[i])]
@@ -603,9 +595,20 @@ class Parameter:
         rand.prob_path = prob
         rand.D_rand()
         rand.linear_fitting()
-        self.Ea_hop_mean = rand.Ea
-        # prob_site = np.average(rand.prob_site, axis=1)
-        # self.Ea_hop_mean = np.dot(Ea_hop_vhp, prob_site)
+        self.Ea_hop_vhp = rand.Ea
+
+
+    def plot_z_fixed_Ea(self):
+        '''
+        Ea for residence time is fixed to <Ea_hop>_vhp.
+        '''
+        # residence time from MD
+        time = self.data.potim * self.data.nsw / 1000
+        count = np.sum(self.count, axis=1)
+        num_label = np.array([len(label) for label in self.data.label])
+        num_label_err = np.array([len(label) for label in self.label_err])
+        count = count / (num_label - num_label_err)
+        self.t_res = time / count 
         
         # z_rep
         result = minimize_scalar(self.error_z)
@@ -625,7 +628,7 @@ class Parameter:
             ax.scatter(temp, self.t_res[i], marker='o', edgecolors='k', color='k')    
        
         x = np.linspace(0.99*self.temp[0], 1.01*self.temp[-1], 1000)
-        ax.plot(x, t0*np.exp(self.Ea_hop_mean/(self.kb*x)), 'k:')
+        ax.plot(x, t0*np.exp(self.Ea_hop_vhp/(self.kb*x)), 'k:')
         
         plt.xlabel('T (K)', fontsize=14)
         plt.ylabel(r'<$t_{res}$> (ps)', fontsize=14)
@@ -633,13 +636,13 @@ class Parameter:
         print('t_res.svg is created')
          
         # save result
-        with open('t_res.txt', 'w') as f:
+        with open('t_res.txt', 'w', encoding='UTF-8') as f:
             f.write(f'pre-exponential for t_res = {t0 :.6e} ps\n')
-            f.write(f'Ea for t_res (fixed to <Ea_hop>_vhp)= {self.Ea_hop_mean :.6f} eV\n')
+            f.write(f'Ea for t_res (fixed to <Ea_hop>_vhp)= {self.Ea_hop_vhp :.6f} eV\n')
             f.write(f'representative z = {self.z_rep :.6f}')
         print('t_res.txt is created')
         
     def error_z(self, t0):
-        self.t_res_vhp = t0 * np.exp(self.Ea_hop_mean / (self.kb * self.temp))     
+        self.t_res_vhp = t0 * np.exp(self.Ea_hop_vhp / (self.kb * self.temp))     
         return np.sum((self.t_res_vhp - self.t_res)**2)
             
