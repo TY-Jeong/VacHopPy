@@ -276,7 +276,7 @@ class Parameter:
         self.plot_prob()
         
     def read_neb(self):
-        with open(self.neb, 'r') as f:
+        with open(self.neb, 'r', encoding='UTF-8') as f:
             reader = csv.reader(f)
             next(reader) # pass header
             path_neb = [row for row in reader]
