@@ -117,10 +117,9 @@ class MSD:
         plt.xlim([-1, self.tmax])
         plt.xlabel('t (ps)', fontsize=14)
         plt.ylabel(r'MSD ($Å^2$)', fontsize=14)
-        plt.legend(loc='upper left',
-                    fontsize=12, alignment='center',
-                    title='T (K)', title_fontsize=13, 
-                    fancybox=True, framealpha=1, edgecolor='inherit')
+        plt.legend(loc='upper left', fontsize=12,
+                   title='T (K)', title_fontsize=13, 
+                   fancybox=True, framealpha=1, edgecolor='inherit')
         plt.savefig('msd.svg', transparent=True, dpi=600, bbox_inches="tight")
         # plt.show()
         print('msd.svg is created.')
@@ -145,7 +144,7 @@ class MSD:
         ncol = int(np.ceil(num_data / 5))
         plt.legend(loc='best', fancybox=True, framealpha=1, edgecolor='inherit',
                    ncol=ncol, labelspacing = 0.3, columnspacing=0.5, borderpad=0.2, handlelength=0.6,
-                   fontsize=11, alignment='center', title='T (K)', title_fontsize=11)
+                   fontsize=11, title='T (K)', title_fontsize=11)
         
         if num_data >= 3:
             x = np.array([self.data.temp[0], self.data.temp[int(num_data/2)] ,self.data.temp[-1]])
@@ -455,7 +454,7 @@ class Parameter:
         
         plt.legend(loc='upper right', fancybox=True, framealpha=1, edgecolor='inherit',
                    labelspacing = 0.3, columnspacing=0.5, borderpad=0.2, handlelength=0.6,
-                   fontsize=11, alignment='center')
+                   fontsize=11)
 
         plt.savefig('nu_rep.svg', transparent=True, dpi=600, bbox_inches="tight")
         print('nu_rep.svg is created.')
@@ -570,7 +569,7 @@ class Parameter:
                        edgecolor='inherit', ncol=1,
                        labelspacing = 0.3, columnspacing=0.5, 
                        borderpad=0.3, handlelength=0.6,
-                       fontsize=14, alignment='center')
+                       fontsize=14)
         
             plt.savefig(f'prob_{self.lattice.site_names[i]}.svg', 
                         transparent=True, dpi=600, bbox_inches="tight")
