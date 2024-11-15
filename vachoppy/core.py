@@ -192,7 +192,8 @@ class Parameter:
                  einstein='Einstein.txt',
                  symbol='O',
                  verbose=False,
-                 fix_Ea_t_res=False):
+                 fix_Ea_t_res=False,
+                 tolerance_Ea_f=0.1):
         
         self.data = data
         self.interval = interval
@@ -205,6 +206,7 @@ class Parameter:
         self.cmap = plt.get_cmap("Set1")
         self.kb = 8.61733326e-5
         self.fix_Ea_t_res = fix_Ea_t_res
+        self.tolerance_Ea_f = tolerance_Ea_f
         
         # check file
         if not os.path.isfile(self.poscar):
@@ -232,10 +234,14 @@ class Parameter:
         self.label_err = [cor.label_err for cor in self.cor]
         self.save_correlation_factor()
         
-        # Arrhenius fitting
+        # Arrhenius fitting (f_cor)
         slop_f, intercept_f = np.polyfit(1/self.temp, np.log(self.f_cum), deg=1)
         self.f0 = np.exp(intercept_f)
         self.Ea_f = -self.kb * slop_f
+        if abs(self.Ea_f) < self.tolerance_Ea_f:
+            self.Ea_f = 0
+            self.f0 = np.average(self.f_cum)
+            slop_f, intercept_f = 0, self.f0
         self.plot_correlation_factor(slop_f, intercept_f)
         
         # read einstein

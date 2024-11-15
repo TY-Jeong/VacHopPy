@@ -80,6 +80,10 @@ if check_mode:
             parser.add_argument('-f', '--fix_Ea',
                                 action='store_true',
                                 help='fix Ea for residence time to <Ea_hop>_vhp (experiment)')
+            parser.add_argument('-t', '--tolerance',
+                                type=float,
+                                default=0.1,
+                                help='tolerance for Ea of correlation factor in eV (default: 0.1)')
             
 args = parser.parse_args()
 print(f'{CYAN}{BOLD}VacHopPy is in progress{RESET}')
@@ -113,6 +117,7 @@ def main():
                            neb=args.neb,
                            einstein=args.einstein,
                            verbose=args.verbose,
-                           fix_Ea_t_res=args.fix_Ea)
+                           fix_Ea_t_res=args.fix_Ea,
+                           tolerance_Ea_f=args.tolerance)
             
 
