@@ -865,8 +865,9 @@ class PathAnalyzer:
             print('unknown steps :', end=' ')
             for step in self.analyzer.step_unknown:
                 print(step, end=' ')
+            print('')
 
-        print('\n')
+        print('')
         print('counts.png is created.')
         print('counts.txt is created.')
         
