@@ -691,8 +691,6 @@ class Trajectory:
         if not os.path.isfile(self.xdatcar):
             print(f'{self.xdatcar} is not found.')
             sys.exit(0)
-            
-        print('VacHopPy is running...')
         
         # read outcar
         self.potim = None
@@ -736,20 +734,20 @@ class Trajectory:
             self.traj.correct_multivacancy(start=1)
             self.traj.check_multivacancy()
             if self.traj.multi_vac == False:
-                print(' Correction for multi-vacancy : success')
+                print('Correction for multi-vacancy : success')
             else:
-                print(' Correction for multi-vacancy : fail')
+                print('Correction for multi-vacancy : fail')
                 check_multivac = False
         except:
-            print(' Correction for multi-vacancy : fail')
+            print('Correction for multi-vacancy : fail')
             check_multivac = False
         
         # TS criteria
         try:
             self.traj.correct_transition_state()
-            print(' Correction for TS criteria : success')
+            print('Correction for TS criteria : success')
         except:
-            print(' Correction for TS criteria : fail')
+            print('Correction for TS criteria : fail')
             check_TS = False
         
         if not(check_multivac and check_TS):
@@ -762,7 +760,7 @@ class Trajectory:
         print(f'  Interval = {self.interval} step ({self.interval * self.potim / 1000} ps)')
         print(f'  Total step = {self.traj.num_step} (={self.traj.nsw}/{self.traj.interval})')
         print('')
-        step = input('  Enter init and final steps (int; ex. 0 100 / 0 -1 for all): ')
+        step = input('Enter init and final steps (int; ex. 0 100 / 0 -1 for all): ')
         try:
             step = list(map(int, step.split()))
         except:
@@ -775,7 +773,7 @@ class Trajectory:
             step[-1] = self.traj.num_step
         step = 'all' if step[-1]==-1 else np.arange(step[0], step[-1])
         
-        fps = input('  Enter fps (int; ex. 20): ')
+        fps = input('Enter fps (int; ex. 20): ')
         try:
             fps = int(fps)
         except:
@@ -790,3 +788,132 @@ class Trajectory:
                             label=self.label)
         
         print('snapshot directory was created.')
+        
+        
+class PathAnalyzer:
+    def __init__(self,
+                 poscar,
+                 symbol,
+                 xdatcar,
+                 outcar,
+                 neb,
+                 force,
+                 interval,
+                 verbose=False):
+        
+        self.poscar = poscar
+        self.symbol = symbol
+        self.xdatcar = xdatcar
+        self.outcar = outcar
+        self.neb = neb
+        self.force = force
+        self.verbose = verbose
+
+        # check file
+        if not os.path.isfile(self.poscar):
+            print(f'{self.poscar} is not found.')
+            sys.exit(0)
+        if not os.path.isfile(self.neb):
+            print(f'{self.neb} is not found.')
+            sys.exit(0)
+        if not os.path.isfile(self.xdatcar):
+            print(f'{self.xdatcar} is not found.')
+            sys.exit(0)
+        if not os.path.isfile(self.outcar):
+            print(f'{self.outcar} is not found.')
+            sys.exit(0)
+        if not os.path.isfile(self.force):
+            print(f'{self.force} is not found.')
+            sys.exit(0)
+        
+        # read outcar
+        self.potim = None
+        self.read_outcar()
+        self.interval = int(interval * 1000 / self.potim)
+        
+        # lattice
+        self.lattice = Lattice(self.poscar, symbol=self.symbol)
+        self.read_neb()
+        
+        # traj
+        self.traj = LatticeHopping(xdatcar=self.xdatcar,
+                                   lattice=self.lattice,
+                                   force=self.force,
+                                   interval=self.interval,
+                                   verbose=self.verbose)
+        self.do_correction()
+        
+        # analyzer
+        self.analyzer = Analyzer(traj=self.traj,
+                                 lattice=self.lattice,
+                                 verbose=self.verbose)
+        self.analyzer.get_path_vacancy(verbose=self.verbose)
+        try:
+            self.analyzer.correct_multipath()
+            print('Correction for multi-path : success')
+        except:
+            print('Correction for multi-vacancy : fail')
+        print('')
+        
+        # print summary
+        print(f'{RED}{BOLD}Summary{RESET}')
+        self.analyzer.print_summary(disp=False,
+                                    save_figure=True,
+                                    save_text=True)
+        
+        if len(self.analyzer.step_unknown) > 0:
+            print('unknown steps :', end=' ')
+            for step in self.analyzer.step_unknown:
+                print(step, end=' ')
+
+        print('\n')
+        print('counts.png is created.')
+        print('counts.txt is created.')
+        
+    def read_outcar(self):
+        with open(self.outcar, 'r') as f:
+            for line in f:
+                if 'POTIM' in line:
+                    self.potim = float(line.split()[2])
+                    break    
+        
+    def read_neb(self):
+        with open(self.neb, 'r', encoding='UTF-8') as f:
+            reader = csv.reader(f)
+            next(reader) # pass header
+            path_neb = [row for row in reader]
+            
+        for path in path_neb:
+            if len(path[0]) > 0:
+                path[3] = float(path[3])
+                path[4] = float(path[4])
+                path[5] = float(path[5])
+                path[6] = int(path[6])
+                self.lattice.add_path(*path)
+                
+    def do_correction(self):
+        check_multivac, check_TS = True, True
+        # multi-vacancy
+        try:
+            self.traj.correct_multivacancy(start=1)
+            self.traj.check_multivacancy()
+            if self.traj.multi_vac == False:
+                print('Correction for multi-vacancy : success')
+            else:
+                print('Correction for multi-vacancy : fail')
+                check_multivac = False
+        except:
+            print('Correction for multi-vacancy : fail')
+            check_multivac = False
+        
+        # TS criteria
+        try:
+            self.traj.correct_transition_state()
+            print('Correction for TS criteria : success')
+        except:
+            print('Correction for TS criteria : fail')
+            check_TS = False
+            
+        if not(check_multivac and check_TS):
+            print('Correction Failure : VacHopPy will be terminated.')
+            sys.exit(0)

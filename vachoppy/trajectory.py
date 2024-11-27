@@ -1154,6 +1154,7 @@ class Analyzer:
         self.lat_points = lattice.lat_points
         
         self.path_unknown = {}
+        self.step_unknown = None
         self.path_unknown['name'] = 'unknown'
         self.path_vac = None # path of vacancy
 
@@ -1185,6 +1186,7 @@ class Analyzer:
                     
                 self.path_vac += [copy.deepcopy(path)]
                 idx += 1
+        self.step_unknown = step_unknown
                 
         if len(step_unknown) > 0 and verbose:
             print(f"unknown steps are detected.: {step_unknown}")

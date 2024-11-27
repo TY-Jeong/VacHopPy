@@ -24,13 +24,14 @@ group = parser.add_mutually_exclusive_group(required=True)
 # key functionalities
 group.add_argument(
     '-m', '--mode', 
-    choices=['e', 'p', 'ep', 't', 'f'], 
+    choices=['e', 'p', 'ep', 't', 'a', 'f'], 
     help=(
         """Choose mode:
         'e'  - For only diffusion coefficient (Einstein relation)
         'p'  - For effective diffusion parameter set
         'ep' - Both 'e' and 'p'
         't'  - For animation of trajectory
+        'a'  - For path analysis
         'f'  - For fingerprint analysis
         """
         )
@@ -197,6 +198,31 @@ if check_mode:
             parser.add_argument('-v', '--verbose',
                                 action='store_true',
                                 help='verbosity for parameter calculation')
+            
+        if 'a' in mode_value:
+            parser.add_argument('interval',
+                                type=float,
+                                help='time interval for averaging in ps')
+            parser.add_argument('-x', '--xdatcar',
+                                type=str,
+                                default='XDATCAR',
+                                help='path to XDATCAR file (default: XDATCAR)')
+            parser.add_argument('-f', '--force',
+                                type=str,
+                                default='FORCE',
+                                help='path to FORCE file (default: FORCE)')
+            parser.add_argument('-l', '--lattice',
+                                type=str,
+                                default='POSCAR_LATTICE',
+                                help='lattice file in POSCAR format (default: POSCAR_LATTICE)')
+            parser.add_argument('-o', '--outcar',
+                                type=str,
+                                default='OUTCAR',
+                                help='outcar file (default: OUTCAR)')
+            parser.add_argument('-n', '--neb',
+                                type=str,
+                                default='NEB.csv',
+                                help='neb data in csv format (default: NEB.csv)')
 
 
 args = parser.parse_args()
@@ -249,6 +275,15 @@ def main():
                               correction=not(args.no_correction),
                               label=args.label,
                               verbose=args.verbose)
+        
+        if mode_value == 'a':
+            anal = PathAnalyzer(poscar=args.lattice,
+                                symbol=args.symbol,
+                                xdatcar=args.xdatcar,
+                                outcar=args.outcar,
+                                neb=args.neb,
+                                force=args.force,
+                                interval=args.interval)
             
     if check_util:
         if mode_value == 'extract_force':
