@@ -1,7 +1,7 @@
 import os
 import sys
 import csv
-import pandas as pd
+import copy
 import numpy as np
 from tqdm import tqdm
 from colorama import Fore
@@ -658,4 +658,135 @@ class Parameter:
     def error_z(self, t0):
         self.t_res_vhp = t0 * np.exp(self.Ea_hop_vhp / (self.kb * self.temp))     
         return np.sum((self.t_res_vhp - self.t_res)**2)
+
+
+class Trajectory:
+    def __init__(self,
+                 xdatcar,
+                 force,
+                 poscar,
+                 symbol,
+                 outcar,
+                 interval,
+                 correction=True,
+                 label=False,
+                 verbose=False):
+        
+        self.xdatcar = xdatcar
+        self.force = force
+        self.poscar = poscar
+        self.symbol = symbol
+        self.outcar = outcar
+        self.correction = correction
+        self.label = label
+        self.verbose = verbose
+        
+        # check file
+        if not os.path.isfile(self.xdatcar):
+            print(f'{self.xdatcar} is not found.')
+            sys.exit(0)
+        if not os.path.isfile(self.force):
+            print(f'{self.force} is not found.')
+            sys.exit(0)
+        if not os.path.isfile(self.xdatcar):
+            print(f'{self.xdatcar} is not found.')
+            sys.exit(0)
             
+        print('VacHopPy is running...')
+        
+        # read outcar
+        self.potim = None
+        self.read_outcar()
+        self.interval = int(interval * 1000 / self.potim)
+        
+        # instantiation
+        self.lattice = None
+        self.traj = None
+        self.get_lattice_and_traj()
+        
+        # corrections
+        if self.correction:
+            self.do_correction()
+            
+        # animation
+        self.save_animation()
+        
+    def read_outcar(self):
+        with open(self.outcar, 'r') as f:
+            for line in f:
+                if 'POTIM' in line:
+                    self.potim = float(line.split()[2])
+                    break
+                
+    def get_lattice_and_traj(self):
+        self.lattice = Lattice(poscar_perf=self.poscar, 
+                               symbol=self.symbol)
+        
+        self.traj = LatticeHopping(xdatcar=self.xdatcar,
+                                   lattice=self.lattice,
+                                   force=self.force,
+                                   interval=self.interval,
+                                   verbose=self.verbose)
+        
+    def do_correction(self):
+        check_multivac, check_TS = True, True
+        _traj = copy.deepcopy(self.traj)
+        # multi-vacancy
+        try:
+            self.traj.correct_multivacancy(start=1)
+            self.traj.check_multivacancy()
+            if self.traj.multi_vac == False:
+                print(' Correction for multi-vacancy : success')
+            else:
+                print(' Correction for multi-vacancy : fail')
+                check_multivac = False
+        except:
+            print(' Correction for multi-vacancy : fail')
+            check_multivac = False
+        
+        # TS criteria
+        try:
+            self.traj.correct_transition_state()
+            print(' Correction for TS criteria : success')
+        except:
+            print(' Correction for TS criteria : fail')
+            check_TS = False
+        
+        if not(check_multivac and check_TS):
+            print('The raw trajectory without corrections will be used.')
+            self.traj = _traj
+            
+    def save_animation(self):
+        print('\nInformation on animation')
+        print(f'  NSW = {self.traj.nsw} ({self.traj.nsw * self.potim / 1000} ps)')
+        print(f'  Interval = {self.interval} step ({self.interval * self.potim / 1000} ps)')
+        print(f'  Total step = {self.traj.num_step} (={self.traj.nsw}/{self.traj.interval})')
+        print('')
+        step = input('  Enter init and final steps (int; ex. 0 100 / 0 -1 for all): ')
+        try:
+            step = list(map(int, step.split()))
+        except:
+            print('The step number must be integer.')
+            sys.exit(0)
+            
+        if step[-1] > self.traj.num_step:
+            print(f'    The final step should be less than {self.traj.num_step}')
+            print(f'    The final step is set to {self.traj.num_step}')
+            step[-1] = self.traj.num_step
+        step = 'all' if step[-1]==-1 else np.arange(step[0], step[-1])
+        
+        fps = input('  Enter fps (int; ex. 20): ')
+        try:
+            fps = int(fps)
+        except:
+            print('The fps must be integer.')
+        
+        print('')
+        self.traj.animation(step=step,
+                            potim=self.potim,
+                            foldername='snapshot',
+                            fps=fps,
+                            dpi=300,
+                            label=self.label)
+        
+        print('snapshot directory was created.')

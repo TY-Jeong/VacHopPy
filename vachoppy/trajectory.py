@@ -842,7 +842,7 @@ class LatticeHopping:
                   vac=True,
                   gif=True,
                   filename='traj.gif',
-                  foldername='gif',
+                  foldername='snapshot',
                   update_alpha=0.75,
                   potim=2,
                   fps=5,
@@ -874,7 +874,7 @@ class LatticeHopping:
         for step in tqdm(step,
                          bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
                          ascii=False,
-                         desc=f'{RED}{BOLD}save gif{RESET}'):
+                         desc=f'{RED}{BOLD}snapshot{RESET}'):
             
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
@@ -930,12 +930,12 @@ class LatticeHopping:
         
         # make gif file
         if gif:
-            print(f"Generating {filename}...")
+            print(f"Merging snapshots...")
             self.save_gif(filename=filename,
                               files=files,
                               fps=fps,
                               loop=loop)
-            print(f"{filename} was generated.")
+            print(f"{filename} was created.")
         
 
     def save_poscar(self,
@@ -2019,7 +2019,7 @@ class CumulativeCorrelationFactor:
         
         if traj.multi_vac is True:
             if self.verbose:
-                print(f'correction for multi-vacancy was failed.')
+                print('correction for multi-vacancy was failed.')
                 print('')
             self.label_err.append(label)
             return None
