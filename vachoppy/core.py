@@ -7,10 +7,13 @@ from tqdm import tqdm
 from colorama import Fore
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize_scalar
+from itertools import combinations_with_replacement
 
-from vachoppy.inout import DataInfo
+from vachoppy.inout import *
 from vachoppy.einstein import *
 from vachoppy.trajectory import *
+from vachoppy.fingerprint import *
+from vachoppy.utils import *
 
 BOLD = '\033[1m'
 CYAN = '\033[36m'
@@ -918,3 +921,382 @@ class PathAnalyzer:
         if not(check_multivac and check_TS):
             print('Correction Failure : VacHopPy will be terminated.')
             sys.exit(0)
+            
+            
+
+class GetFingerPrint:
+    def __init__(self, 
+                 poscar,
+                 prefix='fingerprint', 
+                 disp=False):
+        self.poscar = poscar
+        self.prefix = prefix
+        self.disp = disp
+        
+        if not os.path.isfile(self.poscar):
+            print(f'{self.poscar} is not found')
+            sys.exit(0)
+        
+        # read poscar
+        self.atom = None
+        self.read_poscar()
+        
+        # input parameters
+        self.pair = []
+        self.get_pair()
+        
+        # params for fingerprint
+        self.Rmax = None
+        self.delta = None
+        self.sigma = None
+        self.get_params()
+        
+        # fingerprint
+        self.fingerprint = []
+        self.get_fingerprint()
+        self.fingerprint = np.array(self.fingerprint)
+        
+        # concat fingerprints
+        self.fingerprint_concat = self.fingerprint.reshape(1,-1).squeeze()
+        
+        # save fingerprint
+        self.save_fingerprint()
+        
+        
+    def read_poscar(self):
+        with open(self.poscar, 'r') as f:
+            lines = [line for line in f]
+        self.atom = lines[5].split()
+    
+    def get_pair(self):
+        pair = input('input A and B (ex. Hf-O / Hf-Hf,Hf-O / all) : ')
+        pair = pair.replace(" ", "")
+        
+        if pair == 'all':
+            self.pair.extend(combinations_with_replacement(self.atom, 2))
+        else:
+            pair = pair.split(',')
+            for p in pair:
+                atoms = p.split('-')
+                if len(atoms) == 2 and all(atom in self.atom for atom in atoms):
+                    self.pair.append(tuple(atoms))
+                else:
+                    print(f'Invalid pair : {p}')
+                    sys.exit(0)
+                    
+    def get_params(self):
+        params = input("input Rmax, delta, and sigma (ex. 15, 0.01, 0.3) : ")
+        params = list(map(float, params.replace(" ", "").split(',')))
+        self.Rmax, self.delta, self.sigma = params[0], params[1], params[2]
+        
+    def get_fingerprint(self):
+        for (A, B) in self.pair:
+            finger = FingerPrint(A, B, 
+                                 self.poscar,
+                                 self.Rmax, self.delta, self.sigma)
+            self.fingerprint.append(finger.fingerprint)
+    
+    def save_fingerprint(self):
+        # save figure
+        R = np.linspace(0, self.Rmax, len(self.fingerprint[0]))
+        for i in range(len(self.pair)):
+            x = R + i*self.Rmax*np.ones_like(R)
+            plt.plot(x, self.fingerprint[i], label=f'{self.pair[i][0]}-{self.pair[i][1]}')
+        
+        plt.axhline(0, 0, 1, color='k', linestyle='--', linewidth=1)
+        plt.xlabel("r (Å)", fontsize=13)    
+        plt.ylabel('Intensity', fontsize=13)
+        plt.legend(fontsize=12)
+        plt.savefig(f'{self.prefix}.png', dpi=300)
+        print(f'{self.prefix}.png is created.')
+        if self.disp:
+            plt.show()
+        plt.close()
+        
+        R = np.linspace(0, self.Rmax * len(self.pair), len(self.fingerprint_concat))
+        with open(f'{self.prefix}.txt', 'w') as f:
+            f.write(f'# Rmax, delta, sigma = {self.Rmax}, {self.delta}, {self.sigma}\n')
+            f.write('# pair : ')
+            for (A, B) in self.pair:
+                f.write(f'{A}-{B}, ')
+            f.write('\n')
+            for x, y in zip(R, self.fingerprint_concat):
+                f.write(f'  {x:2.6f}\t{y:2.6f}\n')
+        print(f'{self.prefix}.txt is created.')
+
+    
+class GetCosineDistance:
+    def __init__(self, fp1, fp2):
+        if not os.path.isfile(fp1):
+            print(f'{fp1} is not found')
+            sys.exit(0)
+        if not os.path.isfile(fp2):
+            print(f'{fp2} is not found')
+            sys.exit(0)
+        
+        self.fp1 = np.loadtxt(fp1, skiprows=2)[:,1]
+        self.fp2 = np.loadtxt(fp2, skiprows=2)[:,1]
+        
+        if self.fp1.shape != self.fp2.shape:
+            print('Size of two fingerprints should be the same')
+            sys.exit(0)
+        
+        self.d_cos = CosineDistance(self.fp1, self.fp2)
+        print(f'd_cos = {self.d_cos}')
+        
+        
+def find_last_direct_line(xdatcar):
+    try:
+        with open(xdatcar, 'rb') as f:
+            f.seek(0, os.SEEK_END)
+            file_size = f.tell()
+            buffer_size = 1024
+            buffer = b""
+            offset = file_size
+            while offset > 0:
+                read_size = min(buffer_size, offset)
+                offset -= read_size
+                f.seek(offset)
+                chunk = f.read(read_size)
+                buffer = chunk + buffer 
+                lines = buffer.split(b'\n')
+                buffer = lines[0]
+                for line in reversed(lines[1:]):
+                    decoded_line = line.decode('utf-8', errors='ignore').strip()
+                    if 'Direct' in decoded_line:
+                        final_step = int(decoded_line.split('=')[-1])
+                        return final_step
+            if buffer:
+                decoded_line = buffer.decode('utf-8', errors='ignore').strip()
+                if 'Direct' in decoded_line:
+                    final_step = int(decoded_line.split('=')[-1])
+                    return final_step       
+        print("No line containing 'Direct' found")
+    except FileNotFoundError:
+        print(f"{xdatcar} is not found")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+class PhaseTransition:
+    def __init__(self,
+                 xdatcar,
+                 outcar,
+                 interval,
+                 poscar_mother,
+                 prefix1='poscars',
+                 prefix2='fingerprints'):
+        
+        self.xdatcar = xdatcar
+        self.outcar = outcar
+        self.interval = interval
+        self.poscar_mother = poscar_mother
+        self.prefix1 = prefix1
+        self.prefix2 = prefix2
+        
+        if not os.path.isfile(self.xdatcar):
+            print(f'{self.xdatcar} is not found')
+            sys.exit(0)
+            
+        if not os.path.isfile(self.outcar):
+            print(f'{self.outcar} is not found')
+            sys.exit(0)
+            
+        if not os.path.isfile(self.poscar_mother):
+            print(f'{self.poscar_mother} is not found')
+            sys.exit(0)
+        
+        if not os.path.isdir(self.prefix1):
+            os.makedirs(self.prefix1)
+            print(f'{self.prefix1} directory is created.')
+        
+        if not os.path.isdir(self.prefix2):
+            os.makedirs(self.prefix2)
+            print(f'{self.prefix2} directory is created.')
+            
+        # read outcar
+        self.potim = None
+        self.read_outcar()
+        self.interval = int(interval * 1000 / self.potim)
+        
+        # read xdatcar
+        self.nsw = None
+        self.position = []
+        self.read_xdatcar()
+        
+        self.pair = []
+        self.pair.extend(combinations_with_replacement(self.atom_species, 2))
+        
+        # input steps
+        self.step = None
+        self.input_step()
+        
+        # params
+        self.Rmax = None
+        self.delta = None
+        self.sigma = None
+        self.get_params()
+        
+        # fingerprint of mother phase
+        self.finger_mother = self.get_fingerprint(self.poscar_mother)
+        self.R = np.linspace(0, self.Rmax*len(self.pair), len(self.finger_mother))
+        self.save_fingerprint(self.finger_mother, 'fingerprint_mother.txt')
+        
+        # fingerprint of xdatcar
+        self.d_cos = np.zeros_like(self.step, dtype=float)
+        desc = 'progress'
+        print('')
+        for i, s in enumerate(tqdm(self.step, 
+                                   bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'% (Fore.GREEN, Fore.GREEN),
+                                   ascii=False,
+                                   desc=f'{GREEN}{BOLD}{desc}')):
+            # save poscar
+            label = format(s, self.digit)
+            filename = os.path.join(self.prefix1, f"POSCAR_{label}")
+            self.save_poscar(s, filename)
+            
+            # get fingerpint
+            finger = self.get_fingerprint(filename)
+            finger_out = f'fingerprint_{label}.txt'
+            self.save_fingerprint(finger, finger_out)
+            
+            # cosine distance
+            self.d_cos[i] = CosineDistance(self.finger_mother, finger)
+        
+        # plot cosine distance
+        print('')
+        self.save_distance()
+            
+    def read_outcar(self):
+        with open(self.outcar, 'r') as f:
+            for line in f:
+                if 'POTIM' in line:
+                    self.potim = float(line.split()[2])
+                    break
+                
+    def read_xdatcar(self):
+        self.nsw = find_last_direct_line(self.xdatcar)
+        if self.nsw % self.interval != 0:
+            print(f'{self.nsw} step (nsw) is not divided by {self.interval} step (interval)')
+            sys.exit(0)
+        
+        with open(self.xdatcar, 'r') as f:
+            lines = np.array([s.strip() for s in f])
+        
+        self.lattice = np.array([s.split() for s in lines[2:5]], dtype=float)
+        self.lattice *= float(lines[1])
+        
+        self.atom_species = np.array(lines[5].split())
+        self.num_species = len(self.atom_species)
+        
+        self.num_atoms = np.array(lines[6].split(), dtype=int)
+        num_atoms_tot = np.sum(self.num_atoms)
+        self.num_step = int(self.nsw / self.interval)
+        
+        digit = int(np.log10(self.num_step)) + 1
+        self.digit = f'0{digit}'
+        
+        for i, spec in enumerate(self.atom_species):           
+            atom = {}
+            atom['species'] = spec
+            atom['num'] = self.num_atoms[i]
+            
+            traj = np.zeros((atom['num'], self.num_step, 3)) 
+
+            for j in range(atom['num']):
+                start = np.sum(self.num_atoms[:i]) + j + 8
+                end = lines.shape[0] + 1
+                step = num_atoms_tot + 1
+                coords = [s.split() for s in lines[start:end:step]]
+                coords = np.array(coords, dtype=float)
+                
+                displacement = np.zeros_like(coords)
+                displacement[0,:] = 0
+                displacement[1:,:] = np.diff(coords, axis=0)
+
+                # correction for periodic boundary condition
+                displacement[displacement>0.5] -= 1.0
+                displacement[displacement<-0.5] += 1.0
+                displacement = np.cumsum(displacement, axis=0)
+                coords = coords[0] + displacement
+
+                # averaged coordination
+                coords = coords.reshape(self.num_step, self.interval, 3)
+                coords = np.average(coords, axis=1)
+
+                # wrap back into cell
+                coords = coords - np.floor(coords)
+                traj[j] = coords
+
+            atom['traj'] = traj
+            self.position += [atom]
+        
+    def save_poscar(self, step, filename):
+        with open(filename, 'w') as f:
+            f.write(f"step_{step}. generated by vachoppy.\n")
+            f.write("1.0\n")
+
+            for lat in self.lattice:
+                f.write("%.6f %.6f %.6f\n"%(lat[0], lat[1], lat[2]))
+
+            for atom in self.position:
+                f.write(f"{atom['species']} ")
+            f.write('\n')
+            for atom in self.position:
+                f.write(f"{atom['num']} ")
+            f.write('\n')
+            f.write("Direct\n")
+            for atom in self.position:
+                for traj in atom['traj'][:,step,:]:
+                    f.write("%.6f %.6f %.6f\n"%(traj[0], traj[1], traj[2]))
+            
+    def input_step(self):
+        print('')
+        step = input(f'Input range of step (ex. 10-100) (available: 0 - {self.num_step}): ')
+        step = list(map(int, step.replace(" ", "").split('-')))
+        self.step = np.arange(step[0], step[1])
+        
+    def get_params(self):
+        params = input("input Rmax, delta, and sigma (ex. 15, 0.01, 0.3) : ")
+        params = list(map(float, params.replace(" ", "").split(',')))
+        self.Rmax, self.delta, self.sigma = params[0], params[1], params[2]
+        
+    def get_fingerprint(self, poscar):
+        fingerprint = []
+        for (A, B) in self.pair:
+            finger = FingerPrint(A, B, poscar, self.Rmax, self.delta, self.sigma)
+            fingerprint.append(finger.fingerprint)
+        fingerprint = np.array(fingerprint)
+        return fingerprint.reshape(1,-1).squeeze()
+        
+    def save_fingerprint(self, fp, filename):
+        file_out = os.path.join(self.prefix2, filename)
+        with open(file_out, 'w') as f:
+            f.write(f'# Rmax, delta, sigma = {self.Rmax}, {self.delta}, {self.sigma}\n')
+            f.write('# pair : ')
+            for (A, B) in self.pair:
+                f.write(f'{A}-{B}, ')
+            f.write('\n')
+            for x, y in zip(self.R, fp):
+                f.write(f'  {x:2.6f}\t{y:2.6f}\n')
+                
+    def save_distance(self):
+        # plt.figure(figsize=(15, 5))
+        plt.scatter(self.step, self.d_cos, s=25)
+        plt.xlabel("Step", fontsize=13)
+        plt.ylabel('Cosine distnace', fontsize=13)
+        # plt.ylim([-0.05, 1.05])
+        plt.savefig('cosine_distance.png', dpi=300)
+        plt.show()
+        plt.close()
+        print('cosine_distance.png is created.')
+        
+        with open('cosine_distance.txt', 'w') as f:
+            f.write(f'# Rmax, delta, sigma = {self.Rmax}, {self.delta}, {self.sigma}\n')
+            f.write('# pair : ')
+            for (A, B) in self.pair:
+                f.write(f'{A}-{B}, ')
+            f.write('\n')
+            for x, y in zip(self.step, self.d_cos):
+                f.write(f'  {x}\t{y:.6f}\n')
+        print('cosine_distance.txt is created.')

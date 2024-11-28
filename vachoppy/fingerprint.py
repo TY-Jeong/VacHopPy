@@ -4,19 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def CosineDistance(fp1, fp2):
-    """
-    fp1 : fingerprint of structure 1
-    fp2 : fingerprint of structure 2
-    """
-    dot = np.dot(fp1, fp2)
-    norm1 = np.linalg.norm(fp1, ord=2)
-    norm2 = np.linalg.norm(fp2, ord=2)
-
-    return 0.5 * (1 - dot/(norm1*norm2))
-
-
-
 class FingerPrint:
     def __init__(self,
                  A,

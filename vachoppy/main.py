@@ -24,7 +24,7 @@ group = parser.add_mutually_exclusive_group(required=True)
 # key functionalities
 group.add_argument(
     '-m', '--mode', 
-    choices=['e', 'p', 'ep', 't', 'a', 'f'], 
+    choices=['e', 'p', 'ep', 't', 'a', 'd'], 
     help=(
         """Choose mode:
         'e'  - For only diffusion coefficient (Einstein relation)
@@ -32,7 +32,7 @@ group.add_argument(
         'ep' - Both 'e' and 'p'
         't'  - For animation of trajectory
         'a'  - For path analysis
-        'f'  - For fingerprint analysis
+        'd'  - For cosine distance analysis
         """
         )
     )
@@ -40,14 +40,17 @@ group.add_argument(
 # utilities
 group.add_argument(
     '-u',
-    choices=['extract_force', 'concat_xdatcar', 'concat_force', 'update_outcar'],
+    choices=['extract_force', 'concat_xdatcar', 'concat_force', 
+             'update_outcar', 'fingerprint', 'cosine_distance'],
     dest='util',
     help=(
         """Choose mode:
-        'extract_force'  - Extract FORCE from vasprun.xml
-        'concat_xdatcar' - Concatenate two XDATCAR files
-        'concat_force'   - Concatenate two FORCE files
-        'update_outcar'  - Update OUTCAR : nsw = nsw1 + nsw2
+        'extract_force'   - Extract FORCE from vasprun.xml
+        'concat_xdatcar'  - Concatenate two XDATCAR files
+        'concat_force'    - Concatenate two FORCE files
+        'update_outcar'   - Update OUTCAR : nsw = nsw1 + nsw2
+        'fingerprint'     - Extract fingerprint
+        'cosine_distance' - Calculate cosine distance
         """
         )
 )
@@ -106,17 +109,39 @@ if check_util:
             parser.add_argument('-out', '--outcar_out',
                                 default='OUTCAR_NEW',
                                 help='new OUTCAR file (default: OUTCAR_NEW)')
+            
+        if mode_value == 'cosine_distance':
+            parser.add_argument('-in1', '--fingerprint_in1',
+                                required=True,
+                                help='first fingerprint file')
+            parser.add_argument('-in2', '--fingerprint_in2',
+                                required=True,
+                                help='second fingerprint file')
+            
+        if mode_value == 'fingerprint':
+            parser.add_argument('-p','--poscar',
+                                required=True,
+                                type=str,
+                                help='POSCAR to be used for fingerprint extraction')
+            parser.add_argument('--prefix',
+                                type=str,
+                                default='fingerprint',
+                                help='prefix for output files (default: fingerprint)')
+            parser.add_argument('-d', '--disp',
+                                action='store_true',
+                                help='if use, fingerprint plot will be displayed')
         
 
 if check_mode:
     if mode_index < len(sys.argv):
         mode_value = sys.argv[mode_index]
 
-        parser.add_argument('symbol',
-                            type=str,
-                            help='symbol of moving atom')
-        
         # Arguments for DataInfo
+        if not 'd' in mode_value:
+            parser.add_argument('symbol',
+                                type=str,
+                                help='symbol of moving atom')
+        
         if 'e' in mode_value or 'p' in mode_value:
             parser.add_argument('-p1', '--prefix1', 
                                 default='traj', 
@@ -160,14 +185,6 @@ if check_mode:
             parser.add_argument('-v', '--verbose',
                                 action='store_true',
                                 help='verbosity for parameter calculation')
-            # experiments
-            # parser.add_argument('--release_Ea',
-            #                     action='store_true',
-            #                     help='release Ea for residence time')
-            # parser.add_argument('--tolerance',
-            #                     type=float,
-            #                     default=0,
-            #                     help='tolerance for Ea of correlation factor in eV (default: 0)')
             
         if 't' in mode_value:
             parser.add_argument('interval',
@@ -218,11 +235,36 @@ if check_mode:
             parser.add_argument('-o', '--outcar',
                                 type=str,
                                 default='OUTCAR',
-                                help='outcar file (default: OUTCAR)')
+                                help='path to OUTCAR file (default: OUTCAR)')
             parser.add_argument('-n', '--neb',
                                 type=str,
                                 default='NEB.csv',
                                 help='neb data in csv format (default: NEB.csv)')
+            
+        if 'd' == mode_value:
+            parser.add_argument('interval',
+                                type=float,
+                                help='time interval for averaging in ps')
+            parser.add_argument('-x','--xdatcar',
+                                type=str,
+                                default='XDATCAR',
+                                help='path to XDATCAR file (default: XDATCAR)')
+            parser.add_argument('-o','--outcar',
+                                type=str,
+                                default='OUTCAR',
+                                help='path to OUTCAR file (default: OUTCAR)')
+            parser.add_argument('-p','--poscar_mother',
+                                default='POSCAR_MOTHER',
+                                type=str,
+                                help='path to POSCAR of mother phase (default: POSCAR_MOTHER)')
+            parser.add_argument('--prefix1',
+                                type=str,
+                                default='poscars',
+                                help='directory to save xdatcar snapshots (default: poscars)')
+            parser.add_argument('--prefix2',
+                                type=str,
+                                default='fingerprints',
+                                help='directory to save fingerprints (default: fingerprints)')
 
 
 args = parser.parse_args()
@@ -285,6 +327,15 @@ def main():
                                 force=args.force,
                                 interval=args.interval)
             
+        if mode_value == 'd':
+            phase = PhaseTransition(xdatcar=args.xdatcar,
+                                    outcar=args.outcar,
+                                    interval=args.interval,
+                                    poscar_mother=args.poscar_mother,
+                                    prefix1=args.prefix1,
+                                    prefix2=args.prefix2)
+            
+                
     if check_util:
         if mode_value == 'extract_force':
             extract_force(args.file_in, args.file_out)
@@ -301,4 +352,13 @@ def main():
         if mode_value == 'update_outcar':
             update_outcar(args.outcar_in1, args.outcar_in2, args.outcar_out)
             print(f'{args.outcar_out} is created')
+        
+        if mode_value == 'cosine_distance':
+            GetCosineDistance(args.fingerprint_in1, args.fingerprint_in2)
+            
+        if mode_value == 'fingerprint':
+            finger = GetFingerPrint(poscar=args.poscar,
+                                    prefix=args.prefix,
+                                    disp=args.disp)
+            
 
