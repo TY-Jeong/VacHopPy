@@ -259,8 +259,8 @@ if check_mode:
                                 help='path to POSCAR of mother phase (default: POSCAR_MOTHER)')
             parser.add_argument('--prefix1',
                                 type=str,
-                                default='poscars',
-                                help='directory to save xdatcar snapshots (default: poscars)')
+                                default='snapshots',
+                                help='directory to save xdatcar snapshots (default: snapshots)')
             parser.add_argument('--prefix2',
                                 type=str,
                                 default='fingerprints',
