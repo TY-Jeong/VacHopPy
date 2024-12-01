@@ -304,7 +304,7 @@ def main():
                                neb=args.neb,
                                einstein=args.einstein,
                                verbose=args.verbose,
-                               fix_Ea_t_res=False,
+                               fix_Ea_t_res=True,
                                tolerance_Ea_f=0)
             
         if mode_value == 't':

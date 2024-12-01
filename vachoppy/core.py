@@ -195,8 +195,8 @@ class Parameter:
                  einstein='Einstein.txt',
                  symbol='O',
                  verbose=False,
-                 fix_Ea_t_res=False,
-                 tolerance_Ea_f=0.1):
+                 fix_Ea_t_res=True,
+                 tolerance_Ea_f=0.0):
         
         self.data = data
         self.interval = interval
@@ -268,8 +268,9 @@ class Parameter:
         self.Ea_hop_rand = self.rand.Ea
         
         # <Ea_hop>_vhp
-        self.Ea_hop_vhp = None
-        self.mean_Ea_hop_vhp()
+        # self.Ea_hop_vhp = None
+        # self.mean_Ea_hop_vhp()
+        self.Ea_hop_vhp = self.Ea_D - self.Ea_f
         
         # representative z
         self.z_rep = None
