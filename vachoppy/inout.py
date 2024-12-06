@@ -128,7 +128,7 @@ class DataInfo:
             f.write('\n')
             for i in range(max(num_label)):
                 for j in range(len(self.temp)):
-                    label = self.label[j][i] if i < num_label[j]-1 else ''
+                    label = self.label[j][i] if i < num_label[j] else ''
                     f.write(f'{label:5s}  ')
                 f.write('\n')
             
