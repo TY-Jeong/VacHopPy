@@ -286,7 +286,7 @@ def main():
         if 'e' in mode_value or 'p' in mode_value:
             data = DataInfo(prefix1=args.prefix1,
                             prefix2=args.prefix2,
-                            verbose=False)
+                            verbose=True)
 
         if 'e' in mode_value:
             msd = MSD(data=data, 

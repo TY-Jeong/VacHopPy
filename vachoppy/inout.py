@@ -36,7 +36,7 @@ class DataInfo:
         self.read_force()
         
         if verbose:
-            self.summary()
+            self.md_information()
         
     def get_temperature(self):
         dirList = os.listdir(os.path.join(os.getcwd(), self.prefix1))
@@ -98,19 +98,39 @@ class DataInfo:
         if check is False:
             self.force = None
             
-    def summary(self):
-        print('Temperature (K) :', end=' ')
-        for T in self.temp:
-            print(T, end=' ')
-        print('')
-        use_force = False if self.force is None else True
-        print(f'Use FORCE data : {use_force}')
-        print('')
-        for i in range(len(self.temp)):
-            print(f'T = {self.temp[i]} K :')
-            print(f'  number of labels = {len(self.label[i])}')
-            print(f'  nsw = {self.nsw[i]}')
-            print(f'  potim = {self.potim[i]}')
-            print(f'  nblock = {self.nblock[i]}')
-            print(f'  total md time = {self.nsw[i]*self.potim[i]/1000} ps')
-            print('')   
+    def md_information(self):
+        num_label = []
+        with open('ensemble.txt', 'w') as f:
+            # information on md condition
+            f.write('Temperature (K) : ')
+            for T in self.temp:
+                f.write(f'{T} ')
+            f.write('\n')
+            use_force = False if self.force is None else True
+            f.write(f'Use FORCE data : {use_force}\n\n')
+            f.write('Information on MD\n')
+            for i in range(len(self.temp)):
+                f.write(f'T = {self.temp[i]} K :\n')
+                f.write(f'  number of labels = {len(self.label[i])}\n')
+                num_label.append(len(self.label[i]))
+                f.write(f'  nsw = {self.nsw[i]}\n')
+                f.write(f'  potim = {self.potim[i]}\n')
+                f.write(f'  nblock = {self.nblock[i]}\n')
+                f.write(f'  total md time = {self.nsw[i]*self.potim[i]/1000} ps\n')
+                f.write('\n')
+            f.write('\n')
+            
+            # information on label
+            f.write('Labels : \n')
+            for T in self.temp:
+                f.write(f'{str(T)+'K':<5s}  ')
+            f.write('\n')
+            for i in range(max(num_label)):
+                for j in range(len(self.temp)):
+                    label = self.label[j][i] if i < num_label[j]-1 else ''
+                    f.write(f'{label:5s}  ')
+                f.write('\n')
+            
+            
+                
+    
