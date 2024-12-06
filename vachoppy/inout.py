@@ -123,7 +123,8 @@ class DataInfo:
             # information on label
             f.write('Labels : \n')
             for T in self.temp:
-                f.write(f'{str(T)+'K':<5s}  ')
+                temp = str(T)+'K'
+                f.write(f'{temp:<5s}  ')
             f.write('\n')
             for i in range(max(num_label)):
                 for j in range(len(self.temp)):
