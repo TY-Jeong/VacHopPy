@@ -268,9 +268,13 @@ class Parameter:
         self.Ea_hop_rand = self.rand.Ea
         
         # <Ea_hop>_vhp
-        # self.Ea_hop_vhp = None
-        # self.mean_Ea_hop_vhp()
-        self.Ea_hop_vhp = self.Ea_D - self.Ea_f
+        self.Ea_hop_vhp = None
+        self.mean_Ea_hop_vhp()
+        # self.Ea_hop_vhp = self.Ea_D - self.Ea_f
+        
+        # activations
+        self.Ea_f2 = self.Ea_hop_vhp - self.Ea_hop_rand
+        self.Ea_f1 = self.Ea_f - self.Ea_f2
         
         # representative z
         self.z_rep = None
@@ -515,18 +519,21 @@ class Parameter:
             
     def save_parameter(self):
         with open('parameter.txt', 'w', encoding='UTF-8') as f:
-            f.write('Representative parameters related to D0\n')
-            f.write(f"  D0     = {self.D0 :.3e} m2/s # obtained from Einstein relation\n")
-            f.write(f"  nu_rep = {self.nu_rep :.3e} Hz   # attempt frequency\n")
-            f.write(f"  z_rep  = {self.z_rep :<6.3f}         # coordination number\n")
-            f.write(f"  a_rep  = {self.a_rep :.3f} Å        # hopping distance\n")
-            f.write(f"  f0     = {self.f0 :.3f}          # pre-exponential for correlation factor\n")
+            f.write('Effective diffusoin parameters related to D0\n')
+            f.write(f"  D0     = {self.D0 :.5e} m2/s # obtained from Einstein relation\n")
+            f.write(f"  nu_eff = {self.nu_rep :.5e} Hz   # attempt frequency\n")
+            f.write(f"  z_eff  = {self.z_rep :<6.5f}         # coordination number\n")
+            f.write(f"  a_eff  = {self.a_rep :.5f} Å        # hopping distance\n")
+            f.write(f"  f0     = {self.f0 :.5f}          # pre-exponential for correlation factor\n")
             f.write("\n")
-            f.write("Representative Parameters related to Ea\n")
-            f.write(f"  Ea_D        = {self.Ea_D :.3f} eV  # obtained from Einstein relation\n")
-            f.write(f"  Ea_hop_rand = {self.Ea_hop_rand :.3f} eV  # hopping barrier averaged using Boltzmann\n")
-            f.write(f"  Ea_hop_vhp = {self.Ea_hop_vhp :.3f} eV   # hopping barrier averaged using probabilities from vachoppy\n")
-            f.write(f"  Ea_f        = {self.Ea_f :.3e} eV  # activation for correlation factor\n")
+            f.write("Effective diffusion parameters related to Ea\n")
+            f.write(f"  Ea_D        = {self.Ea_D :.5f} eV  # obtained from Einstein relation\n")
+            f.write(f"  Ea_rand = {self.Ea_hop_rand :.5f} eV  # hopping barrier averaged using Boltzmann\n")
+            f.write(f"  Ea_real = {self.Ea_hop_vhp :.5f} eV   # hopping barrier averaged using probabilities from vachoppy\n")
+            f.write(f"  Ea_f        = {self.Ea_f :.5e} eV   # activation for correlation factor\n")
+            f.write(f"  Ea_f1       = {self.Ea_f1 :.5e} eV  # activation for randomness of atomic movements\n")
+            f.write(f"  Ea_f2       = {self.Ea_f2 :.5e} eV  # deviation from Boltzmann distribution (Ea_real - Ea_rand)\n")
+            
         print('parameter.txt is created.')
         
         
