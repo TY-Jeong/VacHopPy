@@ -273,8 +273,8 @@ class Parameter:
         # self.Ea_hop_vhp = self.Ea_D - self.Ea_f
         
         # activations
-        self.Ea_f2 = self.Ea_hop_vhp - self.Ea_hop_rand
-        self.Ea_f1 = self.Ea_f - self.Ea_f2
+        self.Ea_f1 = self.Ea_hop_vhp - self.Ea_hop_rand
+        self.Ea_f2 = self.Ea_f - self.Ea_f1
         
         # representative z
         self.z_rep = None
@@ -356,12 +356,12 @@ class Parameter:
                     count = int(count)
                     f.write("{:<10} ".format(count))
                 f.write('\n\n')
-                f.write(f"      Mean correlation factor : {self.cor[i].f_avg:.3f}\n")
-                f.write(f"Cumulative correlation factor : {self.cor[i].f_cum:.3f}\n")
+                f.write(f"      Mean correlation factor : {self.cor[i].f_avg:.5f}\n")
+                f.write(f"Cumulative correlation factor : {self.cor[i].f_cum:.5f}\n")
                 f.write('\n')
                 f.write("{:<10} {:<10}\n".format('Label', 'f_cor'))
                 for label, f_cor in zip(self.cor[i].label_success, self.cor[i].f_ensemble):
-                    f.write("{:<10} {:<10.3f}\n".format(label, f_cor))
+                    f.write("{:<10} {:<10.5f}\n".format(label, f_cor))
                 f.write('\n')
                 time_tot = np.sum(np.array(self.cor[i].times))
                 f.write(f'Total time : {time_tot:.3f} s\n')
@@ -520,19 +520,19 @@ class Parameter:
     def save_parameter(self):
         with open('parameter.txt', 'w', encoding='UTF-8') as f:
             f.write('Effective diffusoin parameters related to D0\n')
-            f.write(f"  D0     = {self.D0 :.5e} m2/s # obtained from Einstein relation\n")
-            f.write(f"  nu_eff = {self.nu_rep :.5e} Hz   # attempt frequency\n")
-            f.write(f"  z_eff  = {self.z_rep :<6.5f}         # coordination number\n")
+            f.write(f"  D0     = {self.D0 :.5e} m2/s # pre-exponential for D\n")
+            f.write(f"  nu_eff = {self.nu_rep :.5e} Hz   # jump attempt frequency\n")
+            f.write(f"  z_eff  = {self.z_rep :<6.5f}          # coordination number\n")
             f.write(f"  a_eff  = {self.a_rep :.5f} Å        # hopping distance\n")
             f.write(f"  f0     = {self.f0 :.5f}          # pre-exponential for correlation factor\n")
             f.write("\n")
             f.write("Effective diffusion parameters related to Ea\n")
-            f.write(f"  Ea_D        = {self.Ea_D :.5f} eV  # obtained from Einstein relation\n")
-            f.write(f"  Ea_rand = {self.Ea_hop_rand :.5f} eV  # hopping barrier averaged using Boltzmann\n")
-            f.write(f"  Ea_real = {self.Ea_hop_vhp :.5f} eV   # hopping barrier averaged using probabilities from vachoppy\n")
-            f.write(f"  Ea_f        = {self.Ea_f :.5e} eV   # activation for correlation factor\n")
-            f.write(f"  Ea_f1       = {self.Ea_f1 :.5e} eV  # activation for randomness of atomic movements\n")
-            f.write(f"  Ea_f2       = {self.Ea_f2 :.5e} eV  # deviation from Boltzmann distribution (Ea_real - Ea_rand)\n")
+            f.write(f"  Ea_D        = {self.Ea_D :.5f} eV      # obtained from Einstein relation\n")
+            f.write(f"  Ea          = {self.Ea_hop_rand :.5f} eV      # hopping barrier (random walk)\n")
+            f.write(f"  Ea_act      = {self.Ea_hop_vhp :.5f} eV      # hopping barrier (actual diffusion)\n")
+            f.write(f"  Ea_f        = {self.Ea_f :.5e} eV  # activation for correlation factor\n")
+            f.write(f"  Ea_f1       = {self.Ea_f1 :.5e} eV  # contribution of deviation from Boltzmann distribution\n")
+            f.write(f"  Ea_f2       = {self.Ea_f2 :.5e} eV  # contribution of thermal fluctuation\n")
             
         print('parameter.txt is created.')
         
@@ -663,7 +663,7 @@ class Parameter:
             f.write('Raw data :\n')
             f.write(f'     T(K)  t_res(ps)\n')
             for i, temp in enumerate(self.temp):
-                f.write(f'{str(temp):>9s}  {self.t_res[i]:.3f}\n')
+                f.write(f'{str(temp):>9s}  {self.t_res[i]:.5f}\n')
         print('t_res.txt is created')
         
     def error_z(self, t0):
