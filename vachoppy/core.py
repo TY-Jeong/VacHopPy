@@ -164,24 +164,24 @@ class MSD:
         # write results
         with open('Einstein.txt', 'w') as f:
             f.write(f'symbol of moving atom = {self.symbol}\n')
-            f.write(f'x_vac = {self.x_vac :.3f}\n')
+            f.write(f'x_vac = {self.x_vac :.5f}\n')
             if self.x_vac == 1:
                 f.write('target : atom\n')
             else:
                 f.write('target : vacancy\n')
             f.write('\nParameters for diffusion coefficient : \n')
-            f.write(f'  D0 = {np.exp(intercept)} m2/s\n')
-            f.write(f'  Ea = {-kb * slop} eV\n')
+            f.write(f'  D0 = {np.exp(intercept):.5e} m2/s\n')
+            f.write(f'  Ea = {-kb * slop:.5f} eV\n')
             f.write('\n')
             f.write('Raw data\n')
             f.write('T(K) \tD(m2/s)\n')
             for temp, D in zip(self.data.temp, self.D):
-                f.write(f'{temp} \t{D :.6e}\n')
+                f.write(f'{temp} \t{D :.5e}\n')
                    
         print('Einstein.txt is created.')
         print('parameters for diffusion coefficient : ')
-        print(f'  D0 = {np.exp(intercept) :.3e} m2/s')
-        print(f'  Ea = {-kb * slop :.3f} eV')
+        print(f'  D0   = {np.exp(intercept) :.5e} m2/s')
+        print(f'  Ea_D = {-kb * slop :.5f} eV')
         print('')
         
         
@@ -409,7 +409,7 @@ class Parameter:
         for i, line in enumerate(lines):
             if 'D0' in line:
                 self.D0 = float(line.split()[2])
-            if 'Ea' in line:
+            if 'Ea_D' in line:
                 self.Ea_D = float(line.split()[2])
             if 'Raw' in line:
                 num_line = i+2
