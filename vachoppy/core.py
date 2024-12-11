@@ -223,7 +223,7 @@ class Parameter:
             print('you should calculate Einstein relation in advance.')
             sys.exit(0)
         
-        print(f'{CYAN}{BOLD}Representative mass transport parameters.{RESET}')
+        print(f'{CYAN}{BOLD}Effective diffusion parameters.{RESET}')
         
         # lattice
         self.lattice = Lattice(self.poscar, symbol=self.symbol)
