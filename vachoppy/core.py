@@ -170,8 +170,8 @@ class MSD:
             else:
                 f.write('target : vacancy\n')
             f.write('\nParameters for diffusion coefficient : \n')
-            f.write(f'  D0 = {np.exp(intercept):.5e} m2/s\n')
-            f.write(f'  Ea = {-kb * slop:.5f} eV\n')
+            f.write(f'  D0   = {np.exp(intercept):.5e} m2/s\n')
+            f.write(f'  Ea_D = {-kb * slop:.5f} eV\n')
             f.write('\n')
             f.write('Raw data\n')
             f.write('T(K) \tD(m2/s)\n')
