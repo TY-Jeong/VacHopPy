@@ -185,6 +185,9 @@ if check_mode:
             parser.add_argument('-v', '--verbose',
                                 action='store_true',
                                 help='verbosity for parameter calculation')
+            parser.add_argument('-r', '--use_slop_reside_time',
+                                action='store_true',
+                                help='calculate Ea_act from residence time (default: False)')
             
         if 't' in mode_value:
             parser.add_argument('interval',
@@ -304,7 +307,7 @@ def main():
                                neb=args.neb,
                                einstein=args.einstein,
                                verbose=args.verbose,
-                               fix_Ea_t_res=True,
+                               fix_Ea_t_res=not(args.use_slop_reside_time),
                                tolerance_Ea_f=0)
             
         if mode_value == 't':

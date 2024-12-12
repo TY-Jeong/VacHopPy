@@ -270,18 +270,17 @@ class Parameter:
         # <Ea_hop>_vhp
         self.Ea_hop_vhp = None
         self.mean_Ea_hop_vhp()
-        # self.Ea_hop_vhp = self.Ea_D - self.Ea_f
-        
-        # activations
-        self.Ea_f1 = self.Ea_hop_vhp - self.Ea_hop_rand
-        self.Ea_f2 = self.Ea_f - self.Ea_f1
         
         # representative z
         self.z_rep = None
         if self.fix_Ea_t_res:
             self.plot_z_fixed_Ea()
         else:
-            self.plot_z()
+            self.plot_z() # Ea_hop_vhp will be updated
+            
+        # activations
+        self.Ea_f1 = self.Ea_hop_vhp - self.Ea_hop_rand
+        self.Ea_f2 = self.Ea_f - self.Ea_f1
         
         # representative a
         self.a_rep = np.sqrt(6*self.D0/(self.z_rep*self.nu_rep*self.f0))*1e10
@@ -505,6 +504,9 @@ class Parameter:
         
         t0 = np.exp(intercept) * 1e-12
         self.z_rep = 1/(self.nu_rep * t0)
+        
+        # use Ea_act from residence time
+        self.Ea_hop_vhp = slop * self.kb
         
         # save result
         with open('t_res.txt', 'w', encoding='UTF-8') as f:
