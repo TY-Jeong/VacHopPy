@@ -24,12 +24,11 @@ group = parser.add_mutually_exclusive_group(required=True)
 # key functionalities
 group.add_argument(
     '-m', '--mode', 
-    choices=['e', 'p', 'ep', 't', 'a', 'd'], 
+    choices=['p', 'e', 't', 'a', 'd'], 
     help=(
         """Choose mode:
-        'e'  - For only diffusion coefficient (Einstein relation)
         'p'  - For effective diffusion parameter set
-        'ep' - Both 'e' and 'p'
+        'e'  - For only diffusion coefficient (Einstein relation)
         't'  - For animation of trajectory
         'a'  - For path analysis
         'd'  - For cosine distance analysis
@@ -142,18 +141,15 @@ if check_mode:
                                 type=str,
                                 help='symbol of moving atom')
         
-        if 'e' in mode_value or 'p' in mode_value:
+        if 'e' in mode_value or 'p' in mode_value or 'a' in mode_value:
             parser.add_argument('-p1', '--prefix1', 
                                 default='traj', 
-                                help='name of outer directory')
+                                help='name of outer directory (default: traj)')
             parser.add_argument('-p2', '--prefix2', 
                                 default='traj', 
-                                help='prefix of inner directories, ex.{prefix2}.{temp}K')
+                                help='prefix of inner directories, ex.{prefix2}.{temp}K (default: traj)')
             
         if 'e' in mode_value:
-            parser.add_argument('x_vac',
-                                type=str,
-                                help='fraction of vacancy (use 1 for atom)')
             parser.add_argument('t_width',
                                 type=float,
                                 help='x-range in msd plot in ps')
@@ -161,6 +157,10 @@ if check_mode:
                                 type=float,
                                 default=0,
                                 help='steps to be skipped in ps (default: 0)')
+            parser.add_argument('--x_vac',
+                                type=str,
+                                default=1,
+                                help='fraction of vacancy (use 1 for atom) (default: 1)')
             parser.add_argument('--start',
                                 type=float,
                                 default=1,
@@ -174,20 +174,18 @@ if check_mode:
                                 type=str,
                                 default='POSCAR_LATTICE',
                                 help='lattice file in POSCAR format (default: POSCAR_LATICE)')
-            parser.add_argument('-n', '--neb',
-                                type=str,
-                                default='NEB.csv',
-                                help='neb data in csv format (default: NEB.csv)')
-            parser.add_argument('-e', '--einstein',
-                                type=str,
-                                default='Einstein.txt',
-                                help='Einstein relation results (default: Einstein.txt)')
-            parser.add_argument('-v', '--verbose',
-                                action='store_true',
-                                help='verbosity for parameter calculation')
-            parser.add_argument('-r', '--use_slop_reside_time',
-                                action='store_true',
-                                help='calculate Ea_act from residence time (default: False)')
+            parser.add_argument('--rmax',
+                                type=float,
+                                default=3.0,
+                                help='maximum distance for hopping path identification (default: 3.0)')
+            parser.add_argument('--tol',
+                                type=float,
+                                default=1e-3,
+                                help='tolerance for VoronoiNN (default: 1e-3)')
+            parser.add_argument('--tolerance',
+                                type=float,
+                                default=1e-3,
+                                help='tolerance for distance comparison (default: 1e-3)')
             
         if 't' in mode_value:
             parser.add_argument('interval',
@@ -212,9 +210,9 @@ if check_mode:
             parser.add_argument('--no_correction',
                                 action='store_true',
                                 help='if use, corrections will be skipped')
-            parser.add_argument('--label',
+            parser.add_argument('--index',
                                 action='store_true',
-                                help='if use, label of each atom will be shown')
+                                help='if use, index of each atom will be shown')
             parser.add_argument('-v', '--verbose',
                                 action='store_true',
                                 help='verbosity for parameter calculation')
@@ -223,26 +221,29 @@ if check_mode:
             parser.add_argument('interval',
                                 type=float,
                                 help='time interval for averaging in ps')
-            parser.add_argument('-x', '--xdatcar',
+            parser.add_argument('temp',
+                                type=int,
+                                help='temperatue in K')
+            parser.add_argument('--label',
+                                nargs="+",
                                 type=str,
-                                default='XDATCAR',
-                                help='path to XDATCAR file (default: XDATCAR)')
-            parser.add_argument('-f', '--force',
-                                type=str,
-                                default='FORCE',
-                                help='path to FORCE file (default: FORCE)')
+                                help='labels')
             parser.add_argument('-l', '--lattice',
                                 type=str,
                                 default='POSCAR_LATTICE',
-                                help='lattice file in POSCAR format (default: POSCAR_LATTICE)')
-            parser.add_argument('-o', '--outcar',
-                                type=str,
-                                default='OUTCAR',
-                                help='path to OUTCAR file (default: OUTCAR)')
-            parser.add_argument('-n', '--neb',
-                                type=str,
-                                default='NEB.csv',
-                                help='neb data in csv format (default: NEB.csv)')
+                                help='lattice file in POSCAR format (default: POSCAR_LATICE)')
+            parser.add_argument('--rmax',
+                                type=float,
+                                default=3.0,
+                                help='maximum distance for hopping path identification (default: 3.0)')
+            parser.add_argument('--tol',
+                                type=float,
+                                default=1e-3,
+                                help='tolerance for VoronoiNN (default: 1e-3)')
+            parser.add_argument('--tolerance',
+                                type=float,
+                                default=1e-3,
+                                help='tolerance for distance comparison (default: 1e-3)')
             
         if 'd' == mode_value:
             parser.add_argument('interval',
@@ -286,7 +287,7 @@ def main():
         print('')
         
         # functionalities
-        if 'e' in mode_value or 'p' in mode_value:
+        if 'e' in mode_value or 'p' in mode_value or 'a' in mode_value:
             data = DataInfo(prefix1=args.prefix1,
                             prefix2=args.prefix2,
                             verbose=True)
@@ -300,15 +301,15 @@ def main():
                       x_vac=float(Fraction(args.x_vac)))
             
         if 'p' in mode_value:
-            params = Parameter(data=data,
-                               symbol=args.symbol,
-                               interval=args.interval,
-                               poscar=args.lattice,
-                               neb=args.neb,
-                               einstein=args.einstein,
-                               verbose=args.verbose,
-                               fix_Ea_t_res=not(args.use_slop_reside_time),
-                               tolerance_Ea_f=0)
+            effective_params = EffectiveDiffusionParameter(data=data,
+                                                           interval=args.interval,
+                                                           poscar_lattice=args.lattice,
+                                                           symbol=args.symbol,
+                                                           file_out='parameter.txt',
+                                                           rmax=args.rmax,
+                                                           tol=args.tol,
+                                                           tolerance=args.tolerance,
+                                                           verbose=True)
             
         if mode_value == 't':
             traj = Trajectory(xdatcar=args.xdatcar,
@@ -318,17 +319,20 @@ def main():
                               outcar=args.outcar,
                               interval=args.interval,
                               correction=not(args.no_correction),
-                              label=args.label,
+                              label=args.index,
                               verbose=args.verbose)
         
         if mode_value == 'a':
-            anal = PathAnalyzer(poscar=args.lattice,
+            anal = PathAnalyzer(data=data,
+                                interval=args.interval,
+                                poscar_lattice=args.lattice,
                                 symbol=args.symbol,
-                                xdatcar=args.xdatcar,
-                                outcar=args.outcar,
-                                neb=args.neb,
-                                force=args.force,
-                                interval=args.interval)
+                                temp=args.temp,
+                                label=args.label,
+                                rmax=args.rmax,
+                                tol=args.tol,
+                                tolerance=args.tolerance,
+                                verbose=True)
             
         if mode_value == 'd':
             phase = PhaseTransition(xdatcar=args.xdatcar,
