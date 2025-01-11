@@ -141,7 +141,7 @@ if check_mode:
                                 type=str,
                                 help='symbol of moving atom')
         
-        if 'e' in mode_value or 'p' in mode_value or 'a' in mode_value:
+        if mode_value in ['e', 'p', 'a', 't']:
             parser.add_argument('-p1', '--prefix1', 
                                 default='traj', 
                                 help='name of outer directory (default: traj)')
@@ -191,26 +191,24 @@ if check_mode:
             parser.add_argument('interval',
                                 type=float,
                                 help='time interval for averaging in ps')
-            parser.add_argument('-x', '--xdatcar',
+            parser.add_argument('temp',
+                                type=int,
+                                help='temperatue in K')
+            parser.add_argument('label',
                                 type=str,
-                                default='XDATCAR',
-                                help='path to XDATCAR file (default: XDATCAR)')
-            parser.add_argument('-f', '--force',
-                                type=str,
-                                default='FORCE',
-                                help='path to FORCE file (default: FORCE)')
+                                help='labels')
             parser.add_argument('-l', '--lattice',
                                 type=str,
                                 default='POSCAR_LATTICE',
                                 help='lattice file in POSCAR format (default: POSCAR_LATTICE)')
-            parser.add_argument('-o', '--outcar',
-                                type=str,
-                                default='OUTCAR',
-                                help='outcar file (default: OUTCAR)')
+            parser.add_argument('--update_alpha',
+                                type=float,
+                                default=0.75,
+                                help='adjust the remaining time of the arrow (default: 0.75)')
             parser.add_argument('--no_correction',
                                 action='store_true',
                                 help='if use, corrections will be skipped')
-            parser.add_argument('--index',
+            parser.add_argument('--show_index',
                                 action='store_true',
                                 help='if use, index of each atom will be shown')
             parser.add_argument('-v', '--verbose',
@@ -287,7 +285,7 @@ def main():
         print('')
         
         # functionalities
-        if 'e' in mode_value or 'p' in mode_value or 'a' in mode_value:
+        if mode_value in ['e', 'p', 'a', 't']:
             data = DataInfo(prefix1=args.prefix1,
                             prefix2=args.prefix2,
                             verbose=True)
@@ -312,14 +310,15 @@ def main():
                                                            verbose=True)
             
         if mode_value == 't':
-            traj = Trajectory(xdatcar=args.xdatcar,
-                              force=args.force,
-                              poscar=args.lattice,
-                              symbol=args.symbol,
-                              outcar=args.outcar,
+            traj = Trajectory(data=data,
+                              temp=args.temp,
+                              label=args.label,
                               interval=args.interval,
-                              correction=not(args.no_correction),
-                              label=args.index,
+                              poscar_lattice=args.lattice,
+                              symbol=args.symbol,
+                              correlation=not(args.no_correction),
+                              update_alpha=args.update_alpha,
+                              show_index=args.show_index,
                               verbose=args.verbose)
         
         if mode_value == 'a':

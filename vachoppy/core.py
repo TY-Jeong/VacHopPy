@@ -230,69 +230,67 @@ class EffectiveDiffusionParameter:
 
 class Trajectory:
     def __init__(self,
-                 xdatcar,
-                 force,
-                 poscar,
-                 symbol,
-                 outcar,
+                 data,
+                 temp,
+                 label,
                  interval,
-                 correction=True,
-                 label=False,
-                 verbose=False):
+                 poscar_lattice,
+                 symbol,
+                 correlation=True,
+                 update_alpha=0.75,
+                 show_index=False,
+                 rmax=3.0,
+                 tol=1e-3,
+                 tolerance=1e-3,
+                 verbose=True):
+
+        if int(temp) in data.temp:
+            self.temp = temp
+        else:
+            print(f"{temp}K is not valid.")
+            sys.exit(0)
+        if label in data.label[list(data.temp).index(self.temp)]:
+            self.label = label
+        else:
+            print(f"{label} is not valid.")
+            sys.exit(0)
+            
+        index_temp = list(data.temp).index(self.temp)
+        index_label = data.label[index_temp].index(self.label)
         
-        self.xdatcar = xdatcar
-        self.force = force
-        self.poscar = poscar
+        self.xdatcar = data.xdatcar[index_temp][index_label]
+        self.outcar = data.outcar[index_temp]
+        self.force = None if data.force is None else data.force[index_temp][index_label]
+        self.potim = data.potim[index_temp]
+        
+        self.interval = int(interval * 1000 / self.potim) # ps to iteration
+        self.poscar_lattice = poscar_lattice
         self.symbol = symbol
-        self.outcar = outcar
-        self.correction = correction
-        self.label = label
+        self.correlation = correlation
+        self.update_alpha = update_alpha
+        self.show_index = show_index
+        self.rmax = rmax
+        self.tol = tol
+        self.tolerance = tolerance
         self.verbose = verbose
         
-        # check file
-        if not os.path.isfile(self.xdatcar):
-            print(f'{self.xdatcar} is not found.')
-            sys.exit(0)
-        if not os.path.isfile(self.force):
-            print(f'{self.force} is not found.')
-            sys.exit(0)
-        if not os.path.isfile(self.xdatcar):
-            print(f'{self.xdatcar} is not found.')
-            sys.exit(0)
-        
-        # read outcar
-        self.potim = None
-        self.read_outcar()
-        self.interval = int(interval * 1000 / self.potim)
-        
-        # instantiation
-        self.lattice = None
-        self.traj = None
-        self.get_lattice_and_traj()
-        
-        # corrections
-        if self.correction:
-            self.do_correction()
-            
-        # animation
-        self.save_animation()
-        
-    def read_outcar(self):
-        with open(self.outcar, 'r') as f:
-            for line in f:
-                if 'POTIM' in line:
-                    self.potim = float(line.split()[2])
-                    break
-                
-    def get_lattice_and_traj(self):
-        self.lattice = Lattice(poscar_perf=self.poscar, 
-                               symbol=self.symbol)
+        self.lattice = Lattice(poscar_lattice=self.poscar_lattice,
+                               symbol=self.symbol,
+                               rmax=self.rmax,
+                               tol=self.tol,
+                               tolerance=self.tolerance,
+                               verbose=self.verbose)
         
         self.traj = LatticeHopping(xdatcar=self.xdatcar,
                                    lattice=self.lattice,
                                    force=self.force,
                                    interval=self.interval,
                                    verbose=self.verbose)
+        
+        if self.correlation:
+            self.do_correction()
+            
+        self.save_animation()
         
     def do_correction(self):
         check_multivac, check_TS = True, True
@@ -351,9 +349,10 @@ class Trajectory:
         self.traj.animation(step=step,
                             potim=self.potim,
                             foldername='snapshot',
+                            update_alpha=self.update_alpha,
                             fps=fps,
                             dpi=300,
-                            label=self.label)
+                            label=self.show_index)
         
         print('snapshot directory was created.')
         
