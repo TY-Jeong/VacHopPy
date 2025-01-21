@@ -1516,7 +1516,7 @@ class Parameter:
                     else:
                         counts_i[name] += count
                         
-                # correlation factor        
+                # encounter 
                 enc = Encounter(anal, verbose=self.verbose)
                 encounter_num_i.append(enc.num_enc)
                 encounter_msd_i.append(enc.msd)
@@ -1585,9 +1585,11 @@ class Parameter:
         
         # D_rand
         a = np.array([path['distance'] for path in self.lattice.path], dtype=float)
+        a = a[:self.num_path_except_unknowns] # lattice hopping only
         num_label = np.array([len(label) for label in self.data.label], dtype=float)
         t = self.data.nsw * self.data.potim * num_label
-        self.D_rand = np.sum(a**2 * self.counts, axis=1) / (6*t) * 1e-5
+        counts = self.counts[:,:self.num_path_except_unknowns] # lattice hopping only
+        self.D_rand = np.sum(a**2 * counts, axis=1) / (6*t) * 1e-5
         
         # Ea and D0_rand
         slop, intercept = np.polyfit(1/self.temp, np.log(self.D_rand), deg=1)
@@ -1595,7 +1597,7 @@ class Parameter:
         self.D0_rand = np.exp(intercept)
         
         # effective nu
-        self.tau = t * (1e-3) / np.sum(self.counts, axis=1) # ps
+        self.tau = t * (1e-3) / np.sum(counts, axis=1) # ps
         error_tau = lambda nu: np.linalg.norm(
             self.tau - (1 / (self.z_eff * nu + 1e-9)) * np.exp(self.Ea / (self.kb * self.temp))
             )
