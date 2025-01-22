@@ -1377,7 +1377,7 @@ class Encounter:
         self.path_counts /= self.num_enc
             
     def print_summary(self):
-        print('# Encounter analysis')
+        print('\n# Encounter analysis')
         print(f"Number of encounters      : {self.num_enc}")
         print(f"Mean squared displacement : {self.msd:.5f} Å2")
         count_tot = int(np.sum(self.path_counts*self.num_enc))
