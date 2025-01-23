@@ -993,6 +993,10 @@ class Analyzer:
         self.a = np.array([path['distance'] for path in self.path], dtype=float)
         self.msd_rand = np.sum(self.a**2 * self.counts)
         
+        # total steps vacancy remained at eash site
+        self.total_reside_steps = None
+        self.get_total_reside_step()
+        
         # print results
         if self.verbose:
             self.summary()
@@ -1174,6 +1178,16 @@ class Analyzer:
                     print(p['step'], end=' ')
                 print('\n')
                 
+    def get_total_reside_step(self):
+        self.total_reside_steps = np.zeros(len(self.lattice.site_names))
+        step_before = 0
+        for path in self.path_vac:
+            index_init = self.lattice.site_names.index(path['site_init'])
+            self.total_reside_steps[index_init] += path['step'] - step_before
+            step_before = path['step']
+        index_final = self.lattice.site_names.index(self.path_vac[-1]['site_final'])
+        self.total_reside_steps[index_final] += self.traj.num_step - self.path_vac[-1]['step']   
+                
     def summary(self):
         # print counts
         print('# Hopping sequence analysis')
@@ -1195,6 +1209,16 @@ class Analyzer:
             for i, path in enumerate(self.path_vac)
         ]
         print('Hopping sequence :')
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
+        
+        # total steps vacancy remained at eash site
+        header = ['site', 'total steps']
+        data = [
+            [name, step] for name, step in zip(self.lattice.site_names, self.total_reside_steps)
+        ]
+        data.append(['Total', self.traj.num_step])
+        print('Total steps the vacancy remained at each site :')
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
         
@@ -1428,6 +1452,14 @@ class Parameter:
                                self.tolerance)
         self.num_path_except_unknowns = len(self.lattice.path_names)
         
+        # number of paths at each site
+        self.num_path_site = np.zeros(len(self.lattice.site_names))
+        for path in self.lattice.path:
+            self.num_path_site[self.lattice.site_names.index(path['site_init'])] += 1
+            
+        # total steps vacancy remained at eash site
+        self.total_reside_steps = []
+        
         # path counts
         self.counts = []
         self.encounter_num = []
@@ -1477,6 +1509,7 @@ class Parameter:
             encounter_num_i = []
             encounter_msd_i = []
             encounter_counts_i = []
+            total_reside_steps_i = np.zeros(len(self.lattice.site_names))
             
             fail_i = []
             desc = str(int(temp))+'K'
@@ -1515,6 +1548,7 @@ class Parameter:
                         counts_i[name] = count
                     else:
                         counts_i[name] += count
+                total_reside_steps_i += anal.total_reside_steps
                         
                 # encounter 
                 enc = Encounter(anal, verbose=self.verbose)
@@ -1530,11 +1564,13 @@ class Parameter:
                 self.lattice.path_names = anal.path_names
             
             self.counts.append(counts_i)
+            self.total_reside_steps.append(total_reside_steps_i)
             self.encounter_num.append(encounter_num_i)
             self.encounter_msd.append(encounter_msd_i)
             self.encounter_counts.append(encounter_counts_i)
             self.labels_failed.append(fail_i)
-    
+        self.total_reside_steps = np.array(self.total_reside_steps)
+        
         # convert dictionary to numpy
         all_keys = sorted(set().union(*self.counts))
         counts = np.zeros((len(self.counts), len(all_keys)))
@@ -1582,6 +1618,10 @@ class Parameter:
         self.z_eff = np.sum(self.counts[:,:self.num_path_except_unknowns], axis=1)
         self.z_eff /= np.sum(self.counts[:,:self.num_path_except_unknowns] / z, axis=1)
         self.z_eff = np.average(self.z_eff)
+        
+        P_site = np.sum(self.total_reside_steps, axis=0)
+        P_site = P_site / np.sum(P_site)
+        self.z_eff *= np.dot(P_site, self.num_path_site)
         
         # D_rand
         a = np.array([path['distance'] for path in self.lattice.path], dtype=float)
