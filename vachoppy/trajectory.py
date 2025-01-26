@@ -1481,9 +1481,10 @@ class Parameter:
         self.D0_rand = None
         self.Ea = None
         self.tau = None
+        self.tau0 = None
         self.a_eff = None
-        self.z_eff = None
         self.nu_eff =None
+        self.z_mean = None
         self.get_effective_parameters()
         
         if self.verbose:
@@ -1615,13 +1616,9 @@ class Parameter:
     def get_effective_parameters(self):
         # effective z
         z = np.array([path['z'] for path in self.lattice.path], dtype=float)[:self.num_path_except_unknowns]
-        self.z_eff = np.sum(self.counts[:,:self.num_path_except_unknowns], axis=1)
-        self.z_eff /= np.sum(self.counts[:,:self.num_path_except_unknowns] / z, axis=1)
-        self.z_eff = np.average(self.z_eff)
-        
-        P_site = np.sum(self.total_reside_steps, axis=0)
-        P_site = P_site / np.sum(P_site)
-        self.z_eff *= np.dot(P_site, self.num_path_site)
+        self.z_mean = np.sum(self.counts[:,:self.num_path_except_unknowns], axis=1)
+        self.z_mean /= np.sum(self.counts[:,:self.num_path_except_unknowns] / z, axis=1)
+        self.z_mean = np.average(self.z_mean)
         
         # D_rand
         a = np.array([path['distance'] for path in self.lattice.path], dtype=float)
@@ -1636,25 +1633,73 @@ class Parameter:
         self.Ea = -slop * self.kb
         self.D0_rand = np.exp(intercept)
         
-        # effective nu
+        # effective tau0
         self.tau = t * (1e-3) / np.sum(counts, axis=1) # ps
-        error_tau = lambda nu: np.linalg.norm(
-            self.tau - (1 / (self.z_eff * nu + 1e-9)) * np.exp(self.Ea / (self.kb * self.temp))
+        error_tau = lambda tau0: np.linalg.norm(
+            self.tau - tau0 * np.exp(self.Ea / (self.kb * self.temp))
             )
         result = minimize_scalar(error_tau)
-        self.nu_eff = result.x # THz
+        self.tau0 = result.x # ps
         
         # effective a
-        self.a_eff = np.sqrt(6*self.D0_rand / (self.z_eff * self.nu_eff)) * 1e4
+        self.a_eff = np.sqrt(6*self.D0_rand*self.tau0) * 1e4
 
     def summary(self):
         print("# -----------------( Summary )-----------------")
+        # lattice information
+        num_paths = np.zeros(len(self.lattice.site_names))
+        for path in self.lattice.path[:self.num_path_except_unknowns]:
+            num_paths[self.lattice.site_names.index(path['site_init'])] += 1
+        print('Lattice information :')
+        print(f"  Number of sites : {len(self.lattice.site_names)}")
+        print(f"  Number of paths : ", end='')
+        for num in num_paths:
+            print(int(num), end=' ')
+        print('')
+        print(f"  Number of unknown paths : {len(self.lattice.path) - self.num_path_except_unknowns}")
+        print('')
+        header = ['path', 'init', 'final', 'a(Å)', 'z']
+        data = [
+            [path['name'], path['site_init'], path['site_final'], path['distance'], path['z']] 
+            for path in self.lattice.path
+        ]
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
+
+        # simulation temperatures
+        print('Simulation temperatures (K) :\n', end='  ')
+        for temp in self.temp:
+            print(temp, end=' ')
+        print('')
+
+        # residence time
+        print('\nTime vacancy remained at each site (ps) :')
+        header = ['T (K)'] + self.lattice.site_names
+        data = [
+            [temp] + step.tolist() 
+            for temp, step in zip(self.temp, self.total_reside_steps * self.interval)
+        ]
+        data.append(['Total'] + np.sum(self.total_reside_steps * self.interval, axis=0).tolist())
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
+
+        # counts
+        print('Counts of occurrences for each hopping path :')
+        header = ['T (K)'] + self.lattice.path_names
+        data = [
+            [temp] + count.tolist()
+            for temp, count in zip(self.temp, self.counts)
+        ]
+        data.append(['Total'] + np.sum(self.counts, axis=0).tolist())
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
+                
         # effective parameters
         print('\nEffective diffusion parameters : ')
         header = ['parameter', 'value']
-        parameters = ['D0_rand (m2/s)', 'Ea (eV)', 'f0', 'Ea_f (eV)', 'z', 'a (Å)', 'nu (THz)']
-        values = [f"{self.D0_rand:.5e}", f"{self.Ea:.5f}", f"{self.f0:.5f}", f"{self.Ea_f:.5f}",
-                  f"{self.z_eff:.5f}", f"{self.a_eff:.5f}", f"{self.nu_eff:.5f}"]
+        parameters = ['D0 (m2/s)', 'Ea (eV)', 'tau0 (ps)', 'a (Å)', 'f_mean', 'z_mean',]
+        values = [f"{self.D0_rand:.5e}", f"{self.Ea:.5f}", f"{self.tau0:.5f}", 
+                  f"{self.a_eff:.5f}", f"{np.average(self.f_cum):.5f}", f"{self.z_mean:.5f}"]
         data = [
             [params, value] for params, value in zip(parameters, values)
         ]
@@ -1677,7 +1722,11 @@ class Parameter:
         data = [
             [f"{temp}", f"{f:.5f}"] for temp, f in zip(self.temp, self.f_cum)
         ]
+        data.append(['Average', f"{np.average(self.f_cum):.5f}"])
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
+        print(f"pre-exponential of f (f0) = {self.f0:.5f}")
+        print(f"activation energy for f (Ea_f) = {self.Ea_f} eV")
         
         # random walk diffuison coefficient
         print('\nRandom walk diffusion coefficient : ')
@@ -1750,7 +1799,7 @@ class Parameter:
             ax.bar(temp, self.tau[i], width=50, edgecolor='k', color=self.cmap(i))
             ax.scatter(temp, self.tau[i], marker='o', edgecolors='k', color='k')
         x = np.linspace(0.99*self.temp[0], 1.01*self.temp[-1], 1000)
-        ax.plot(x, (1/(self.z_eff*self.nu_eff)) * np.exp(self.Ea/(self.kb*x)), 'k:')
+        ax.plot(x, self.tau0 * np.exp(self.Ea/(self.kb*x)), 'k:')
         plt.xlabel('T (K)', fontsize=14)
         plt.ylabel(r'$\tau$ (ps)', fontsize=14)
         plt.savefig('tau.png', transparent=False, dpi=300, bbox_inches="tight")
