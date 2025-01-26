@@ -1726,7 +1726,7 @@ class Parameter:
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
         print(f"pre-exponential of f (f0) = {self.f0:.5f}")
-        print(f"activation energy for f (Ea_f) = {self.Ea_f} eV")
+        print(f"activation energy for f (Ea_f) = {self.Ea_f:.5f} eV")
         
         # random walk diffuison coefficient
         print('\nRandom walk diffusion coefficient : ')
