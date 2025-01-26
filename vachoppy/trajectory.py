@@ -3,6 +3,7 @@ import sys
 import time
 import copy   
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from PIL import Image
@@ -1942,3 +1943,210 @@ class CorrelationFactor(Parameter):
         print('')
         print("# -----------------( Finish  )-----------------")
 
+
+class PostProcess:
+    def __init__(self, 
+                 file_params='parameter.txt',
+                 file_neb = 'neb.csv',
+                 verbose=False):
+        # check file
+        if os.path.isfile(file_params):
+            self.file_params = file_params
+        else:
+            print(f"{file_params} is not found.")
+            sys.exit(0)
+        if os.path.isfile(file_neb):
+            self.file_neb = file_neb
+        else:
+            print(f"{file_neb} is not found.")
+            sys.exit(0)
+        self.verbose = verbose
+        self.kb = 8.61733326e-5
+        
+        # read parameter file
+        self.num_sites = None
+        self.num_paths = None
+        self.path_names = []
+        self.z = []
+        self.temp = None
+        self.times = []
+        self.counts = []
+        self.D0_eff = None
+        self.Ea_eff = None
+        self.tau0_eff = None
+        self.a_eff = None
+        self.read_parameter()
+        
+        # read neb file
+        self.Ea = None
+        self.read_neb()
+        
+        # P_site
+        self.P_site = self.times / np.sum(self.times, axis=1).reshape(-1,1)
+        
+        # P_esc
+        self.P_esc = np.exp(-self.Ea/(self.kb * self.temp[:, np.newaxis]))
+        self.P_esc_eff = np.exp(-self.Ea_eff / (self.kb * self.temp))
+        
+        # P = P_site * P_esc
+        self.P = None
+        self.get_P()
+        
+        # <z>
+        self.z_mean = None
+        self.z_mean_rep = None # from total counts from all temperatures
+        self.get_z_mean()
+        
+        # <m>
+        self.m_mean = None
+        self.m_mean_rep = None # simple average of m_mean
+        self.get_m_mean()
+        
+        # z_eff
+        self.z_eff = self.z_mean * self.m_mean
+        self.z_eff_rep = np.average(self.z_eff)
+        
+        # nu
+        self.nu = None
+        self.nu_eff = None
+        self.nu_eff_rep = None # simple average of nu_eff
+        self.get_nu()
+        
+        if self.verbose:
+            self.summary()
+        
+    def read_parameter(self):
+        with open(self.file_params, 'r') as f:
+            lines = [line.strip() for line in f]
+            
+        for i, line in enumerate(lines):
+            if "Lattice information :" in line:
+                self.num_sites = int(lines[i+1].split()[-1])
+                self.num_paths = list(map(int, lines[i+2].split()[-self.num_sites:]))
+                self.num_paths = np.array(self.num_paths)
+                for j in range(np.sum(self.num_paths)):
+                    contents = lines[i+j+7].split()
+                    self.path_names.append(contents[0])
+                    self.z.append(int(contents[-1]))
+                self.z = np.array(self.z, dtype=float)
+                    
+            if "Simulation temperatures (K) :" in line:
+                self.temp = np.array(list(map(int, lines[i+1].split())), dtype=float)
+                
+            if "Time vacancy remained at each site (ps) :" in line:
+                for j in range(len(self.temp)):
+                    self.times.append(
+                        list(map(float, lines[i+j+3].split()[1:1+self.num_sites]))
+                        )
+                self.times = np.array(self.times)
+                
+            if "Counts of occurrences for each hopping path :" in line:
+                for j in range(len(self.temp)):
+                    self.counts.append(
+                        list(map(int, lines[i+j+3].split()[1:1+np.sum(self.num_paths)]))
+                        )
+                self.counts = np.array(self.counts, dtype=float)
+                
+            if "Effective diffusion parameters :" in line:
+                self.D0_eff = float(lines[i+3].split()[-1])
+                self.Ea_eff = float(lines[i+4].split()[-1])
+                self.tau0_eff = float(lines[i+5].split()[-1])
+                self.a_eff = float(lines[i+6].split()[-1])
+    
+    def read_neb(self):
+        neb = pd.read_csv(self.file_neb, header=None).to_numpy()
+        self.Ea = np.zeros(len(self.path_names), dtype=float)
+        for name_i, Ea_i in neb:
+            index = self.path_names.index(name_i)
+            self.Ea[index] = float(Ea_i)
+    
+    def get_P(self):
+        P_site_extend = []
+        for p_site in self.P_site:
+            P_site_i = []
+            for p, m in zip(p_site, self.num_paths):
+                P_site_i += [float(p)] * m
+            P_site_extend.append(P_site_i)
+        self.P = np.array(P_site_extend) * self.P_esc
+    
+    def get_z_mean(self):
+        self.z_mean = np.sum(self.counts, axis=1) / np.sum(self.counts / self.z, axis=1)
+        self.z_mean_rep = np.sum(self.counts) / np.sum(np.sum(self.counts, axis=0) / self.z)
+        
+    def get_m_mean(self):
+        self.m_mean = np.sum(self.P, axis=1) / self.P_esc_eff
+        self.m_mean_rep = np.average(self.m_mean)
+        
+    def get_nu(self):
+        times_extend = []
+        for time in self.times:
+            times_i = []
+            for t, m in zip(time, self.num_paths):
+                times_i += [float(t)] * m
+            times_extend.append(times_i)
+        self.nu = self.counts / (self.z * self.P_esc * times_extend)
+        self.nu_eff = np.sum(self.nu * self.P, axis=1) / np.sum(self.P, axis=1)
+        self.nu_eff_rep = np.average(self.nu_eff)
+        
+    def summary(self):
+        # effective parameters
+        print("Effective diffusion parameters :")
+        header = ['parameter', 'value', 'description']
+        parameter = ["D0 (m2/s)", "tau0 (ps)", "Ea (eV)", 
+                     "a (Å)", "z", "nu (THz)", 
+                     "z_mean", "m_mean"]
+        value = [f"{self.D0_eff:.5e}", f"{self.tau0_eff:.5e}", f"{self.Ea_eff:.5f}", 
+                 f"{self.a_eff:.5f}", f"{self.z_eff_rep:.5f}", f"{self.nu_eff_rep:.5f}", 
+                 f"{self.z_mean_rep:.5f}", f"{self.m_mean_rep:.5f}"]
+        desciption = ['pre-exponential for diffusion coefficient',
+                      'pre-exponential for residence time',
+                      'activation barrier for lattice hopping',
+                      'hopping distance',
+                      'coordination number (= z_mean * m_mean)',
+                      'jump attempt frequency',
+                      'mean number of equivalent paths',
+                      'mean number of path types']
+        data = [[p, v, d] for p, v, d in zip(parameter, value, desciption)]
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
+        
+        # temperature dependence
+        print("Effective diffusion parameters with respect to temperature :")
+        header = ["T (K)", "z", "nu (THz)", "z_mean", "m_mean"]
+        data = [
+            [T, f"{z:.5f}", f"{nu:.5f}", f"{z_mean:.5f}", f"{m_mean:.5f}"] 
+            for T, z, nu, z_mean, m_mean in zip(self.temp, self.z_eff, self.nu_eff, self.z_mean, self.m_mean) 
+        ]
+        data.append(['Average', f"{np.average(self.z_eff):.5f}", f"{np.average(self.nu_eff):.5f}",
+                     f"{np.average(self.z_mean):.5f}", f"{np.average(self.m_mean):.5f}"])
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
+        
+        # nu with respect to temperature
+        print("Jump attempt frequency (THz) with respect to temperature :")
+        print("(Note: reliable results are obtained only for paths with sufficient sampling)")
+        header = ["T (K)"] + self.path_names
+        data = [
+            [T] + list(nu) for T, nu in zip(self.temp, self.nu)
+        ]
+        data.append(['Average'] + [f"{nu:.5f}" for nu in np.average(self.nu, axis=0)])
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
+        
+        # P_site with respect to temperature
+        print("P_site with respect to temperature :")
+        header = ["T (K)"] + [f"site{i+1}" for i in range(self.num_sites)]
+        data = [
+            [T] + [f"{p:.5e}" for p in p_i] for T, p_i in zip(self.temp, self.P_site)
+        ]
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
+        
+        # P_esc with respect to temperature
+        print("P_esc with respect to temperature :")
+        header = ["T (K)"] + self.path_names
+        data = [
+            [T] + [f"{p:.5e}" for p in p_i] for T, p_i in zip(self.temp, self.P_esc)
+        ]
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')

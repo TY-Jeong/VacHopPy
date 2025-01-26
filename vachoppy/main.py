@@ -24,11 +24,12 @@ group = parser.add_mutually_exclusive_group(required=True)
 # key functionalities
 group.add_argument(
     '-m', '--mode', 
-    choices=['p', 'e', 't', 'a', 'd'], 
+    choices=['p', 'pp', 'e', 't', 'a', 'd'], 
     help=(
         """Choose mode:
         'p'  - For effective diffusion parameter set
-        'e'  - For only diffusion coefficient (Einstein relation)
+        'pp'  - Post-process for effective parameter calculation (neb.csv file is required)
+        'e'  - Diffusion coefficient calculation using Einstein relation
         't'  - For animation of trajectory
         'a'  - For path analysis
         'd'  - For cosine distance analysis
@@ -136,12 +137,12 @@ if check_mode:
         mode_value = sys.argv[mode_index]
 
         # Arguments for DataInfo
-        if not 'd' in mode_value:
+        if mode_value in ['p', 'e', 't', 'a']:
             parser.add_argument('symbol',
                                 type=str,
                                 help='symbol of moving atom')
         
-        if mode_value in ['e', 'p', 'a', 't']:
+        if mode_value in ['e', 'p', 't', 'a']:
             parser.add_argument('-p1', '--prefix1', 
                                 default='traj', 
                                 help='name of outer directory (default: traj)')
@@ -149,7 +150,7 @@ if check_mode:
                                 default='traj', 
                                 help='prefix of inner directories, ex.{prefix2}.{temp}K (default: traj)')
             
-        if 'e' in mode_value:
+        if mode_value == 'e':
             parser.add_argument('t_width',
                                 type=float,
                                 help='x-range in msd plot in ps')
@@ -166,7 +167,7 @@ if check_mode:
                                 default=1,
                                 help='initial time used for linear fit (default: 1)')
             
-        if 'p' in mode_value:
+        if mode_value == 'p':
             parser.add_argument('interval',
                                 type=float,
                                 help='time interval for averaging in ps')
@@ -186,8 +187,17 @@ if check_mode:
                                 type=float,
                                 default=1e-3,
                                 help='tolerance for distance comparison (default: 1e-3)')
+        if mode_value == 'pp':
+            parser.add_argument('-p', '--parameter',
+                                type=str,
+                                default='parameter.txt',
+                                help='parameter.txt file (default: parameter.txt)')
+            parser.add_argument('-n', '--neb',
+                                type=str,
+                                default='neb.csv',
+                                help='neb.csv file containing hopping barriers for each path (default: neb.csv)')
             
-        if 't' in mode_value:
+        if mode_value == 't':
             parser.add_argument('interval',
                                 type=float,
                                 help='time interval for averaging in ps')
@@ -215,7 +225,7 @@ if check_mode:
                                 action='store_true',
                                 help='verbosity for parameter calculation')
             
-        if 'a' in mode_value:
+        if mode_value == 'a':
             parser.add_argument('interval',
                                 type=float,
                                 help='time interval for averaging in ps')
@@ -243,7 +253,7 @@ if check_mode:
                                 default=1e-3,
                                 help='tolerance for distance comparison (default: 1e-3)')
             
-        if 'd' == mode_value:
+        if mode_value == 'd':
             parser.add_argument('interval',
                                 type=float,
                                 help='time interval for averaging in ps')
@@ -290,7 +300,7 @@ def main():
                             prefix2=args.prefix2,
                             verbose=True)
 
-        if 'e' in mode_value:
+        if mode_value == 'e':
             msd = MSD(data=data, 
                       tmax=args.t_width, 
                       skip=args.skip,
@@ -298,7 +308,7 @@ def main():
                       symbol=args.symbol, 
                       x_vac=float(Fraction(args.x_vac)))
             
-        if 'p' in mode_value:
+        if mode_value == 'p':
             effective_params = EffectiveDiffusionParameter(data=data,
                                                            interval=args.interval,
                                                            poscar_lattice=args.lattice,
@@ -308,6 +318,10 @@ def main():
                                                            tol=args.tol,
                                                            tolerance=args.tolerance,
                                                            verbose=True)
+        
+        if mode_value == 'pp':
+            post = Post_EffectiveDiffusionParameter(file_params=args.parameter,
+                                                    file_neb=args.neb)
             
         if mode_value == 't':
             traj = Trajectory(data=data,

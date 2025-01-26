@@ -226,6 +226,30 @@ class EffectiveDiffusionParameter:
         print("D_rand.png is created.")
         print("f_cor.png is created.")
         print("tau.png is created.")
+        
+        
+class Post_EffectiveDiffusionParameter:
+    def __init__(self,
+                 file_params='parameter.txt',
+                 file_neb='neb.csv',
+                 file_out='postprocess.txt',
+                 verbose=True):
+        self.file_params = file_params
+        self.file_neb = file_neb
+        self.file_out = file_out
+        self.verbose = verbose
+        
+        with open(self.file_out, 'w', encoding='utf-8') as f:
+            original_stdout = sys.stdout
+            sys.stdout = f
+            try:
+                postprocess = PostProcess(file_params=self.file_params,
+                                          file_neb=self.file_neb,
+                                          verbose=self.verbose)
+            finally:
+                sys.stdout = original_stdout
+                
+        print(f"{self.file_out} is created.")
 
 
 class Trajectory:
