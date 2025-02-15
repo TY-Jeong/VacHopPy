@@ -1,6 +1,12 @@
 # VacHopPy 
 ---
-**VacHopPy** is a Python package to analyze trajectory of vacancy hopping in materials. This module was developed based on VASP 5.4.4 and Python 3.11.5.
+**VacHopPy** is a Python package to analyze trajectory of vacancy hopping mechanisms, based on *Ab initio* molecular dynamics (AIMD) simulations.
+
+<div align=center>
+<p>
+    <img src="./imgs/logo.png" width="550"/>
+</p>
+</div>
 
 ## Features
 * Tracking vacancy in *ab-inito* molecular dynamics (AIMD).
