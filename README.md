@@ -147,11 +147,10 @@ vachoppy -m p -h # explanation for '-m p' option
 
 Example files can be downloaded from:
 
-**Example 1** : Vacancy trajectory determination & Effective hopping parameter calculations (28 GB) click
-**Example 2** : Assessment of lattice stability or phase transitions (10 GB) click
+* **Example 1** : Vacancy trajectory determination & Effective hopping parameter calculations (28 GB) click
+* **Example 2** : Assessment of lattice stability or phase transitions (10 GB) click
 
 ## 0. Preparation
-### Input file
 **VacHopPy** reads AIMD simulation data in VASP format (XDATCAR, OUTCAR, and FORCE). **XDATCAR** and **OUTCAR** are the typical VASP output files, contain information on atomic positions and simulation conditions, respectively. **FORCE** (optinal) includes force vectors and can be extracted from **vasprun.xml** file using `vachoppy -u extract_force` command. If FORCE files are included in the input dataset, the trajectory is determined based on transition state (TS) distribution; otherwise, the trajectory is determined based simply on proximity.
 
 > In current version, **VacHopPy** supports only AIMD simulations conducted using the **NVT ensmeble**. Each ensemble cell should contains a single vacancy. (Support for multi vacancies will be added in a future update) 
@@ -160,21 +159,54 @@ Since AIMD simulations are commonly conducted on time scales shorter than nanose
 
 
 ```ruby
-traj
- ┣ traj.1900K # AIMD simulation conducted at 1900 K
- ┃ ┣ XDATCAR_01, FORCE_01 
- ┃ ┣ XDATCAR_02, FORCE_02 # Simiulations should be conducted
- ┃ ┣ XDATCAR_03, FORCE_03 # in the same condition
- ┃ ┗ OUTCAR
- ┣ traj.2000K
- ┃ ┣ XDATCAR_01, FORCE_01
- ┃ ┣ XDATCAR_02, FORCE_02
- ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┗ OUTCAR
- ┗ traj.2100K
- ┃ ┣ XDATCAR_01, FORCE_01
- ┃ ┣ XDATCAR_02, FORCE_02
- ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┗ OUTCAR
+Example1
+ ┣ traj
+ ┃ ┣ traj.1900K # AIMD simulations conducted at 1900 K
+ ┃ ┃ ┣ XDATCAR_01, FORCE_01 # Simiulations should be 
+ ┃ ┃ ┣ XDATCAR_02, FORCE_02 # conducted in the same condition
+ ┃ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┃ ┗ OUTCAR
+ ┃ ┣ traj.2000K
+ ┃ ┃ ┣ XDATCAR_01, FORCE_01
+ ┃ ┃ ┣ XDATCAR_02, FORCE_02
+ ┃ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┃ ┗ OUTCAR
+ ┃ ┗ traj.2100K
+ ┃ ┃ ┣ XDATCAR_01, FORCE_01
+ ┃ ┃ ┣ XDATCAR_02, FORCE_02
+ ┃ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┃ ┗ OUTCAR
+ ┗ POSCAR_LATTICE # POSCAR of perfect cell
 ```
+
 In this example, AIMD simulations were performed at three temperatures (1900 K, 2000 K, and 2100 K), and three cells are emplyed for each temperature. The simulations in the same temperature should be conducted with the same conditions. Hence, only one OUTCAR file exist in each subdirectory.
+
+## 1. Vacancy trajectory determination
+User can obtain vacancy trajectory using:
+```ruby
+ vachoppy -m t O 0.1 2100 03 # symbol, t_width, temperature, label
+ ```
+
+ Output:
+<div align=center>
+<p>
+    <img src="./imgs/traj.gif" width="550"/>
+</p>
+</div>
+
+
+## 2. Effective hopping parameter calculation
+Use:
+```ruby
+vachoppy -m p O 0.1 # symbol, t_width
+```
+This command will provides effective hopping parameters of an oxygen vacancy.
+
+## 3. Diffusion coefficient using Einstein relation
+Use:
+```ruby
+vachoppy -m e O 50 --skip 1
+```
+This command will provides diffusion coefficient of an oxygen vacancy at each temperature.
+
+## 4. Assessment of lattice stability
