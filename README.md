@@ -147,7 +147,7 @@ vachoppy -m p -h # explanation for '-m p' option
 
 Example files can be downloaded from:
 
-* **Example 1** : Vacancy trajectory determination & Effective hopping parameter calculations (28 GB) click
+* **Example 1** : Vacancy trajectory determination & Effective hopping parameter calculations (28 GB) [download](https://drive.google.com/file/d/1SudMlQk40cJnVgrkklK6b4nhiF3YWPOY/view?usp=sharing)
 * **Example 2** : Assessment of lattice stability or phase transitions (10 GB) click
 
 ## 0. Preparation
