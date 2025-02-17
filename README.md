@@ -47,6 +47,7 @@ A Key improvement in **VacHopPy** is introduction of an **effective hopping para
 ## Contents
 
 * Installation
+* List of commands
 * How to implement
   * Vacancy trajectory determination
     * Making animation
@@ -65,91 +66,84 @@ This package can be easily installed via pip
 pip intall vachoppy
 ```
 
-To ease usage, **VacHopPy** provides a command-line interface (CLI). Belows are available CLI commands:
+The latest **VacHopPy** was developed based on VASP 5.4.4 and Python 3.12.4
+
+## List of commands
+
+**VacHopPy** provides a command-line interface (CLI). Belows are available CLI commands:
 
 <div align=center>
-<table style="border:1px solid black;margin-left:auto;margin-right:auto;">
+<table>
     <tr>
         <th scope="col">Option 1</td>
         <th scope="col">Option 2</td>
         <th scope="col">Use</td>
-        <th scope="col">Note</td>
     </tr>
     <tr>
         <td rowspan="5">-m<br>(main)</td>
         <td>p</td>
         <td>Calculate effective hopping parameters (excluding z and ν)</td>
-        <td> </td>
     </tr>
     <tr>
         <!-- <td>2</td> -->
         <td>pp</td>
         <td>Calculate z and ν (post-processing for `-m p` option)</td>
-        <td>neb.csv is needed</td>
     </tr>
     <tr>
         <!-- <td>3</td> -->
         <td>e</td>
         <td>Calculate diffusion coefficient using Einstein relation</td>
-        <td> </td>
     </tr>
     <tr>
         <!-- <td>4</td> -->
         <td>t</td>
         <td>Make an animation for vacancy trajectories</td>
-        <td> </td>
     </tr>
     <tr>
         <!-- <td>5</td> -->
         <td>f</td>
         <td>Perform fingerprint analyses</td>
-        <td> </td>
     </tr>
     <tr>
         <td rowspan="6">-u<br>(util)</td>
         <td>extract_force</td>
         <td>Extract FORCE file from vasprun.xml</td>
-        <td> </td>
     </tr>
     <tr>
         <!-- <td>2</td> -->
         <td>concat_xdatcar</td>
         <td>Concatenate two XDATCAR files</td>
-        <td> </td>
     </tr>
     <tr>
         <!-- <td>3</td> -->
         <td>concat_force</td>
         <td>Concatenate two FORCE files</td>
-        <td> </td>
     </tr>
     <tr>
         <!-- <td>4</td> -->
         <td>update_outcar</td>
         <td>Combine two OUTCAR files</td>
-        <td> </td>
     </tr>
     <tr>
         <!-- <td>5</td> -->
         <td>fingerprint</td>
         <td>Extract fingerprint</td>
-        <td> </td>
     </tr>
     <tr>
         <!-- <td>6</td> -->
         <td>cosine_distance</td>
         <td>Calculate cosine distance</td>
-        <td> </td>
     </tr>
 </table>
 </div>
 
-
-The user can see a brief explanation for each command using `-h` option:
+For detailed descriptions, please use `-h` options:
 ```ruby
-vachoppy -h # overall explanation
-vachoppy -m p -h # specific explanation for -m p option
+vachoppy -h # list of available commands
+vachoppy -m p -h # explanation for '-m p' option
 ```
+
+## How to implement
 
 
 
