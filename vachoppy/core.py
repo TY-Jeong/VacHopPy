@@ -263,6 +263,7 @@ class Trajectory:
                  correlation=True,
                  update_alpha=0.75,
                  show_index=False,
+                 dpi=300,
                  rmax=3.0,
                  tol=1e-3,
                  tolerance=1e-3,
@@ -293,6 +294,7 @@ class Trajectory:
         self.correlation = correlation
         self.update_alpha = update_alpha
         self.show_index = show_index
+        self.dpi = dpi
         self.rmax = rmax
         self.tol = tol
         self.tolerance = tolerance
@@ -375,7 +377,7 @@ class Trajectory:
                             foldername='snapshot',
                             update_alpha=self.update_alpha,
                             fps=fps,
-                            dpi=300,
+                            dpi=self.dpi,
                             label=self.show_index)
         
         print('snapshot directory was created.')

@@ -221,6 +221,10 @@ if check_mode:
             parser.add_argument('--show_index',
                                 action='store_true',
                                 help='if use, index of each atom will be shown')
+            parser.add_argument('--dpi',
+                                type=int,
+                                default=300,
+                                help='adjust dpi of snapshots (default: 300)')
             parser.add_argument('-v', '--verbose',
                                 action='store_true',
                                 help='verbosity for parameter calculation')
@@ -333,6 +337,7 @@ def main():
                               correlation=not(args.no_correction),
                               update_alpha=args.update_alpha,
                               show_index=args.show_index,
+                              dpi=args.dpi,
                               verbose=args.verbose)
         
         if mode_value == 'a':

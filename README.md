@@ -105,7 +105,7 @@ The latest **VacHopPy** was developed based on VASP 5.4.4 and Python 3.12.4
         <td>Perform fingerprint analyses</td>
     </tr>
     <tr>
-        <td rowspan="6">-u<br>(util)</td>
+        <td rowspan="6">-u<br>(utility)</td>
         <td>extract_force</td>
         <td>Extract FORCE file from vasprun.xml</td>
     </tr>
@@ -145,5 +145,36 @@ vachoppy -m p -h # explanation for '-m p' option
 
 ## How to implement
 
+Example files can be downloaded from:
+
+**Example 1** : Vacancy trajectory determination & Effective hopping parameter calculations (28 GB) click
+**Example 2** : Assessment of lattice stability or phase transitions (10 GB) click
+
+## 0. Preparation
+### Input file
+**VacHopPy** reads AIMD simulation data in VASP format (XDATCAR, OUTCAR, and FORCE). **XDATCAR** and **OUTCAR** are the typical VASP output files, contain information on atomic positions and simulation conditions, respectively. **FORCE** (optinal) includes force vectors and can be extracted from **vasprun.xml** file using `vachoppy -u extract_force` command. If FORCE files are included in the input dataset, the trajectory is determined based on transition state (TS) distribution; otherwise, the trajectory is determined based simply on proximity.
+
+> In current version, **VacHopPy** supports only AIMD simulations conducted using the **NVT ensmeble**. Each ensemble cell should contains a single vacancy. (Support for multi vacancies will be added in a future update) 
+
+Since AIMD simulations are commonly conducted on time scales shorter than nanoseconds, a single AIMD simulation includes a limited number of hopping events. To overcome this limitation, **VacHopPy** can simultaneously process multiple bundles of AIMD simulation results, each belonging to the same NVT ensemble group. Each bundle is distinguished by a number appended after an underscore in the XDATCAR and FORCE file names (e.g., XDATCAR_01, FORCE_01). Below is an example of file tree:
 
 
+```ruby
+traj
+ ┣ traj.1900K # AIMD simulation conducted at 1900 K
+ ┃ ┣ XDATCAR_01, FORCE_01 
+ ┃ ┣ XDATCAR_02, FORCE_02 # Simiulations should be conducted
+ ┃ ┣ XDATCAR_03, FORCE_03 # in the same condition
+ ┃ ┗ OUTCAR
+ ┣ traj.2000K
+ ┃ ┣ XDATCAR_01, FORCE_01
+ ┃ ┣ XDATCAR_02, FORCE_02
+ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┗ OUTCAR
+ ┗ traj.2100K
+ ┃ ┣ XDATCAR_01, FORCE_01
+ ┃ ┣ XDATCAR_02, FORCE_02
+ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┗ OUTCAR
+```
+In this example, AIMD simulations were performed at three temperatures (1900 K, 2000 K, and 2100 K), and three cells are emplyed for each temperature. The simulations in the same temperature should be conducted with the same conditions. Hence, only one OUTCAR file exist in each subdirectory.
