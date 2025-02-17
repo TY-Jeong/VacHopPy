@@ -8,24 +8,79 @@
 </p>
 </div>
 
+
+A Key improvement in **VacHopPy** is introducing an **effective hopping parameter** set. The hopping parameters inherently depend on the selction of hopping paths, resulting in multiple sets of hopping parameters within a given lattice. However, to utilizt the *ab initio* hopping parameters in macroscopic simulations (e.g., TCAD, continuum model, KMC method), a well-defined, single effective hopping parameter set encompassing all hopping paths is necessary since the presence of multiple hopping paths is commonly not considered in the macroscopic equations.
+
+<div align=center>
+<p>
+    <img src="./imgs/fig2.jpg" width="550"/>
+</p>
+</div>
+
 ## Features
-* Tracking vacancy in *ab-inito* molecular dynamics (AIMD).
-* Calculating mass transport parameters of vacancies.
-* Analyzing structure changes during AIMD.
+* Simultaneous calculation of **effective hopping parameters**
+* Tracking of vacancy trajectories in AIMD simulations
+* Assessment of lattice stability or phase transitions
+
+Belows are a list of effective hopping parameters which can be obtained from **VacHopPy**:
+
+|Symbol|Description|
+|:---:|---|
+|D<SUB>0</SUB>|Pre-exponential of diffusion coefficient (m<SUP>2</SUP>/s)|
+|E<SUB>a</SUB>|Hopping barrier (eV)|
+|a|Hopping distance (Å)|
+|z|Coordination number|
+|ν|Jump attempt frequency (THz)|
+|f|Correlation factor|
+
+
 
 ## Contents
-* Getting started
-* Step by step examples
-  * Tracking vacancy
+* Installation
+* How to implement
+  * Vacancy trajectory determination
     * Making animation
     * Distribution of hopping path
-  * Mass transsport parameter calculation
+  * Effective hopping parameter calculation
     * Diffusion coefficient 
     * Atomic vibration coefficient
-  * Fingerprint of structure
+  * Assessment of lattice stability
   
-## Getting started
+## Installation
 *will be updated*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Step by step examples
 ---
