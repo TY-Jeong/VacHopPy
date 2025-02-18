@@ -24,15 +24,15 @@ group = parser.add_mutually_exclusive_group(required=True)
 # key functionalities
 group.add_argument(
     '-m', '--mode', 
-    choices=['p', 'pp', 'e', 't', 'a', 'd'], 
+    choices=['p', 'pp', 't', 'f', 'e', 'a'], 
     help=(
         """Choose mode:
-        'p'  - For effective diffusion parameter set
-        'pp'  - Post-process for effective parameter calculation (neb.csv file is required)
-        'e'  - Diffusion coefficient calculation using Einstein relation
-        't'  - For animation of trajectory
-        'a'  - For path analysis
-        'd'  - For cosine distance analysis
+        'p'  - Determine vacancy trajectory and calculate effectie hopping parameters (excluding z and nu)
+        'pp' - Calculate effective z and nu (postprocess of p option)
+        't'  - Make animation for vacancy trajectory
+        'f'  - Fingerpring analysis : assess lattice stability or phase transition
+        'e'  - Calculate diffusion coefficient using Einstein relation
+        'a'  - (experiment) analyze hopping events / use for covergence test
         """
         )
     )
@@ -257,7 +257,7 @@ if check_mode:
                                 default=1e-3,
                                 help='tolerance for distance comparison (default: 1e-3)')
             
-        if mode_value == 'd':
+        if mode_value == 'f':
             parser.add_argument('interval',
                                 type=float,
                                 help='time interval for averaging in ps')
@@ -269,10 +269,10 @@ if check_mode:
                                 type=str,
                                 default='OUTCAR',
                                 help='path to OUTCAR file (default: OUTCAR)')
-            parser.add_argument('-p','--poscar_mother',
-                                default='POSCAR_MOTHER',
+            parser.add_argument('-p','--poscar_reference',
+                                default='POSCAR',
                                 type=str,
-                                help='path to POSCAR of mother phase (default: POSCAR_MOTHER)')
+                                help='path to POSCAR of reference phase (default: POSCAR)')
             parser.add_argument('--prefix1',
                                 type=str,
                                 default='snapshots',
@@ -352,11 +352,11 @@ def main():
                                 tolerance=args.tolerance,
                                 verbose=True)
             
-        if mode_value == 'd':
+        if mode_value == 'f':
             phase = PhaseTransition(xdatcar=args.xdatcar,
                                     outcar=args.outcar,
                                     interval=args.interval,
-                                    poscar_mother=args.poscar_mother,
+                                    poscar_mother=args.poscar_reference,
                                     prefix1=args.prefix1,
                                     prefix2=args.prefix2)
             

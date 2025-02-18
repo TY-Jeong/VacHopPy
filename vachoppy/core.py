@@ -755,13 +755,14 @@ class PhaseTransition:
                     f.write("%.6f %.6f %.6f\n"%(traj[0], traj[1], traj[2]))
             
     def input_step(self):
+        print(f"Available step range : 0 - {self.num_step}")
         print('')
-        step = input(f'Input range of step (ex. 10-100) (available: 0 - {self.num_step}): ')
-        step = list(map(int, step.replace(" ", "").split('-')))
-        self.step = np.arange(step[0], step[1])
+        step = input(f"Input step range (init, final, interval) (ex. 0, 200, 10) : ")
+        step = list(map(int, step.replace(" ", "").split(',')))
+        self.step = np.arange(step[0], step[1], step[2])
         
     def get_params(self):
-        params = input("input Rmax, delta, and sigma (ex. 15, 0.01, 0.3) : ")
+        params = input("Input Rmax, delta, and sigma (ex. 15, 0.01, 0.03) : ")
         params = list(map(float, params.replace(" ", "").split(',')))
         self.Rmax, self.delta, self.sigma = params[0], params[1], params[2]
         
@@ -789,7 +790,7 @@ class PhaseTransition:
         plt.scatter(self.step, self.d_cos, s=25)
         plt.xlabel("Step", fontsize=13)
         plt.ylabel('Cosine distnace', fontsize=13)
-        # plt.ylim([-0.05, 1.05])
+        plt.ylim([np.min(self.d_cos)-0.05, np.max(self.d_cos)+0.05])
         plt.savefig('cosine_distance.png', dpi=300)
         plt.show()
         plt.close()
