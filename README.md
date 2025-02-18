@@ -42,8 +42,6 @@ A Key improvement in **VacHopPy** is introduction of an **effective hopping para
 
 </div>
 
-
-
 ## Contents
 
 * Installation
@@ -60,13 +58,13 @@ A Key improvement in **VacHopPy** is introduction of an **effective hopping para
 
 ## Installation
 
-This package can be easily installed via pip
+This package can be easily installed via pip. The current version of  **VacHopPy** was developed based on VASP 5.4.4.
 
 ```ruby
 pip intall vachoppy
 ```
 
-The latest **VacHopPy** was developed based on VASP 5.4.4 and Python 3.12.4
+
 
 ## List of commands
 
@@ -90,11 +88,6 @@ The latest **VacHopPy** was developed based on VASP 5.4.4 and Python 3.12.4
         <td>Calculate z and ν (post-processing for `-m p` option)</td>
     </tr>
     <tr>
-        <!-- <td>3</td> -->
-        <td>e</td>
-        <td>Calculate diffusion coefficient using Einstein relation</td>
-    </tr>
-    <tr>
         <!-- <td>4</td> -->
         <td>t</td>
         <td>Make an animation for vacancy trajectories</td>
@@ -103,6 +96,11 @@ The latest **VacHopPy** was developed based on VASP 5.4.4 and Python 3.12.4
         <!-- <td>5</td> -->
         <td>f</td>
         <td>Perform fingerprint analyses</td>
+    </tr>
+        <tr>
+        <!-- <td>3</td> -->
+        <td>e</td>
+        <td>Calculate diffusion coefficient using Einstein relation</td>
     </tr>
     <tr>
         <td rowspan="6">-u<br>(utility)</td>
@@ -147,8 +145,8 @@ vachoppy -m p -h # explanation for '-m p' option
 
 Example files can be downloaded from:
 
-* **Example 1** : Vacancy trajectory determination & Effective hopping parameter calculations (28 GB) [download](https://drive.google.com/file/d/1SudMlQk40cJnVgrkklK6b4nhiF3YWPOY/view?usp=sharing)
-* **Example 2** : Assessment of lattice stability or phase transitions (10 GB) click
+* **Example 1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (28 GB)](https://drive.google.com/file/d/1SudMlQk40cJnVgrkklK6b4nhiF3YWPOY/view?usp=sharing)
+* **Example 2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (37 MB)](https://drive.google.com/file/d/1SuxEHmGdVNkk-mogdWWDOOUPZqX74QG5/view?usp=sharing)
 
 ## 0. Preparation
 **VacHopPy** reads AIMD simulation data in VASP format (XDATCAR, OUTCAR, and FORCE). **XDATCAR** and **OUTCAR** are the typical VASP output files, contain information on atomic positions and simulation conditions, respectively. **FORCE** (optinal) includes force vectors and can be extracted from **vasprun.xml** file using `vachoppy -u extract_force` command. If FORCE files are included in the input dataset, the trajectory is determined based on transition state (TS) distribution; otherwise, the trajectory is determined based simply on proximity.
