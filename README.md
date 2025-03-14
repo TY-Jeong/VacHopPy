@@ -35,20 +35,24 @@ For detailed explanation about **VacHopPy** framework, see **this paper**.
 
 |<center>Symbol</center>|<center>Description</center>|
 |:---:|---|
-|$\bar{E}_{a}$|Hopping barrier (eV)|
-|$\bar{a}$|Hopping distance (Å)|
-|$\bar{z}$|Coordination number|
-|$\bar{ν}$|Jump attempt frequency (THz)|
-|$f$|Correlation factor|
+|$`\bar{E}_{a}`$|Hopping barrier (eV)|
+|$`\bar{a}`$|Hopping distance (Å)|
+|$`\bar{z}`$|Coordination number|
+|$`\bar{ν}`$|Jump attempt frequency (THz)|
+|$`f`$|Correlation factor|
 
 </div>
 
-The bar expression ($\bar{x}$) is used to emphasize the parameters are effective values. In this framework, the effective correlation factor ($\bar{f}$) is assumed to be identical to the original $f$; therefore,the correlation factor is uniformly denoted as $f$. 
+The bar expression ($`\bar{x}`$) is used to emphasize the parameters are effective values. In this framework, the effective correlation factor ($`\bar{f}`$) is assumed to be identical to the original $f$; therefore,the correlation factor is uniformly denoted as $`f`$. 
 
-Diffusion quantities, including diffusion coefficient (D) and residence time (τ), can be derived by combining the effective hopping parameters, as follows:
+Diffusion quantities, including diffusion coefficient ($`D`$) and residence time ($`τ`$), can be derived by combining the effective hopping parameters, as follows:
 
-$$ \bar{D} = \frac{1}{6}\bar{z}\bar{a}^{2}\bar{ν} \cdot \exp(-\frac{\bar{E}_{a}}{k_{B}T}) \times f(T)$$
-$$ \bar{τ} = \frac{1}{\bar{z}\cdot\bar{ν}} \cdot \exp(\frac{\bar{E}_{a}}{k_{B}T})$$
+```math
+\bar{D} = \frac{1}{6}\bar{z}\bar{a}^{2}\bar{ν} \cdot \exp(-\frac{\bar{E}_{a}}{k_{B}T}) \times f(T)
+```
+```math
+\bar{τ} = \frac{1}{\bar{z}\cdot\bar{ν}} \cdot \exp(\frac{\bar{E}_{a}}{k_{B}T})
+```
 
 Here, all parameters correspond to the effective value, hence, the diffusion quantities can be expressed as simple Arrhenims forms. The exact expressions for D and τ consist multiple exponential terms, each corresponds to a distinct vacancy hopping path. These complex expressions are unfavorable for continuum equations.
 
