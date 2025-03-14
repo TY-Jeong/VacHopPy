@@ -20,6 +20,8 @@ A Key improvement in **VacHopPy** is introduction of an **effective hopping para
 </p>
 </div>
 
+For detailed explanation about **VacHopPy** framework, see **this paper**.
+
 
 ## Features
 
@@ -33,14 +35,22 @@ A Key improvement in **VacHopPy** is introduction of an **effective hopping para
 
 |<center>Symbol</center>|<center>Description</center>|
 |:---:|---|
-|D<SUB>0</SUB>|Pre-exponential of diffusion coefficient (m<SUP>2</SUP>/s)|
-|E<SUB>a</SUB>|Hopping barrier (eV)|
-|a|Hopping distance (Å)|
-|z|Coordination number|
-|ν|Jump attempt frequency (THz)|
-|f|Correlation factor|
+|$\bar{E}_{a}$|Hopping barrier (eV)|
+|$\bar{a}$|Hopping distance (Å)|
+|$\bar{z}$|Coordination number|
+|$\bar{ν}$|Jump attempt frequency (THz)|
+|$f$|Correlation factor|
 
 </div>
+
+The bar expression ($\bar{x}$) is used to emphasize the parameters are effective values. In this framework, the effective correlation factor ($\bar{f}$) is assumed to be identical to the original $f$; therefore,the correlation factor is uniformly denoted as $f$. 
+
+Diffusion quantities, including diffusion coefficient (D) and residence time (τ), can be derived by combining the effective hopping parameters, as follows:
+
+$$ \bar{D} = \frac{1}{6}\bar{z}\bar{a}^{2}\bar{ν} \cdot \exp(-\frac{\bar{E}_{a}}{k_{B}T}) \times f(T)$$
+$$ \bar{τ} = \frac{1}{\bar{z}\cdot\bar{ν}} \cdot \exp(\frac{\bar{E}_{a}}{k_{B}T})$$
+
+Here, all parameters correspond to the effective value, hence, the diffusion quantities can be expressed as simple Arrhenims forms. The exact expressions for D and τ consist multiple exponential terms, each corresponds to a distinct vacancy hopping path. These complex expressions are unfavorable for continuum equations.
 
 ## Contents
 
@@ -66,7 +76,7 @@ pip intall vachoppy
 
 
 
-## List of commands
+## Available commands
 
 **VacHopPy** provides a command-line interface (CLI). Belows are available CLI commands:
 
@@ -78,14 +88,14 @@ pip intall vachoppy
         <th scope="col">Use</td>
     </tr>
     <tr>
-        <td rowspan="5">-m<br>(main)</td>
+        <td rowspan="4">-m<br>(main)</td>
         <td>p</td>
-        <td>Calculate effective hopping parameters (excluding z and ν)</td>
+        <td>Calculate effective hopping parameters (excluding &#772;z and &#772;ν)</td>
     </tr>
     <tr>
         <!-- <td>2</td> -->
         <td>pp</td>
-        <td>Calculate z and ν (post-processing for `-m p` option)</td>
+        <td>Calculate &#772;z and &#772;ν (post-processing for `-m p` option)</td>
     </tr>
     <tr>
         <!-- <td>4</td> -->
@@ -96,12 +106,6 @@ pip intall vachoppy
         <!-- <td>5</td> -->
         <td>f</td>
         <td>Perform fingerprint analyses</td>
-    </tr>
-        <tr>
-        <!-- <td>3</td> -->
-        <td>e</td>
-        <td>Calculate diffusion coefficient using Einstein relation</td>
-    </tr>
     <tr>
         <td rowspan="6">-u<br>(utility)</td>
         <td>extract_force</td>
@@ -140,6 +144,15 @@ For detailed descriptions, please use `-h` options:
 vachoppy -h # list of available commands
 vachoppy -m p -h # explanation for '-m p' option
 ```
+
+Belows is summary of the main commands:
+<div align=center>
+<p>
+    <img src="./imgs/flowchart.svg" width="700"/>
+</p>
+</div>
+For clarity, only the main modules and classes are shown in the VacHopPy architecture.
+
 
 ## How to implement
 
