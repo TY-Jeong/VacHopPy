@@ -43,9 +43,9 @@ For detailed explanation about **VacHopPy** framework, see **this paper**.
 
 </div>
 
-The bar expression ($`\bar{x}`$) is used to emphasize the parameters are effective values. In this framework, the effective correlation factor ($`\bar{f}`$) is assumed to be identical to the original $f$; therefore,the correlation factor is uniformly denoted as $`f`$. 
+The bar expression (e.g., $`\bar{x}`$) is used to emphasize the parameters are effective values. In this framework, the effective correlation factor ($`\bar{f}`$) is assumed to be identical to the original $f$; therefore,the correlation factor is uniformly denoted as $`f`$. 
 
-Diffusion quantities, including diffusion coefficient ($`D`$) and residence time ($`τ`$), can be derived by combining the effective hopping parameters, as follows:
+Effective diffusion quantities, including effective diffusion coefficient ($`\bar{D}`$) and effective residence time ($`\bar{τ}`$), can be derived by combining the effective hopping parameters, as follows:
 
 ```math
 \bar{D} = \frac{1}{6}\bar{z}\bar{a}^{2}\bar{ν} \cdot \exp(-\frac{\bar{E}_{a}}{k_{B}T}) \times f(T)
@@ -54,7 +54,7 @@ Diffusion quantities, including diffusion coefficient ($`D`$) and residence time
 \bar{τ} = \frac{1}{\bar{z}\cdot\bar{ν}} \cdot \exp(\frac{\bar{E}_{a}}{k_{B}T})
 ```
 
-Here, all parameters correspond to the effective value, hence, the diffusion quantities can be expressed as simple Arrhenims forms. The exact expressions for D and τ consist multiple exponential terms, each corresponds to a distinct vacancy hopping path. These complex expressions are unfavorable for continuum equations.
+Here, all parameters correspond to the effective value, hence, the diffusion quantities can be expressed as simple Arrhenims forms. The exact expressions for $`D`$ and $`τ`$ consist multiple exponential terms, each corresponds to a distinct vacancy hopping path. These complex expressions are unfavorable for continuum equations.
 
 ## Contents
 
