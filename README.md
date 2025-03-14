@@ -1,7 +1,7 @@
 # VacHopPy 
 
 ---
-**VacHopPy** is a Python package to analyze trajectory of vacancy hopping mechanisms, based on *Ab initio* molecular dynamics (AIMD) simulations.
+**VacHopPy** is a Python package to analyze trajectory of vacancy hopping mechanisms, based on *Ab initio* molecular dynamics (AIMD) simulations. (see **here** for detailed explanation about **VacHopPy** framework)
 
 
 <div align=center>
@@ -19,8 +19,6 @@ A Key improvement in **VacHopPy** is introduction of an **effective hopping para
     <img src="./imgs/fig2.jpg" width="550"/>
 </p>
 </div>
-
-For detailed explanation about **VacHopPy** framework, see **this paper**.
 
 
 ## Features
@@ -162,11 +160,11 @@ For clarity, only the main modules and classes are shown in the VacHopPy archite
 
 Example files can be downloaded from:
 
-* **Example 1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (28 GB)](https://drive.google.com/file/d/1SudMlQk40cJnVgrkklK6b4nhiF3YWPOY/view?usp=sharing)
-* **Example 2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (37 MB)](https://drive.google.com/file/d/1SuxEHmGdVNkk-mogdWWDOOUPZqX74QG5/view?usp=sharing)
+* **Example1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (28 GB)](https://drive.google.com/file/d/1SudMlQk40cJnVgrkklK6b4nhiF3YWPOY/view?usp=sharing)
+* **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (37 MB)](https://drive.google.com/file/d/1SuxEHmGdVNkk-mogdWWDOOUPZqX74QG5/view?usp=sharing)
 
 ## 0. Preparation
-**VacHopPy** reads AIMD simulation data in VASP format (XDATCAR, OUTCAR, and FORCE). **XDATCAR** and **OUTCAR** are the typical VASP output files, contain information on atomic positions and simulation conditions, respectively. **FORCE** (optinal) includes force vectors and can be extracted from **vasprun.xml** file using `vachoppy -u extract_force` command. If FORCE files are included in the input dataset, the trajectory is determined based on transition state (TS) distribution; otherwise, the trajectory is determined based simply on proximity.
+**VacHopPy** reads AIMD simulation data in VASP format (XDATCAR, OUTCAR, and FORCE). **XDATCAR** and **OUTCAR** are the typical VASP output files, contain information on atomic positions and simulation conditions, respectively. **FORCE** (optinal) includes force vectors and can be extracted from **vasprun.xml** file using `vachoppy -u extract_force` command. If FORCE files are included in the input dataset, the atomic occupanciesa are determined based on transition state (TS) distribution; otherwise, the trajectory is determined based simply on proximity.
 
 > In current version, **VacHopPy** supports only AIMD simulations conducted using the **NVT ensmeble**. Each ensemble cell should contains a single vacancy. (Support for multi vacancies will be added in a future update) 
 
@@ -194,12 +192,15 @@ Example1
  ┗ POSCAR_LATTICE # POSCAR of perfect cell
 ```
 
-In this example, AIMD simulations were performed at three temperatures (1900 K, 2000 K, and 2100 K), and three cells are emplyed for each temperature. The simulations in the same temperature should be conducted with the same conditions. Hence, only one OUTCAR file exist in each subdirectory.
+The simulations in the same temperature should be conducted with the same conditions. Hence, only one OUTCAR file exist in each subdirectory.
 
 ## 1. Vacancy trajectory determination
-User can obtain vacancy trajectory using:
+
+Please download and unzup **Example1** file attatched above.
+
+Open **Example1** directory, and run:
 ```ruby
- vachoppy -m t O 0.1 2100 03 # symbol, t_width, temperature, label
+ vachoppy -m t O 0.1 2100 03 # vacancy type, t_interval, temperature, label
  ```
 
  Output:
@@ -209,19 +210,15 @@ User can obtain vacancy trajectory using:
 </p>
 </div>
 
+As a result, the trajectory animatoin is saved in `traj.gif`, while the snapshots are located in the `snapshot` directory. In this animation, the solid box and the color-coded circlesa represent
+the lattice (here, rutile TiO<SUB>2</SUB> lattice) and the lattice points (here, oxygen sites) corresponding to the atom designated in the CLI command (O), respectively. The yellow-colored circle corresponds to the vacancy position (*i.e.*, unoccupied lattice point), while other colors represent occupied lattice points. An atomic movements is represented with an arrow, whose color is the same as the moving atom. User can adjust the resolutions of the snapshote and animation using `--dpi` option (default: 300).
 
 ## 2. Effective hopping parameter calculation
 Use:
 ```ruby
-vachoppy -m p O 0.1 # symbol, t_width
+vachoppy -m p O 0.1 # symbol, t_interval
 ```
 This command will provides effective hopping parameters of an oxygen vacancy.
 
-## 3. Diffusion coefficient using Einstein relation
-Use:
-```ruby
-vachoppy -m e O 50 --skip 1
-```
-This command will provides diffusion coefficient of an oxygen vacancy at each temperature.
 
-## 4. Assessment of lattice stability
+## 3. Assessment of lattice stability
