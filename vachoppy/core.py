@@ -185,7 +185,7 @@ class MSD:
         print('')
         
         
-class EffectiveDiffusionParameter:
+class EffectiveHoppingParameter:
     def __init__(self, 
                  data, 
                  interval, 
@@ -228,7 +228,7 @@ class EffectiveDiffusionParameter:
         print("tau.png is created.")
         
         
-class Post_EffectiveDiffusionParameter:
+class PostEffectiveHoppingParameter:
     def __init__(self,
                  file_params='parameter.txt',
                  file_neb='neb.csv',

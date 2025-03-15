@@ -313,19 +313,19 @@ def main():
                       x_vac=float(Fraction(args.x_vac)))
             
         if mode_value == 'p':
-            effective_params = EffectiveDiffusionParameter(data=data,
-                                                           interval=args.interval,
-                                                           poscar_lattice=args.lattice,
-                                                           symbol=args.symbol,
-                                                           file_out='parameter.txt',
-                                                           rmax=args.rmax,
-                                                           tol=args.tol,
-                                                           tolerance=args.tolerance,
-                                                           verbose=True)
+            effective_params = EffectiveHoppingParameter(data=data,
+                                                         interval=args.interval,
+                                                         poscar_lattice=args.lattice,
+                                                         symbol=args.symbol,
+                                                         file_out='parameter.txt',
+                                                         rmax=args.rmax,
+                                                         tol=args.tol,
+                                                         tolerance=args.tolerance,
+                                                         verbose=True)
         
         if mode_value == 'pp':
-            post = Post_EffectiveDiffusionParameter(file_params=args.parameter,
-                                                    file_neb=args.neb)
+            post = PostEffectiveHoppingParameter(file_params=args.parameter,
+                                                 file_neb=args.neb)
             
         if mode_value == 't':
             traj = Trajectory(data=data,
