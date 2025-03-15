@@ -33,11 +33,11 @@ A Key improvement in **VacHopPy** is introduction of an **effective hopping para
 
 |<center>Symbol</center>|<center>Description</center>|
 |:---:|---|
-|$`\bar{E}_{a}`$|Hopping barrier (eV)|
-|$`\bar{a}`$|Hopping distance (Å)|
-|$`\bar{z}`$|Coordination number|
-|$`\bar{ν}`$|Jump attempt frequency (THz)|
-|$`f`$|Correlation factor|
+| $`\bar{E}_{a}`$ |Hopping barrier (eV)|
+| $`\bar{a}`$ |Hopping distance (Å)|
+| $`\bar{z}`$ |Coordination number|
+| $`\bar{ν}`$ |Jump attempt frequency (THz)|
+| $`f`$ |Correlation factor|
 
 </div>
 
@@ -203,15 +203,30 @@ Open **Example1** directory, and run:
  vachoppy -m t O 0.1 2100 03 # vacancy type, t_interval, temperature, label
  ```
 
- Output:
+
+**Process:**
+
+
+The user can set the time range and fps of the trajectory animation through two messages in the prompt window:
+
+
+<div align=center>
+<p>
+    <img src="./imgs/screenshot01.png" width="550"/>
+</p>
+</div>
+
+**Output:**
+
+The result is saved in **traj.gif**, while the snapshots are located in **snapshot** directory. Below is an example of **traj.gif**:
+
 <div align=center>
 <p>
     <img src="./imgs/traj.gif" width="550"/>
 </p>
 </div>
 
-As a result, the trajectory animatoin is saved in `traj.gif`, while the snapshots are located in the `snapshot` directory. In this animation, the solid box and the color-coded circlesa represent
-the lattice (here, rutile TiO<SUB>2</SUB> lattice) and the lattice points (here, oxygen sites) corresponding to the atom designated in the CLI command (O), respectively. The yellow-colored circle corresponds to the vacancy position (*i.e.*, unoccupied lattice point), while other colors represent occupied lattice points. An atomic movements is represented with an arrow, whose color is the same as the moving atom. User can adjust the resolutions of the snapshote and animation using `--dpi` option (default: 300).
+In this animation, the solid box and the color-coded circlesa represent the lattice (here, rutile TiO<SUB>2</SUB> lattice) and the lattice points (here, oxygen sites) corresponding to the atom designated in the CLI command (O), respectively. The yellow-colored circle corresponds to the vacancy position (*i.e.*, unoccupied lattice point), while other colors represent occupied lattice points. An atomic movements is represented with an arrow, whose color is the same as the moving atom. User can adjust the resolutions of the snapshote and animation using **--dpi** option (default: 300).
 
 ## 2. Effective hopping parameter calculation
 Use:
