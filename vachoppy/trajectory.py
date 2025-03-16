@@ -2053,9 +2053,9 @@ class PostProcess:
                 self.num_paths = list(map(int, lines[i+2].split()[-self.num_sites:]))
                 self.num_paths = np.array(self.num_paths)
                 for j in range(np.sum(self.num_paths)):
-                    contents = lines[i+j+7].split()
+                    contents = lines[i+j+8].split()
                     self.path_names.append(contents[0])
-                    self.z.append(int(contents[-1]))
+                    self.z.append(int(contents[4]))
                 self.z = np.array(self.z, dtype=float)
                     
             if "Simulation temperatures (K) :" in line:
