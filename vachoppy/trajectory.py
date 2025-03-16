@@ -1728,15 +1728,15 @@ class Parameter:
         print('\nEffective hopping parameters : ')
         header = ['parameter', 'value', 'description']
         parameter = ['Drand_0 (m2/s)', 'tau0 (ps)', 'Ea (eV)', 'a (Å)', 'f', '<z>',]
-        values = [f"{self.D0_rand:.5e}", f"{self.tau0:.5f}", f"{self.Ea:.5f}", 
-                  f"{self.a_eff:.5f}", f"{np.average(self.f_cum):.5f}", f"{self.z_mean:.5f}"]
-        desciption = ['pre-exponential for random walk diffusivity',
-                      'pre-exponential for residence time',
-                      'hopping barrier',
-                      'hopping distance',
-                      'correlation factor',
-                      'mean number of equivalent paths per path type']
-        data = [[p, v, d] for p, v, d in zip(parameter, value, desciption)]
+        value = [f"{self.D0_rand:.5e}", f"{self.tau0:.5f}", f"{self.Ea:.5f}", 
+                 f"{self.a_eff:.5f}", f"{np.average(self.f_cum):.5f}", f"{self.z_mean:.5f}"]
+        description = ['pre-exponential for random walk diffusivity',
+                       'pre-exponential for residence time',
+                       'hopping barrier',
+                       'hopping distance',
+                       'correlation factor',
+                       'mean number of equivalent paths per path type']
+        data = [[p, v, d] for p, v, d in zip(parameter, value, description)]
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
         
