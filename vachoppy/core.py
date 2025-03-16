@@ -307,7 +307,7 @@ class Trajectory:
                                tolerance=self.tolerance,
                                verbose=self.verbose)
         
-        self.traj = LatticeHopping(xdatcar=self.xdatcar,
+        self.traj = VacancyHopping(xdatcar=self.xdatcar,
                                    lattice=self.lattice,
                                    force=self.force,
                                    interval=self.interval,

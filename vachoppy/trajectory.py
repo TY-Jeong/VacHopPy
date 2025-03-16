@@ -143,6 +143,8 @@ class Lattice:
                         path['site_final'] = site_final
                         path['distance'] = float(distance)
                         path['z'] = 1
+                        path['coord_init'] = self.structure[idx].frac_coords
+                        path['coord_final'] = neighbor['site'].frac_coords
                         paths_idx.append(path)
                         distances = np.append(distances, distance)
                         self.path_names.append(f"{chr(i+65)}{len(paths_idx)}")
@@ -159,15 +161,15 @@ class Lattice:
         print(f"Number of inequivalent paths for {self.symbol} : {len(self.path_names)} (Rmax = {self.rmax:.2f} Å)")
         print('')
         print('Path information')
-        headers = ['name', 'init', 'final', 'a(Å)', 'z']
+        headers = ['name', 'init', 'final', 'a(Å)', 'z', 'coord_init', 'coord_final']
         data = [
-            [path['name'], path['site_init'], path['site_final'], f"{path['distance']:.5f}", path['z']] 
+            [path['name'], path['site_init'], path['site_final'], f"{path['distance']:.5f}", path['z'],
+             path['coord_init'], path['coord_final']] 
             for path in self.path
             ]
         print(tabulate(data, headers=headers, tablefmt="simple"))
 
-
-class LatticeHopping:
+class VacancyHopping:
     def __init__(self,
                  xdatcar,
                  lattice,
@@ -1036,19 +1038,21 @@ class Analyzer:
             err = abs(distance - p['distance'])
             if err < self.tolerance and p['site_init']==site_init:
                 candidate += [p]
-        
+                
         if len(candidate) == 0:
             # add a new unknown path
             p = self.path_unknown
             p['site_init'] = site_init
             p['distance'] = distance
             return p
+        
         elif len(candidate) > 1:
             print("Two path cannot be distinguished based on distance and initial site:")
             print(f"  initial site = {site_init}, distance = {distance:.6f}")
             print('please use smaller tolerance.')
             print(f"tolerance used in this calculation = {self.tolerance:.3e}")
             sys.exit(0)
+            
         else:
             return candidate[0]   
 
@@ -1129,6 +1133,13 @@ class Analyzer:
                         self.num_unknown += 1
                         p_new['name'] = self.prefix_unknown + str(self.num_unknown)
                         p_new['z'] = self.path_unknown['z']
+                        coord_init = self.lat_points[p_new['index_init']]['coord']
+                        coord_final = self.lat_points[p_new['index_final']]['coord']
+                        p_new['coord_init'] = coord_init
+                        displacement = coord_final - coord_init
+                        displacement[displacement>0.5] -= 1.0
+                        displacement[displacement<=-0.5] += 1.0
+                        p_new['coord_final'] = coord_init + displacement
                         self.path.append(copy.deepcopy(p_new))
                         self.path_names.append(p_new['name'])     
                     path_unwrap.append(copy.deepcopy(p_new))
@@ -1157,6 +1168,11 @@ class Analyzer:
                         self.num_unknown += 1
                         p_new['name'] = self.prefix_unknown + str(self.num_unknown)
                         p_new['z'] = self.path_unknown['z']
+                        p_new['coord_init'] = coord_init
+                        displacement = coord_final - coord_init
+                        displacement[displacement>0.5] -= 1.0
+                        displacement[displacement<=-0.5] += 1.0
+                        p_new['coord_final'] = coord_init + displacement
                         self.path.append(copy.deepcopy(p_new))
                         self.path_names.append(p_new['name'])            
                     path_unwrap.append(copy.deepcopy(p_new))
@@ -1524,7 +1540,7 @@ class Parameter:
                 xdatcar = self.data.xdatcar[i][j]
                 force = self.data.force[i][j] if self.data.force is not None else None
                 try:
-                    traj = LatticeHopping(xdatcar, 
+                    traj = VacancyHopping(xdatcar, 
                                           self.lattice, 
                                           force=force, 
                                           interval=step_interval,
@@ -1659,10 +1675,23 @@ class Parameter:
         print('')
         print(f"  Number of unknown paths : {len(self.lattice.path) - self.num_path_except_unknowns}")
         print('')
-        header = ['path', 'init', 'final', 'a(Å)', 'z']
+        
+        print('Vacancy hopping paths :')
+        header = ['path', 'init', 'final', 'a(Å)', 'z','coord_init', 'coord_final']
         data = [
-            [path['name'], path['site_init'], path['site_final'], path['distance'], path['z']] 
-            for path in self.lattice.path
+            [path['name'], path['site_init'], path['site_final'], path['distance'], path['z'],
+             path['coord_init'], path['coord_final']] 
+            for path in self.lattice.path[:self.num_path_except_unknowns]
+        ]
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
+        
+        print('Unknown paths :')
+        header = ['path', 'init', 'final', 'a(Å)', 'z','coord_init', 'coord_final']
+        data = [
+            [path['name'], path['site_init'], path['site_final'], path['distance'], path['z'],
+             path['coord_init'], path['coord_final']] 
+            for path in self.lattice.path[self.num_path_except_unknowns:]
         ]
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
