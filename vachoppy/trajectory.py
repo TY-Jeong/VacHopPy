@@ -1677,20 +1677,46 @@ class Parameter:
         print('')
         
         print('Vacancy hopping paths :')
-        header = ['path', 'init', 'final', 'a(Å)', 'z','coord_init', 'coord_final']
+        header = ['path', 
+                  'init',
+                  'final',
+                  'a(Å)', 
+                  'z',
+                  'coord_init', 
+                  'coord_final'
+                  ]
         data = [
-            [path['name'], path['site_init'], path['site_final'], path['distance'], path['z'],
-             path['coord_init'], path['coord_final']] 
+            [path['name'], 
+             path['site_init'], 
+             path['site_final'], 
+             path['distance'], 
+             path['z'],
+             f"[{path['coord_init'][0]:.5f} {path['coord_init'][1]:.5f} {path['coord_init'][2]:.5f}]", 
+             f"[{path['coord_final'][0]:.5f} {path['coord_final'][1]:.5f} {path['coord_final'][2]:.5f}]"
+             ] 
             for path in self.lattice.path[:self.num_path_except_unknowns]
         ]
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
         
         print('Unknown paths :')
-        header = ['path', 'init', 'final', 'a(Å)', 'z','coord_init', 'coord_final']
+        header = ['path', 
+                  'init', 
+                  'final', 
+                  'a(Å)', 
+                  'z',
+                  'coord_init', 
+                  'coord_final'
+                  ]
         data = [
-            [path['name'], path['site_init'], path['site_final'], path['distance'], path['z'],
-             path['coord_init'], path['coord_final']] 
+            [path['name'], 
+             path['site_init'], 
+             path['site_final'], 
+             path['distance'], 
+             path['z'],
+             f"[{path['coord_init'][0]:.5f} {path['coord_init'][1]:.5f} {path['coord_init'][2]:.5f}]", 
+             f"[{path['coord_final'][0]:.5f} {path['coord_final'][1]:.5f} {path['coord_final'][2]:.5f}]"
+             ]
             for path in self.lattice.path[self.num_path_except_unknowns:]
         ]
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
@@ -1727,9 +1753,20 @@ class Parameter:
         # effective parameters
         print('\nEffective hopping parameters : ')
         header = ['parameter', 'value', 'description']
-        parameter = ['Drand_0 (m2/s)', 'tau0 (ps)', 'Ea (eV)', 'a (Å)', 'f', '<z>',]
-        value = [f"{self.D0_rand:.5e}", f"{self.tau0:.5f}", f"{self.Ea:.5f}", 
-                 f"{self.a_eff:.5f}", f"{np.average(self.f_cum):.5f}", f"{self.z_mean:.5f}"]
+        parameter = ['Drand_0 (m2/s)',
+                     'tau0 (ps)',
+                     'Ea (eV)', 
+                     'a (Å)', 
+                     'f', 
+                     '<z>'
+                     ]
+        value = [f"{self.D0_rand:.5e}", 
+                 f"{self.tau0:.5f}", 
+                 f"{self.Ea:.5f}",
+                 f"{self.a_eff:.5f}", 
+                 f"{np.average(self.f_cum):.5f}", 
+                 f"{self.z_mean:.5f}"
+                 ]
         description = ['pre-exponential for random walk diffusivity',
                        'pre-exponential for residence time',
                        'hopping barrier',
@@ -2009,6 +2046,8 @@ class PostProcess:
         self.Ea_eff = None
         self.tau0_eff = None
         self.a_eff = None
+        self.f = []
+        self.f_mean = None
         self.read_parameter()
         
         # read neb file
@@ -2081,10 +2120,14 @@ class PostProcess:
                 self.counts = np.array(self.counts, dtype=float)
                 
             if "Effective hopping parameters :" in line:
-                self.D0_eff = float(lines[i+3].split()[-1])
-                self.Ea_eff = float(lines[i+4].split()[-1])
-                self.tau0_eff = float(lines[i+5].split()[-1])
-                self.a_eff = float(lines[i+6].split()[-1])
+                self.D0_eff = float(lines[i+3].split()[2])
+                self.tau0_eff = float(lines[i+4].split()[2])
+                self.Ea_eff = float(lines[i+5].split()[2])
+                self.a_eff = float(lines[i+6].split()[2])
+                self.f_mean = float(lines[i+7].split()[1]) # no unit
+                
+            if "Cumulative correlation factors :" in line:
+                self.f =[float(lines[i+j+3].split()[1]) for j in range(len(self.temp))]
     
     def read_neb(self):
         neb = pd.read_csv(self.file_neb, header=None).to_numpy()
@@ -2121,32 +2164,62 @@ class PostProcess:
         # effective parameters
         print("Effective hopping parameters :")
         header = ['parameter', 'value', 'description']
-        parameter = ["Drand_0 (m2/s)", "tau0 (ps)", "Ea (eV)", 
-                     "a (Å)", "z", "nu (THz)", "<z>", "<m>"]
-        value = [f"{self.D0_eff:.5e}", f"{self.tau0_eff:.5e}", f"{self.Ea_eff:.5f}", 
-                 f"{self.a_eff:.5f}", f"{self.z_eff_rep:.5f}", f"{self.nu_eff_rep:.5f}", 
-                 f"{self.z_mean_rep:.5f}", f"{self.m_mean_rep:.5f}"]
-        desciption = ['pre-exponential for random walk diffusivity',
-                      'pre-exponential for residence time',
-                      'hopping barrier',
-                      'hopping distance',
-                      'number of equivalent paths (coordination number)',
-                      'jump attempt frequency',
-                      'mean number of equivalent paths per path type',
-                      'mean number of path types (=z/<z>)']
-        data = [[p, v, d] for p, v, d in zip(parameter, value, desciption)]
+        parameter = ["Drand_0 (m2/s)", 
+                     "tau0 (ps)", 
+                     "Ea (eV)", 
+                     "a (Å)", 
+                     "z", 
+                     "nu (THz)", 
+                     "f", 
+                     "<z>", 
+                     "<m>"]
+        value = [f"{self.D0_eff:.5e}", 
+                 f"{self.tau0_eff:.5e}", 
+                 f"{self.Ea_eff:.5f}", 
+                 f"{self.a_eff:.5f}", 
+                 f"{self.z_eff_rep:.5f}", 
+                 f"{self.nu_eff_rep:.5f}", 
+                 f"{self.f_mean:.5f}", 
+                 f"{self.z_mean_rep:.5f}", 
+                 f"{self.m_mean_rep:.5f}"]
+        description = ['pre-exponential for random walk diffusivity',
+                       'pre-exponential for residence time',
+                       'hopping barrier',
+                       'hopping distance',
+                       'number of equivalent paths (coordination number)',
+                       'jump attempt frequency',
+                       'correlation factor',
+                       'mean number of equivalent paths per path type',
+                       'mean number of path types (=z/<z>)']
+        data = [[p, v, d] for p, v, d in zip(parameter, value, description)]
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
         
         # temperature dependence
         print("Effective hopping parameters with respect to temperature :")
-        header = ["T (K)", "z", "nu (THz)", "<z>", "<m>"]
+        header = ["T (K)", 
+                  "z", 
+                  "nu (THz)", 
+                  "f",
+                  "<z>", 
+                  "<m>"]
         data = [
-            [T, f"{z:.5f}", f"{nu:.5f}", f"{z_mean:.5f}", f"{m_mean:.5f}"] 
-            for T, z, nu, z_mean, m_mean in zip(self.temp, self.z_eff, self.nu_eff, self.z_mean, self.m_mean) 
+            [int(T), 
+             f"{z:.5f}", 
+             f"{nu:.5f}",
+             f"{f:.5f}",
+             f"{z_mean:.5f}", 
+             f"{m_mean:.5f}"
+             ] 
+            for T, z, nu, f, z_mean, m_mean in \
+                zip(self.temp, self.z_eff, self.nu_eff, self.f, self.z_mean, self.m_mean) 
         ]
-        data.append(['Average', f"{np.average(self.z_eff):.5f}", f"{np.average(self.nu_eff):.5f}",
-                     f"{np.average(self.z_mean):.5f}", f"{np.average(self.m_mean):.5f}"])
+        data.append(['Average', 
+                     f"{np.average(self.z_eff):.5f}",
+                     f"{np.average(self.nu_eff):.5f}",
+                     f"{np.average(self.f):.5f}",
+                     f"{np.average(self.z_mean):.5f}", 
+                     f"{np.average(self.m_mean):.5f}"])
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
         
@@ -2155,7 +2228,7 @@ class PostProcess:
         print("(Note: reliable results are obtained only for paths with sufficient sampling)")
         header = ["T (K)"] + self.path_names
         data = [
-            [T] + list(nu) for T, nu in zip(self.temp, self.nu)
+            [int(T)] + list(nu) for T, nu in zip(self.temp, self.nu)
         ]
         data.append(['Average'] + [f"{nu:.5f}" for nu in np.average(self.nu, axis=0)])
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
@@ -2165,7 +2238,7 @@ class PostProcess:
         print("P_site with respect to temperature :")
         header = ["T (K)"] + [f"site{i+1}" for i in range(self.num_sites)]
         data = [
-            [T] + [f"{p:.5e}" for p in p_i] for T, p_i in zip(self.temp, self.P_site)
+            [int(T)] + [f"{p:.5e}" for p in p_i] for T, p_i in zip(self.temp, self.P_site)
         ]
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
@@ -2174,7 +2247,7 @@ class PostProcess:
         print("P_esc with respect to temperature :")
         header = ["T (K)"] + self.path_names
         data = [
-            [T] + [f"{p:.5e}" for p in p_i] for T, p_i in zip(self.temp, self.P_esc)
+            [int(T)] + [f"{p:.5e}" for p in p_i] for T, p_i in zip(self.temp, self.P_esc)
         ]
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
