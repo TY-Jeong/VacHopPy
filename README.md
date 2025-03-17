@@ -51,7 +51,7 @@ Effective diffusion quantities, including effective diffusion coefficient ($`\ba
 ```math
 \bar{τ} = \frac{1}{\bar{z}\cdot\bar{ν}} \cdot \exp(\frac{\bar{E}_{a}}{k_{B}T})
 ```
-
+<br>
 Here, all parameters correspond to the effective value, hence, the diffusion quantities can be expressed as simple Arrhenims forms. The exact expressions for $`D`$ and $`τ`$ consist multiple exponential terms, each corresponds to a distinct vacancy hopping path. These complex expressions are unfavorable for continuum equations.
 
 ## Contents
