@@ -1778,18 +1778,28 @@ class Parameter:
         print('')
         
         # correlation factor
+        # merge f_ind
+        label_all = list(set(sum(self.data.label, [])))
+        label_all.sort()
+        f_merged = []
+        for i, f_ind_i in enumerate(self.f_ind):
+            f_merged_i = ['-'] * len(label_all)
+            for j, label in enumerate(self.data.label[i]):
+                f_merged_i[label_all.index(label)] = f"{f_ind_i[j]:.5f}"
+            f_merged.append(f_merged_i)
+        f_merged = [list(x) for x in zip(*f_merged)] # transpose
+        
         print('Individual correlation factors : ')
-        header = ['label', 'f']
-        for i, temp in enumerate(self.temp):
-            print(f"T = {temp} K")
-            data = [
-                [label, f"{f:.5f}"] for label, f in zip(self.data.label[i], self.f_ind[i])
-            ]
-            data.append(['Average', f"{self.f_avg[i]:.5f}"])
-            print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
-            print('')
+        header = ['label'] + [f"f({int(T)}K)" for T in self.temp]
+        data = [
+            [label] + f_merged_i for label, f_merged_i in zip(label_all, f_merged)
+        ]
+        data.append(['Average']+[f"{sum(f)/len(f):.5f}" for f in self.f_ind])
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print('')
             
         print('Cumulative correlation factors : ')
+        print('(Note: cumulative f is more reliable than avaerage of individual f)')
         header = ['T (K)', 'f']
         data = [
             [f"{temp}", f"{f:.5f}"] for temp, f in zip(self.temp, self.f_cum)
@@ -1797,11 +1807,9 @@ class Parameter:
         data.append(['Average', f"{np.average(self.f_cum):.5f}"])
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
-        print(f"pre-exponential of f (f0) = {self.f0:.5f}")
-        print(f"activation energy for f (Ea_f) = {self.Ea_f:.5f} eV")
         
         # random walk diffuison coefficient
-        print('\nRandom walk diffusion coefficient : ')
+        print('Random walk diffusion coefficient : ')
         header = ['T (K)', 'D_rand (m2/s)']
         data = [
             [f"{temp}", f"{D:.5e}"] for temp, D in zip(self.temp, self.D_rand)
@@ -2127,7 +2135,7 @@ class PostProcess:
                 self.f_mean = float(lines[i+7].split()[1]) # no unit
                 
             if "Cumulative correlation factors :" in line:
-                self.f =[float(lines[i+j+3].split()[1]) for j in range(len(self.temp))]
+                self.f =[float(lines[i+j+4].split()[1]) for j in range(len(self.temp))]
     
     def read_neb(self):
         neb = pd.read_csv(self.file_neb, header=None).to_numpy()
@@ -2225,7 +2233,7 @@ class PostProcess:
         
         # nu with respect to temperature
         print("Jump attempt frequency (THz) with respect to temperature :")
-        print("(Note: reliable results are obtained only for paths with sufficient sampling)")
+        print("(Note: only paths with sufficient sampling are reliable)")
         header = ["T (K)"] + self.path_names
         data = [
             [int(T)] + list(nu) for T, nu in zip(self.temp, self.nu)
