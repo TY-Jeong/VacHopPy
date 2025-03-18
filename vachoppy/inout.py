@@ -35,6 +35,10 @@ class DataInfo:
         self.force = None
         self.read_force()
         
+        self.datainfo = [
+            [temp, label] for i, temp in enumerate(self.temp) for label in self.label[i]
+        ]
+        
         if verbose:
             self.md_information()
         

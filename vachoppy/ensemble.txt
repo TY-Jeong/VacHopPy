@@ -1,0 +1,62 @@
+Temperature (K) : 1700 1800 1900 2000 2100 
+Use FORCE data : True
+
+Information on MD
+T = 1700 K :
+  number of labels = 20
+  nsw = 200500
+  potim = 2
+  nblock = 1
+  total md time = 401.0 ps
+
+T = 1800 K :
+  number of labels = 20
+  nsw = 150500
+  potim = 2
+  nblock = 1
+  total md time = 301.0 ps
+
+T = 1900 K :
+  number of labels = 20
+  nsw = 125500
+  potim = 2
+  nblock = 1
+  total md time = 251.0 ps
+
+T = 2000 K :
+  number of labels = 20
+  nsw = 100500
+  potim = 2
+  nblock = 1
+  total md time = 201.0 ps
+
+T = 2100 K :
+  number of labels = 20
+  nsw = 75500
+  potim = 2
+  nblock = 1
+  total md time = 151.0 ps
+
+
+Labels : 
+1700K  1800K  1900K  2000K  2100K  
+01     01     01     01     01     
+02     02     02     02     02     
+03     03     03     03     03     
+04     04     04     04     04     
+05     05     05     05     05     
+06     06     06     06     06     
+07     07     07     07     07     
+08     08     08     08     08     
+09     09     09     09     09     
+10     10     10     10     10     
+11     11     11     11     11     
+12     12     12     12     12     
+13     13     13     13     13     
+14     14     14     14     14     
+15     15     15     15     15     
+16     16     16     16     16     
+17     17     17     17     17     
+18     18     18     18     18     
+19     19     19     19     19     
+20     20     20     20     20     
