@@ -46,6 +46,7 @@ class Calculator:
             self.step_interval = int(self.interval*1000 / potim)
             
         # quantities
+        self.path_vac = None
         self.counts = None
         self.unknown = None
         self.t_reside = None
@@ -99,6 +100,7 @@ class Calculator:
             verbose=False
         )
         
+        self.path_vac = anal.path_vac
         self.counts = anal.counts[:self.num_path]
         self.unknown = anal.path[self.num_path:]
         self.t_reside = anal.total_reside_steps * self.interval
