@@ -6,7 +6,7 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
-from mpi4py import MPI
+# from mpi4py import MPI
 from tqdm import tqdm
 from colorama import Fore
 from tabulate import tabulate
