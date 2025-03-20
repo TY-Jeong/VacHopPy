@@ -234,6 +234,7 @@ class EffectiveHoppingParameter:
                 
             # visualize progress
             with open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8') as f:
+                print('',end='')
                 original_stdout = sys.stdout
                 sys.stdout = f
                 try:
@@ -645,12 +646,11 @@ class PhaseTransition:
         
         # fingerprint of xdatcar
         self.d_cos = np.zeros_like(self.step, dtype=float)
-        desc = 'progress'
         print('')
         for i, s in enumerate(tqdm(self.step, 
-                                   bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'% (Fore.GREEN, Fore.GREEN),
-                                   ascii=False,
-                                   desc=f'{GREEN}{BOLD}{desc}')):
+                                   bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
+                                   ascii=True,
+                                   desc=f'{GREEN}{BOLD}Progress{RESET}')):
             # save poscar
             label = format(s, self.digit)
             filename = os.path.join(self.prefix1, f"POSCAR_{label}")

@@ -34,9 +34,9 @@ def VacancyHopping_serial(data, lattice):
     results = []
     task_size = len(data.datainfo)
     for i in tqdm(range(task_size),
-                    bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
-                    ascii=True,
-                    desc=f'{RED}{BOLD}Progress{RESET}'):
+                  bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
+                  ascii=True,
+                  desc=f'{RED}{BOLD}Progress{RESET}'):
         
         cal = Calculator(data=data, index=i, lattice=lattice, interval=0.1)
         if cal.success:
