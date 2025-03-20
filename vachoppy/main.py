@@ -7,6 +7,11 @@ from vachoppy.core import *
 from vachoppy.utils import *
 from colorama import Fore
 
+try:
+    from mpi4py import MPI
+except:
+    pass
+
 BOLD = '\033[1m'
 CYAN = '\033[36m'
 MAGENTA = '\033[35m'
@@ -261,16 +266,22 @@ args = parser.parse_args()
 
 def main():
     if check_mode:
-        print(f'{CYAN}{BOLD}VacHopPy is in progress{RESET}')
+        if mode_value=='p' and args.parallel is True:
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+        else:
+            rank = 0
         
-        # save arguments
-        with open('arg.txt', 'w') as f:
-            print(f'{GREEN}{BOLD}Arguments and Values :{RESET}')
-            f.write('Arguments and Values :\n')
-            for arg, value in vars(args).items():
-                print(f'    {arg} = {value}')
-                f.write(f'    {arg} = {value}\n')
-        print('')
+        if rank==0:
+            print(f'{CYAN}{BOLD}VacHopPy is in progress{RESET}')
+            # save arguments
+            with open('arg.txt', 'w') as f:
+                print(f'{GREEN}{BOLD}Arguments and Values :{RESET}')
+                f.write('Arguments and Values :\n')
+                for arg, value in vars(args).items():
+                    print(f'    {arg} = {value}')
+                    f.write(f'    {arg} = {value}\n')
+            print('')
         
         # functionalities
         if mode_value in ['e', 'p', 't']:

@@ -16,6 +16,11 @@ from vachoppy.calculator import *
 from vachoppy.fingerprint import *
 from vachoppy.utils import *
 
+try:
+    from mpi4py import MPI
+except:
+    pass
+
 BOLD = '\033[1m'
 CYAN = '\033[36m'
 MAGENTA = '\033[35m'
@@ -219,15 +224,23 @@ class EffectiveHoppingParameter:
             verbose=False
         )
         
-        results = VacancyHopping_parallel(self.data, self.lattice) \
-            if self.parallel else VacancyHopping_serial(self.data, self.lattice)
-
+        if self.parallel:
+            self.results = VacancyHopping_parallel(self.data, self.lattice)
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            if rank == 0:
+                self.get_parameters()
+        else:
+            self.results = VacancyHopping_serial(self.data, self.lattice)
+            self.get_parameters()
+            
+    def get_parameters(self):
         with open(self.file_out, 'w', encoding='utf-8') as f:
             original_stdout = sys.stdout
             sys.stdout = f
             try:
                 extractor=ParameterExtractor(
-                    results=results,
+                    results=self.results,
                     data=self.data,
                     lattice=self.lattice,
                     tolerance=self.tolerance,

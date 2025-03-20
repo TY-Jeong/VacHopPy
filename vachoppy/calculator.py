@@ -17,7 +17,7 @@ from vachoppy.trajectory import *
 try:
     from mpi4py import MPI
 except:
-    print('Parallelization is not supported.')
+    pass
 
 # color map for tqdm
 BOLD = '\033[1m'
