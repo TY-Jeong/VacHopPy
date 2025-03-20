@@ -24,7 +24,7 @@ group = parser.add_mutually_exclusive_group(required=True)
 # key functionalities
 group.add_argument(
     '-m', '--mode', 
-    choices=['p', 'pp', 't', 'f', 'e', 'a'], 
+    choices=['p', 'pp', 't', 'f', 'e'], 
     help=(
         """Choose mode:
         'p'  - Determine vacancy trajectory and calculate effectie hopping parameters (excluding z and nu)
@@ -32,7 +32,6 @@ group.add_argument(
         't'  - Make animation for vacancy trajectory
         'f'  - Fingerpring analysis : assess lattice stability or phase transition
         'e'  - Calculate diffusion coefficient using Einstein relation
-        'a'  - (experiment) analyze hopping events / use for covergence test
         """
         )
     )
@@ -137,12 +136,12 @@ if check_mode:
         mode_value = sys.argv[mode_index]
 
         # Arguments for DataInfo
-        if mode_value in ['p', 'e', 't', 'a']:
+        if mode_value in ['p', 'e', 't']:
             parser.add_argument('symbol',
                                 type=str,
                                 help='symbol of moving atom')
         
-        if mode_value in ['e', 'p', 't', 'a']:
+        if mode_value in ['e', 'p', 't']:
             parser.add_argument('-p1', '--prefix1', 
                                 default='traj', 
                                 help='name of outer directory (default: traj)')
@@ -175,6 +174,9 @@ if check_mode:
                                 type=str,
                                 default='POSCAR_LATTICE',
                                 help='lattice file in POSCAR format (default: POSCAR_LATICE)')
+            parser.add_argument('--parallel',
+                                action='store_true',
+                                help='do parallel calculations (default: False)')
             parser.add_argument('--rmax',
                                 type=float,
                                 default=3.0,
@@ -229,34 +231,6 @@ if check_mode:
                                 action='store_true',
                                 help='verbosity for parameter calculation')
             
-        if mode_value == 'a':
-            parser.add_argument('interval',
-                                type=float,
-                                help='time interval for averaging in ps')
-            parser.add_argument('temp',
-                                type=int,
-                                help='temperatue in K')
-            parser.add_argument('--label',
-                                nargs="+",
-                                type=str,
-                                help='labels')
-            parser.add_argument('-l', '--lattice',
-                                type=str,
-                                default='POSCAR_LATTICE',
-                                help='lattice file in POSCAR format (default: POSCAR_LATICE)')
-            parser.add_argument('--rmax',
-                                type=float,
-                                default=3.0,
-                                help='maximum distance for hopping path identification (default: 3.0)')
-            parser.add_argument('--tol',
-                                type=float,
-                                default=1e-3,
-                                help='tolerance for VoronoiNN (default: 1e-3)')
-            parser.add_argument('--tolerance',
-                                type=float,
-                                default=1e-3,
-                                help='tolerance for distance comparison (default: 1e-3)')
-            
         if mode_value == 'f':
             parser.add_argument('interval',
                                 type=float,
@@ -299,7 +273,7 @@ def main():
         print('')
         
         # functionalities
-        if mode_value in ['e', 'p', 'a', 't']:
+        if mode_value in ['e', 'p', 't']:
             data = DataInfo(prefix1=args.prefix1,
                             prefix2=args.prefix2,
                             verbose=True)
@@ -317,6 +291,7 @@ def main():
                                                          interval=args.interval,
                                                          poscar_lattice=args.lattice,
                                                          symbol=args.symbol,
+                                                         parallel=args.parallel,
                                                          file_out='parameter.txt',
                                                          rmax=args.rmax,
                                                          tol=args.tol,
@@ -328,29 +303,17 @@ def main():
                                                  file_neb=args.neb)
             
         if mode_value == 't':
-            traj = Trajectory(data=data,
-                              temp=args.temp,
-                              label=args.label,
-                              interval=args.interval,
-                              poscar_lattice=args.lattice,
-                              symbol=args.symbol,
-                              correlation=not(args.no_correction),
-                              update_alpha=args.update_alpha,
-                              show_index=args.show_index,
-                              dpi=args.dpi,
-                              verbose=args.verbose)
-        
-        if mode_value == 'a':
-            anal = PathAnalyzer(data=data,
-                                interval=args.interval,
-                                poscar_lattice=args.lattice,
-                                symbol=args.symbol,
-                                temp=args.temp,
-                                label=args.label,
-                                rmax=args.rmax,
-                                tol=args.tol,
-                                tolerance=args.tolerance,
-                                verbose=True)
+            traj = MakeAnimation(data=data,
+                                 temp=args.temp,
+                                 label=args.label,
+                                 interval=args.interval,
+                                 poscar_lattice=args.lattice,
+                                 symbol=args.symbol,
+                                 correlation=not(args.no_correction),
+                                 update_alpha=args.update_alpha,
+                                 show_index=args.show_index,
+                                 dpi=args.dpi,
+                                 verbose=args.verbose)
             
         if mode_value == 'f':
             phase = PhaseTransition(xdatcar=args.xdatcar,

@@ -12,6 +12,7 @@ from itertools import combinations_with_replacement
 from vachoppy.inout import *
 from vachoppy.einstein import *
 from vachoppy.trajectory import *
+from vachoppy.calculator import *
 from vachoppy.fingerprint import *
 from vachoppy.utils import *
 
@@ -184,21 +185,24 @@ class MSD:
         print(f'  Ea_D = {-kb * slop :.5f} eV')
         print('')
         
-        
+
 class EffectiveHoppingParameter:
     def __init__(self, 
                  data, 
                  interval, 
                  poscar_lattice, 
                  symbol,
+                 parallel,
                  file_out='parameter.txt', 
                  rmax=3.0,
                  tol=1e-3,
                  tolerance=1e-3,
                  verbose=True):
+        
         self.data = data
         self.interval = interval
         self.poscar_lattice = poscar_lattice
+        self.parallel = parallel
         self.symbol = symbol
         self.file_out = file_out
         self.rmax = rmax
@@ -206,21 +210,32 @@ class EffectiveHoppingParameter:
         self.tolerance = tolerance
         self.verbose = verbose
         
+        self.lattice = Lattice(
+            poscar_lattice=self.poscar_lattice,
+            symbol=self.symbol,
+            rmax=self.rmax,
+            tol=self.tol,
+            tolerance=self.tolerance,
+            verbose=False
+        )
+        
+        results = VacancyHopping_parallel(self.data, self.lattice) \
+            if self.parallel else VacancyHopping_serial(self.data, self.lattice)
+
         with open(self.file_out, 'w', encoding='utf-8') as f:
             original_stdout = sys.stdout
             sys.stdout = f
             try:
-                params = Parameter(data=self.data,
-                                   interval=self.interval,
-                                   poscar_lattice=self.poscar_lattice,
-                                   symbol=self.symbol,
-                                   rmax=self.rmax,
-                                   tol=self.tol,
-                                   tolerance=self.tolerance,
-                                   verbose=self.verbose)
+                extractor=ParameterExtractor(
+                    results=results,
+                    data=self.data,
+                    lattice=self.lattice,
+                    tolerance=self.tolerance,
+                    verbose=self.verbose,
+                    figure=self.verbose
+                )
             finally:
                 sys.stdout = original_stdout  
-        params.save_figures()
         
         print(f"{self.file_out} is created.")
         print("D_rand.png is created.")
@@ -252,7 +267,7 @@ class PostEffectiveHoppingParameter:
         print(f"{self.file_out} is created.")
 
 
-class Trajectory:
+class MakeAnimation:
     def __init__(self,
                  data,
                  temp,
@@ -307,11 +322,11 @@ class Trajectory:
                                tolerance=self.tolerance,
                                verbose=self.verbose)
         
-        self.traj = VacancyHopping(xdatcar=self.xdatcar,
-                                   lattice=self.lattice,
-                                   force=self.force,
-                                   interval=self.interval,
-                                   verbose=self.verbose)
+        self.traj = Trajectory(xdatcar=self.xdatcar,
+                               lattice=self.lattice,
+                               force=self.force,
+                               interval=self.interval,
+                               verbose=self.verbose)
         
         if self.correlation:
             self.do_correction()
@@ -381,51 +396,6 @@ class Trajectory:
                             label=self.show_index)
         
         print('snapshot directory was created.')
-        
-
-class PathAnalyzer:
-    def __init__(self, 
-                 data, 
-                 interval,
-                 poscar_lattice, 
-                 symbol,
-                 temp,
-                 label,
-                 file_out='path_analysis.txt', 
-                 rmax=3.0,
-                 tol=1e-3,
-                 tolerance=1e-3,
-                 verbose=True):
-        
-        self.data = data
-        self.interval = interval
-        self.poscar_lattice = poscar_lattice
-        self.symbol = symbol
-        self.temp = int(temp)
-        self.label = label if type(label) is list else [label]
-        self.file_out = file_out
-        self.rmax = rmax
-        self.tol = tol
-        self.tolerance = tolerance
-        self.verbose = verbose
-        
-        with open(self.file_out, 'w', encoding='utf-8') as f:
-            original_stdout = sys.stdout
-            sys.stdout = f
-            try:
-                anal = CorrelationFactor(data=self.data,
-                                         interval=self.interval,
-                                         poscar_lattice=self.poscar_lattice,
-                                         symbol=self.symbol,
-                                         temp=self.temp,
-                                         label=self.label,
-                                         rmax=rmax,
-                                         tol=self.tol,
-                                         tolerance=self.tolerance,
-                                         verbose=self.verbose)
-            finally:
-                sys.stdout = original_stdout  
-        print(f"{self.file_out} is created.")
             
 
 class GetFingerPrint:
