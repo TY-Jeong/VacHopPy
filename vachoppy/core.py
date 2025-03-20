@@ -231,10 +231,10 @@ class EffectiveHoppingParameter:
             rank = comm.Get_rank()
             if rank == 0:
                 print('VacHopPy is running...')
-                
+                sys.stdout.flush()
+            
             # visualize progress
             with open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8') as f:
-                f.flush()
                 original_stdout = sys.stdout
                 sys.stdout = f
                 try:
