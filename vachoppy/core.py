@@ -233,23 +233,12 @@ class EffectiveHoppingParameter:
                 print('VacHopPy is running...')
 
             # visualize progress            
-            # with open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8') as f:
-            #     original_stdout = sys.stdout
-            #     sys.stdout = f
-            #     try:
-            #         self.results = VacancyHopping_parallel(self.data, self.lattice)
-            #     finally:
-            #         sys.stdout = original_stdout
             if rank==0:
                 f = open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8')
                 original_stdout = sys.stdout
                 sys.stdout = f
-                
-            try:
-                self.results = VacancyHopping_parallel(self.data, self.lattice)
-            except:
-                print("Error occured during instantiating VacancyHopping_parallel")
-                sys.exit(0)
+
+            self.results = VacancyHopping_parallel(self.data, self.lattice)
                 
             if rank == 0:
                 sys.stdout = original_stdout
