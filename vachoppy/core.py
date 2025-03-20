@@ -18,8 +18,9 @@ from vachoppy.utils import *
 
 try:
     from mpi4py import MPI
+    PARALELL = True
 except:
-    pass
+    PARALELL = False
 
 BOLD = '\033[1m'
 CYAN = '\033[36m'
@@ -225,7 +226,15 @@ class EffectiveHoppingParameter:
         )
         
         if self.parallel:
-            self.results = VacancyHopping_parallel(self.data, self.lattice)
+            # visualize progress
+            with open('progress.txt', 'w', encoding='utf-8') as f:
+                original_stdout = sys.stdout
+                sys.stdout = f
+                try:
+                    self.results = VacancyHopping_parallel(self.data, self.lattice)
+                finally:
+                    sys.stdout = original_stdout 
+            # get effective hopping parameters
             comm = MPI.COMM_WORLD
             rank = comm.Get_rank()
             if rank == 0:
@@ -249,7 +258,8 @@ class EffectiveHoppingParameter:
                 )
             finally:
                 sys.stdout = original_stdout  
-        
+                
+        print('')
         print(f"{self.file_out} is created.")
         print("D_rand.png is created.")
         print("f_cor.png is created.")

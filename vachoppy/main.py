@@ -9,8 +9,9 @@ from colorama import Fore
 
 try:
     from mpi4py import MPI
+    PARALELL = True
 except:
-    pass
+    PARALELL = False
 
 BOLD = '\033[1m'
 CYAN = '\033[36m'
@@ -266,7 +267,8 @@ args = parser.parse_args()
 
 def main():
     if check_mode:
-        if mode_value=='p' and args.parallel is True:
+        # print calculation conditions
+        if PARALELL:
             comm = MPI.COMM_WORLD
             rank = comm.Get_rank()
         else:

@@ -16,8 +16,9 @@ from vachoppy.trajectory import *
 
 try:
     from mpi4py import MPI
+    PARALELL = True
 except:
-    pass
+    PARALELL = False
 
 # color map for tqdm
 BOLD = '\033[1m'
@@ -33,9 +34,9 @@ def VacancyHopping_serial(data, lattice):
     results = []
     task_size = len(data.datainfo)
     for i in tqdm(range(task_size),
-                    bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
-                    ascii=False,
-                    desc=f'{RED}{BOLD}parameter{RESET}'):
+                    bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
+                    ascii=True,
+                    desc=f'{RED}{BOLD}Progress{RESET}'):
         
         cal = Calculator(data=data, index=i, lattice=lattice, interval=0.1)
         if cal.success:
@@ -57,8 +58,10 @@ def VacancyHopping_parallel(data, lattice):
     
     if rank==0:
         task_queue = list(range(task_size))
-        print(f"Total tasks in queue at start: {len(task_queue)}")
+        print(f"VacHopPy is running...")
+        print(f"Number of AIMD data : {len(task_queue)}")
         results = []
+        failure = []
 
         while len(results) < task_size:
             status = MPI.Status()
@@ -69,24 +72,28 @@ def VacancyHopping_parallel(data, lattice):
             if task_result is not None:
                 if task_result.success:
                     results.append(task_result)
+                    status = 'success'
                 else:
-                    print(f"Error occurred: {task_result.temp}K ({task_result.label})")
-                print(f"Progress: {len(results)}/{task_size} finished.")
+                    failure.append(
+                        f"  T={task_result.temp}K,  Label={task_result.label} ({task_result.fail_reason})"
+                    )
+                    status = 'fail'
+                print(f"Progress: {len(results)}/{task_size} finished. ({status})")
 
             if task_queue:
                 new_task = task_queue.pop()
                 comm.send(new_task, dest=worker_id, tag=1)
             else:
                 comm.send(None, dest=worker_id, tag=0)
-        print(f"Final results collected: {len(results)} tasks")
-        print("All workers have completed their tasks.")
+        # print(f"Final results collected: {len(results)} tasks")
+        # print("All workers have completed their tasks.")
     else:
         while True:
             comm.send((rank, None), dest=0, tag=2)
             task = comm.recv(source=0, tag=MPI.ANY_TAG)
 
             if task is None:
-                print(f"Worker {rank} received termination sign!")
+                # print(f"Worker {rank} received termination sign!")
                 break
 
             cal = Calculator(
@@ -100,7 +107,13 @@ def VacancyHopping_parallel(data, lattice):
         index = [data.datainfo.index([cal.temp, cal.label]) for cal in results]
         results = [x for _, x in sorted(zip(index, results))]
         time_f = time.time()
-        print(f"Time taken: {time_f - time_i} s")
+        
+        if len(failure) > 0:
+            print(f"Error reports :")
+            for x in failure:
+                print(x)
+        print('')
+        print(f"Total time taken: {time_f - time_i} s")
         return results
     
     
@@ -144,6 +157,7 @@ class Calculator:
         
         # check success
         self.success = True
+        self.fail_reason = None
         
         # get quantities
         self.get_quantities()
@@ -168,13 +182,15 @@ class Calculator:
             traj.correct_multivacancy(start=1)
             traj.check_multivacancy()
         except:
-            print(f"Error occured during trajectory analysis : {self.temp}K, {self.label}\n")
+            # print(f"Error occured during trajectory analysis : {self.temp}K, {self.label}\n")
+            self.fail_reason = "Error occured during instantiating trajectory.Trajectory class"
             self.success = False
             return
         
         if traj.multi_vac is True:
-            print(f"Multi-vacancy issue occured : {self.temp}K, {self.label}\n")
+            # print(f"Multi-vacancy issue occured : {self.temp}K, {self.label}\n")
             self.success = False
+            self.fail_reason = "Multi-vacancy issue is not resolved"
             return
         
         if self.data.force is not None:
