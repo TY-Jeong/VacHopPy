@@ -820,14 +820,16 @@ class PostProcess:
                 self.num_sites = int(lines[i+1].split()[-1])
                 self.num_paths = list(map(int, lines[i+2].split()[-self.num_sites:]))
                 self.num_paths = np.array(self.num_paths)
+                
+            if "Vacancy hopping paths :" in line:
                 for j in range(np.sum(self.num_paths)):
-                    contents = lines[i+j+8].split()
+                    contents = lines[i+j+3].split()
                     self.path_names.append(contents[0])
-                    self.z.append(int(contents[4]))
+                    self.z.append(int(contents[2]))
                 self.z = np.array(self.z, dtype=float)
                     
             if "Simulation temperatures (K) :" in line:
-                self.temp = np.array(list(map(int, lines[i+1].split())), dtype=float)
+                self.temp = np.array(list(map(int, lines[i].split()[4:])), dtype=float)
                 
             if "Time vacancy remained at each site (ps) :" in line:
                 for j in range(len(self.temp)):
@@ -836,11 +838,11 @@ class PostProcess:
                         )
                 self.times = np.array(self.times)
                 
-            if "Counts of occurrences for each hopping path :" in line:
+            if "Counts for each hopping path :" in line:
                 for j in range(len(self.temp)):
                     self.counts.append(
                         list(map(int, lines[i+j+3].split()[1:1+np.sum(self.num_paths)]))
-                        )
+                    )
                 self.counts = np.array(self.counts, dtype=float)
                 
             if "Effective hopping parameters :" in line:
