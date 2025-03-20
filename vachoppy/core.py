@@ -234,7 +234,7 @@ class EffectiveHoppingParameter:
                 
             # visualize progress
             with open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8') as f:
-                print('',end='')
+                print('')
                 original_stdout = sys.stdout
                 sys.stdout = f
                 try:
@@ -650,7 +650,7 @@ class PhaseTransition:
         for i, s in enumerate(tqdm(self.step, 
                                    bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
                                    ascii=True,
-                                   desc=f'{GREEN}{BOLD}Progress{RESET}')):
+                                   desc=f'{RED}{BOLD}Progress{RESET}')):
             # save poscar
             label = format(s, self.digit)
             filename = os.path.join(self.prefix1, f"POSCAR_{label}")
