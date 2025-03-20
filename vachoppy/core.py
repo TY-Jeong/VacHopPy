@@ -231,18 +231,27 @@ class EffectiveHoppingParameter:
             rank = comm.Get_rank()
             if rank == 0:
                 print('VacHopPy is running...')
-                sys.stdout.flush()
-            
-            # visualize progress
-            with open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8') as f:
+
+            # visualize progress            
+            # with open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8') as f:
+            #     original_stdout = sys.stdout
+            #     sys.stdout = f
+            #     try:
+            #         self.results = VacancyHopping_parallel(self.data, self.lattice)
+            #     finally:
+            #         sys.stdout = original_stdout
+            if rank==0:
+                f = open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8')
                 original_stdout = sys.stdout
                 sys.stdout = f
-                try:
-                    self.results = VacancyHopping_parallel(self.data, self.lattice)
-                finally:
-                    sys.stdout = original_stdout
-                    
+                
+            try:
+                self.results = VacancyHopping_parallel(self.data, self.lattice)
+            finally:
+                sys.stdout = original_stdout
+                
             if rank == 0:
+                f.close()
                 self.get_parameters()
         else:
             self.results = VacancyHopping_serial(self.data, self.lattice)
