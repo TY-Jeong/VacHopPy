@@ -91,8 +91,6 @@ def VacancyHopping_parallel(data, lattice):
                 comm.send(new_task, dest=worker_id, tag=1)
             else:
                 comm.send(None, dest=worker_id, tag=0)
-        # print(f"Final results collected: {len(results)} tasks")
-        # print("All workers have completed their tasks.")
     else:
         while True:
             comm.send((rank, None), dest=0, tag=2)

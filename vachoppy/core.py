@@ -247,10 +247,12 @@ class EffectiveHoppingParameter:
                 
             try:
                 self.results = VacancyHopping_parallel(self.data, self.lattice)
-            finally:
-                sys.stdout = original_stdout
+            except:
+                print("Error occured during instantiating VacancyHopping_parallel")
+                sys.exit(0)
                 
             if rank == 0:
+                sys.stdout = original_stdout
                 f.close()
                 self.get_parameters()
         else:
