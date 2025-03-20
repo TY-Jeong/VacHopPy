@@ -50,6 +50,7 @@ class Calculator:
         self.counts = None
         self.unknown = None
         self.t_reside = None
+        self.msd_rand = None
         self.encounter_num = None
         self.encounter_msd = None
         self.encounter_path_names = None
@@ -104,6 +105,7 @@ class Calculator:
         self.counts = anal.counts[:self.num_path]
         self.unknown = anal.path[self.num_path:]
         self.t_reside = anal.total_reside_steps * self.interval
+        self.msd_rand = anal.msd_rand
         
         # instantiate Encounter
         enc = Encounter(
