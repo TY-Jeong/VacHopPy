@@ -32,6 +32,7 @@ RESET = '\033[0m'  # Reset to default color
 
 def VacancyHopping_serial(data, lattice):
     results = []
+    failure = []
     task_size = len(data.datainfo)
     for i in tqdm(range(task_size),
                   bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
@@ -42,10 +43,16 @@ def VacancyHopping_serial(data, lattice):
         if cal.success:
             results.append(cal)
         else:
-            print(f"Error occurred: {cal.temp}K ({cal.label})")
-            
+            failure.append(
+                f"  T={cal.temp}K,  Label={cal.label} ({cal.fail_reason})"
+            )
     index = [data.datainfo.index([cal.temp, cal.label]) for cal in results]
     results = [x for _, x in sorted(zip(index, results))]
+    if len(failure) > 0:
+        print(f"Error reports :")
+        for x in failure:
+            print(x)
+    print('')
     return results
 
 

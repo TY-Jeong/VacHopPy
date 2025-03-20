@@ -234,7 +234,7 @@ class EffectiveHoppingParameter:
                 
             # visualize progress
             with open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8') as f:
-                print('')
+                f.flush()
                 original_stdout = sys.stdout
                 sys.stdout = f
                 try:
