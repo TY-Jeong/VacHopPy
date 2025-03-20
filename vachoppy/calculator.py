@@ -58,7 +58,6 @@ def VacancyHopping_parallel(data, lattice):
     
     if rank==0:
         task_queue = list(range(task_size))
-        print(f"VacHopPy is running...")
         print(f"Number of AIMD data : {len(task_queue)}")
         results = []
         failure = []

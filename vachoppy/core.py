@@ -226,17 +226,21 @@ class EffectiveHoppingParameter:
         )
         
         if self.parallel:
+            # get effective hopping parameters
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            if rank == 0:
+                print('VacHopPy is running...')
+                
             # visualize progress
-            with open('progress.txt', 'w', encoding='utf-8') as f:
+            with open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8') as f:
                 original_stdout = sys.stdout
                 sys.stdout = f
                 try:
                     self.results = VacancyHopping_parallel(self.data, self.lattice)
                 finally:
-                    sys.stdout = original_stdout 
-            # get effective hopping parameters
-            comm = MPI.COMM_WORLD
-            rank = comm.Get_rank()
+                    sys.stdout = original_stdout
+                    
             if rank == 0:
                 self.get_parameters()
         else:
