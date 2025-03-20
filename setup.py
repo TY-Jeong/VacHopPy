@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='vachoppy',
-    version='0.3.17',
+    version='0.3.20',
     packages = find_packages(),
     entry_points={
         'console_scripts': [
