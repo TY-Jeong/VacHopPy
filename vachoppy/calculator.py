@@ -102,7 +102,10 @@ def VacancyHopping_parallel(data,
                 comm.send(new_task, dest=worker_id, tag=1)
             else:
                 comm.send(None, dest=worker_id, tag=0)
-                # terminated_worker += 1
+                
+        while terminated_worker < active_workers:
+            worker_id, _ = comm.recv(source=MPI.ANY_SOURCE, tag=4)
+            terminated_worker += 1
 
     else:
         comm.send((rank, None), dest=0, tag=2)
@@ -119,7 +122,7 @@ def VacancyHopping_parallel(data,
                     interval=interval
                 )
             except SystemExit:
-                print(f"Worker {rank}: Task {task} failed due to SystemExit.", flush=True)
+                # print(f"Worker {rank}: Task {task} failed due to SystemExit.", flush=True)
                 cal = Calculator_fail(data=data, index=task)
             finally:
                 comm.send((rank, cal), dest=0, tag=3)
@@ -129,7 +132,7 @@ def VacancyHopping_parallel(data,
         results = [x for _, x in sorted(zip(index, results))]
         time_f = time.time()
         if failure:
-            print(f"Error reports :")
+            print(f"\nError reports :")
             for x in failure:
                 print(x)
         print('')
