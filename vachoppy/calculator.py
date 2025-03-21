@@ -72,6 +72,7 @@ def VacancyHopping_parallel(data,
         print(f"Number of AIMD data : {len(task_queue)}")
         results = []
         failure = []
+        terminated_worker = 0
 
         while len(results) < task_size:
             status = MPI.Status()
@@ -89,14 +90,21 @@ def VacancyHopping_parallel(data,
                     )
                     message = 'fail'
                     
-                print(f"Progress: {len(results)}/{task_size} finished ({message}) : " +
-                      f"T={task_result.temp}K,  Label={task_result.label}")
-
+                output = f"Progress: {len(results)}/{task_size} finished ({message}) : T={task_result.temp}K,  Label={task_result.label}"
+                if message == 'fail':
+                    output += f"({failure[-1]})"
+                print(output)
+                
             if task_queue:
                 new_task = task_queue.pop()
                 comm.send(new_task, dest=worker_id, tag=1)
             else:
                 comm.send(None, dest=worker_id, tag=0)
+                terminated_worker += 1
+                if terminated_worker == size - 1:
+                    print("No remaining worker : VacHopPy is terminated")
+                    print(f"Number of uncompleted task : {task_size - len(results)}")
+                    break
     else:
         while True:
             comm.send((rank, None), dest=0, tag=2)
