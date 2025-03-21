@@ -232,13 +232,13 @@ class EffectiveHoppingParameter:
             size = comm.Get_size()
             
             if rank == 0:
-                if size < 2:
-                    print("number of cpu node shoud be >= 2.")
-                    MPI.COMM_WORLD.Abort(1)
                 print('VacHopPy is running...')
                 f = open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8')
                 original_stdout = sys.stdout
                 sys.stdout = f
+                if size < 2:
+                    print("number of cpu node shoud be >= 2.")
+                    MPI.COMM_WORLD.Abort(1)
 
             self.results = VacancyHopping_parallel(
                 self.data, self.lattice,self.interval
