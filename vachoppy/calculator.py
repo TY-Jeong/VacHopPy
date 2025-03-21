@@ -30,7 +30,7 @@ RESET = '\033[0m'  # Reset to default color
 
 
 
-def VacancyHopping_serial(data, lattice):
+def VacancyHopping_serial(data, lattice, interval):
     results = []
     failure = []
     task_size = len(data.datainfo)
@@ -39,7 +39,7 @@ def VacancyHopping_serial(data, lattice):
                   ascii=True,
                   desc=f'{RED}{BOLD}Progress{RESET}'):
         
-        cal = Calculator(data=data, index=i, lattice=lattice, interval=0.1)
+        cal = Calculator(data=data, index=i, lattice=lattice, interval=interval)
         if cal.success:
             results.append(cal)
         else:
@@ -84,7 +84,10 @@ def VacancyHopping_parallel(data, lattice):
                         f"  T={task_result.temp}K,  Label={task_result.label} ({task_result.fail_reason})"
                     )
                     status = 'fail'
-                print(f"Progress: {len(results)}/{task_size} finished. ({status})")
+                print(
+                    f"Progress: {len(results)}/{task_size} finished ({status}) : "
+                      + f"T={task_result.temp}K,  Label={task_result.label}"
+                )
 
             if task_queue:
                 new_task = task_queue.pop()
@@ -104,7 +107,7 @@ def VacancyHopping_parallel(data, lattice):
                 data=data,
                 index=task,
                 lattice=lattice,
-                interval=0.1
+                interval=interval
             )
             comm.send((rank, cal), dest=0, tag=3)
     if rank==0:
