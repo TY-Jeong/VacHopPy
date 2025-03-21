@@ -82,14 +82,14 @@ def VacancyHopping_parallel(data,
             if task_result is not None:
                 if task_result.success:
                     results.append(task_result)
-                    status = 'success'
+                    message = 'success'
                 else:
                     failure.append(
                         f"  T={task_result.temp}K,  Label={task_result.label} ({task_result.fail_reason})"
                     )
-                    status = 'fail'
+                    message = 'fail'
                     
-                print(f"Progress: {len(results)}/{task_size} finished ({status}) : " +
+                print(f"Progress: {len(results)}/{task_size} finished ({message}) : " +
                       f"T={task_result.temp}K,  Label={task_result.label}")
 
             if task_queue:
@@ -98,7 +98,6 @@ def VacancyHopping_parallel(data,
             else:
                 comm.send(None, dest=worker_id, tag=0)
     else:
-        # 현재 어떤 경우에 
         while True:
             comm.send((rank, None), dest=0, tag=2)
             task = comm.recv(source=0, tag=MPI.ANY_TAG)
@@ -120,7 +119,6 @@ def VacancyHopping_parallel(data,
                 cal = Calculator_fail(data=data, index=task)
             finally:
                 comm.send((rank, cal), dest=0, tag=3)
-                # raise  # `sys.exit(0)`를 다시 호출하여 정상 종료
             
     if rank==0:
         index = [data.datainfo.index([cal.temp, cal.label]) for cal in results]
@@ -206,10 +204,14 @@ class Calculator:
             )
             traj.correct_multivacancy(start=1)
             traj.check_multivacancy()
-        except:
+        except SystemExit:
             # print(f"Error occured during trajectory analysis : {self.temp}K, {self.label}\n")
             self.fail_reason = "Error by trajectory.Trajectory"
             self.success = False
+            return
+        except BaseException as e:
+            self.success = False
+            self.fail_reason = "Error by trajectory.Trajectory"
             return
         
         if traj.multi_vac is True:
@@ -225,6 +227,10 @@ class Calculator:
                 self.success = False
                 self.fail_reason = "Error during TS correction"
                 return
+            except BaseException as e:
+                self.success = False
+                self.fail_reason = "Error during TS correction"
+                return
         
         # instantiate Analyzer
         try:
@@ -237,6 +243,11 @@ class Calculator:
             self.success = False
             self.fail_reason = "Error by trajectory.TrajectoryAnalyzer"
             return
+        except BaseException as e:
+            self.success = False
+            self.fail_reason = "Error by trajectory.TrajectoryAnalyzer"
+            return
+        
             
         self.path_vac = anal.path_vac
         self.counts = anal.counts[:self.num_path]
@@ -251,6 +262,10 @@ class Calculator:
                 verbose=False
             )
         except SystemExit:
+            self.success = False
+            self.fail_reason = "Error by trajectory.Encounter"
+            return
+        except BaseException as e:
             self.success = False
             self.fail_reason = "Error by trajectory.Encounter"
             return
