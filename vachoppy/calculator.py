@@ -98,10 +98,11 @@ def VacancyHopping_parallel(data,
                 comm.send(new_task, dest=worker_id, tag=1)
             else:
                 comm.send(None, dest=worker_id, tag=0)
+                terminated_worker += 1
                 
-        while terminated_worker < active_workers:
-            worker_id, _ = comm.recv(source=MPI.ANY_SOURCE, tag=4)
-            terminated_worker += 1
+        # while terminated_worker < active_workers:
+        #     worker_id, _ = comm.recv(source=MPI.ANY_SOURCE, tag=4)
+        #     terminated_worker += 1
 
     else:
         while True:
