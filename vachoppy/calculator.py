@@ -104,7 +104,7 @@ def VacancyHopping_parallel(data,
             task = comm.recv(source=0, tag=MPI.ANY_TAG)
 
             if task is None:
-                # print(f"Worker {rank} received termination sign!")
+                print(f"Worker {rank} received termination sign!")
                 break
             
             try:
@@ -117,8 +117,9 @@ def VacancyHopping_parallel(data,
                 comm.send((rank, cal), dest=0, tag=3)
             except SystemExit:
                 cal = Calculator_fail(data=data, index=task)
-                comm.send((rank, cal), dest=0, tag=3)  # 빈 결과를 보내서 rank=0이 기다리지 않도록 함
+                comm.send((rank, cal), dest=0, tag=3)
                 # raise  # `sys.exit(0)`를 다시 호출하여 정상 종료
+                
             except Exception as e:
                 cal = Calculator_fail(data=data, index=task)
                 comm.send((rank, cal), dest=0, tag=3) 
