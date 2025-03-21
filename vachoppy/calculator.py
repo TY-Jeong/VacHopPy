@@ -116,8 +116,11 @@ def VacancyHopping_parallel(data,
                 )
                 comm.send((rank, cal), dest=0, tag=3)
             except SystemExit:
-                comm.send((rank, None), dest=0, tag=3)  # 빈 결과를 보내서 rank=0이 기다리지 않도록 함
-                raise  # `sys.exit(0)`를 다시 호출하여 정상 종료
+                cal = Calculator_fail(
+                    data=data, index=task
+                )
+                comm.send((rank, cal), dest=0, tag=3)  # 빈 결과를 보내서 rank=0이 기다리지 않도록 함
+                # raise  # `sys.exit(0)`를 다시 호출하여 정상 종료
             
     if rank==0:
         index = [data.datainfo.index([cal.temp, cal.label]) for cal in results]
@@ -131,7 +134,13 @@ def VacancyHopping_parallel(data,
         print('')
         print(f"Total time taken: {time_f - time_i} s")
         return results
-    
+
+class Calculator_fail:
+    def __init__(self, data, index):
+        self.success = False
+        self.fail_reason = 'Unknown reason'
+        self.temp = data.datainfo[index][0]
+        self.label = data.datainfo[index][1]
     
 class Calculator:
     def __init__(self,
