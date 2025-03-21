@@ -116,13 +116,10 @@ def VacancyHopping_parallel(data,
                 )
                 comm.send((rank, cal), dest=0, tag=3)
             except SystemExit:
+                print(f"Worker {rank}: Task {task} failed due to SystemExit.", flush=True)
                 cal = Calculator_fail(data=data, index=task)
                 comm.send((rank, cal), dest=0, tag=3)
                 # raise  # `sys.exit(0)`를 다시 호출하여 정상 종료
-                
-            except Exception as e:
-                cal = Calculator_fail(data=data, index=task)
-                comm.send((rank, cal), dest=0, tag=3) 
             
     if rank==0:
         index = [data.datainfo.index([cal.temp, cal.label]) for cal in results]
