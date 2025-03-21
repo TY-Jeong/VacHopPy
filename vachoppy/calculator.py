@@ -74,8 +74,10 @@ def VacancyHopping_parallel(data,
         failure = []
         completed_task = 0
         terminated_worker = 0
+        
+        active_workers = size - 1
 
-        while completed_task < len(task_queue):
+        while completed_task < task_size or terminated_worker < active_workers:
             status = MPI.Status()
             worker_id, task_result = comm.recv(
                 source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status
@@ -93,22 +95,23 @@ def VacancyHopping_parallel(data,
                     state = 'fail'
                 print(f"Progress: {len(results)}/{task_size} finished ({state}) / " +
                       f"T={task_result.temp}K, Label={task_result.label} / " + 
-                      f"remaining worker = {size-1-terminated_worker}/{size-1}")
+                      f"remaining worker = {active_workers - terminated_worker}/{active_workers}")
                 
-            if len(task_queue) > 0:
+            if task_queue:
                 new_task = task_queue.pop()
                 comm.send(new_task, dest=worker_id, tag=1)
             else:
                 comm.send(None, dest=worker_id, tag=0)
-                terminated_worker += 1
+                
+        while terminated_worker < active_workers:
+            worker_id, _ = comm.recv(source=MPI.ANY_SOURCE, tag=4)
+            terminated_worker += 1
 
     else:
         while True:
-            comm.send((rank, None), dest=0, tag=2)
             task = comm.recv(source=0, tag=MPI.ANY_TAG)
-
             if task is None:
-                # print(f"Worker {rank} received termination sign!")
+                comm.send((rank, None), dest=0, tag=4)
                 break
             
             try:
@@ -118,7 +121,6 @@ def VacancyHopping_parallel(data,
                     lattice=lattice,
                     interval=interval
                 )
-                # comm.send((rank, cal), dest=0, tag=3)
             except SystemExit:
                 print(f"Worker {rank}: Task {task} failed due to SystemExit.", flush=True)
                 cal = Calculator_fail(data=data, index=task)
@@ -129,8 +131,7 @@ def VacancyHopping_parallel(data,
         index = [data.datainfo.index([cal.temp, cal.label]) for cal in results]
         results = [x for _, x in sorted(zip(index, results))]
         time_f = time.time()
-        
-        if len(failure) > 0:
+        if failure:
             print(f"Error reports :")
             for x in failure:
                 print(x)
