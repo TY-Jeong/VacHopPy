@@ -30,7 +30,9 @@ RESET = '\033[0m'  # Reset to default color
 
 
 
-def VacancyHopping_serial(data, lattice, interval):
+def VacancyHopping_serial(data, 
+                          lattice, 
+                          interval):
     results = []
     failure = []
     task_size = len(data.datainfo)
@@ -56,7 +58,9 @@ def VacancyHopping_serial(data, lattice, interval):
     return results
 
 
-def VacancyHopping_parallel(data, lattice):
+def VacancyHopping_parallel(data, 
+                            lattice, 
+                            interval):
     time_i = time.time()
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
