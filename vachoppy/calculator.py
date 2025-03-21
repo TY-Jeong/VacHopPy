@@ -105,12 +105,8 @@ def VacancyHopping_parallel(data,
                 # terminated_worker += 1
 
     else:
-        first = True
+        comm.send((rank, None), dest=0, tag=2)
         while True:
-            if first:
-                comm.send((rank, None), dest=0, tag=2)
-                first=False
-                
             task = comm.recv(source=0, tag=MPI.ANY_TAG)
             if task is None:
                 comm.send((rank, None), dest=0, tag=4)
