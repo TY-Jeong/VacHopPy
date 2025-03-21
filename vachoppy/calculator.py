@@ -91,31 +91,30 @@ def VacancyHopping_parallel(data,
                     state = 'fail'
                 print(f"Progress: {completed_task}/{task_size} finished ({state}) / " +
                       f"T={task_result.temp}K, Label={task_result.label} / " + 
-                      f"active worker = {active_workers - terminated_worker}/{active_workers}")
+                      f"remaining worker = {active_workers - terminated_worker}/{active_workers}")
                 
             if task_queue:
                 new_task = task_queue.pop()
                 comm.send(new_task, dest=worker_id, tag=1)
             else:
                 comm.send(None, dest=worker_id, tag=0)
-                while True:
-                    worker_id, message = comm.recv(source=worker_id, tag=MPI.ANY_TAG)
-                    if message == "Terminated" and status.Get_tag() == 4:
-                        terminated_worker += 1
-                        break
+                terminated_worker += 1
                 
         # while terminated_worker < active_workers:
         #     worker_id, _ = comm.recv(source=MPI.ANY_SOURCE, tag=4)
         #     terminated_worker += 1
 
     else:
+        first = True
         while True:
-            comm.send((rank, None), dest=0, tag=2)
+            if first:
+                comm.send((rank, None), dest=0, tag=2)
+                first=False
+                
             task = comm.recv(source=0, tag=MPI.ANY_TAG)
             if task is None:
-                comm.send((rank, "Terminated"), dest=0, tag=4)
+                comm.send((rank, None), dest=0, tag=4)
                 break
-            
             try:
                 cal = Calculator(
                     data=data,
