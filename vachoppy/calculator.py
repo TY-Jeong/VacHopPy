@@ -72,15 +72,17 @@ def VacancyHopping_parallel(data,
         print(f"Number of AIMD data : {len(task_queue)}")
         results = []
         failure = []
+        completed_task = 0
         terminated_worker = 0
 
-        while terminated_worker < (size - 1):
+        while completed_task < len(task_queue):
             status = MPI.Status()
             worker_id, task_result = comm.recv(
                 source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status
             )
 
             if task_result is not None:
+                completed_task += 1
                 if task_result.success:
                     results.append(task_result)
                     state = 'success'
@@ -89,16 +91,17 @@ def VacancyHopping_parallel(data,
                         f"  T={task_result.temp}K,  Label={task_result.label} ({task_result.fail_reason})"
                     )
                     state = 'fail'
-
-                print(f"Progress: {len(results)}/{task_size} finished ({state}) : "+
-                      f"T={task_result.temp}K, Label={task_result.label}")
+                print(f"Progress: {len(results)}/{task_size} finished ({state}) / " +
+                      f"T={task_result.temp}K, Label={task_result.label} / " + 
+                      f"remaining worker = {size-1-terminated_worker}/{size-1}")
                 
-            if task_queue:
+            if len(task_queue) > 0:
                 new_task = task_queue.pop()
                 comm.send(new_task, dest=worker_id, tag=1)
             else:
                 comm.send(None, dest=worker_id, tag=0)
                 terminated_worker += 1
+
     else:
         while True:
             comm.send((rank, None), dest=0, tag=2)
@@ -134,6 +137,7 @@ def VacancyHopping_parallel(data,
         print('')
         print(f"Total time taken: {time_f - time_i} s")
         return results
+
 
 class Calculator_fail:
     def __init__(self, data, index):
