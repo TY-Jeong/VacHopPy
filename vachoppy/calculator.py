@@ -74,7 +74,7 @@ def VacancyHopping_parallel(data,
         failure = []
         terminated_worker = 0
 
-        while len(results) < task_size:
+        while terminated_worker < (size - 1):
             status = MPI.Status()
             worker_id, task_result = comm.recv(
                 source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status
@@ -83,17 +83,15 @@ def VacancyHopping_parallel(data,
             if task_result is not None:
                 if task_result.success:
                     results.append(task_result)
-                    message = 'success'
+                    state = 'success'
                 else:
                     failure.append(
                         f"  T={task_result.temp}K,  Label={task_result.label} ({task_result.fail_reason})"
                     )
-                    message = 'fail'
-                    
-                output = f"Progress: {len(results)}/{task_size} finished ({message}) : T={task_result.temp}K,  Label={task_result.label}"
-                if message == 'fail':
-                    output += f"({failure[-1]})"
-                print(output)
+                    state = 'fail'
+
+                print(f"Progress: {len(results)}/{task_size} finished ({state}) : "+
+                      f"T={task_result.temp}K, Label={task_result.label}")
                 
             if task_queue:
                 new_task = task_queue.pop()
@@ -101,17 +99,13 @@ def VacancyHopping_parallel(data,
             else:
                 comm.send(None, dest=worker_id, tag=0)
                 terminated_worker += 1
-                if terminated_worker == size - 1:
-                    print("No remaining worker : VacHopPy is terminated")
-                    print(f"Number of uncompleted task : {task_size - len(results)}")
-                    break
     else:
         while True:
             comm.send((rank, None), dest=0, tag=2)
             task = comm.recv(source=0, tag=MPI.ANY_TAG)
 
             if task is None:
-                print(f"Worker {rank} received termination sign!")
+                # print(f"Worker {rank} received termination sign!")
                 break
             
             try:
