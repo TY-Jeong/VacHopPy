@@ -122,7 +122,6 @@ def VacancyHopping_parallel(data,
                     interval=interval
                 )
             except SystemExit:
-                # print(f"Worker {rank}: Task {task} failed due to SystemExit.", flush=True)
                 cal = Calculator_fail(data=data, index=task)
             finally:
                 comm.send((rank, cal), dest=0, tag=3)
@@ -146,7 +145,8 @@ class Calculator_fail:
         self.fail_reason = 'Unknown reason'
         self.temp = data.datainfo[index][0]
         self.label = data.datainfo[index][1]
-    
+
+
 class Calculator:
     def __init__(self,
                  data,
