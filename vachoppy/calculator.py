@@ -70,12 +70,8 @@ def VacancyHopping_parallel(data,
     if rank==0:
         task_queue = list(range(task_size))
         print(f"Number of AIMD data : {len(task_queue)}")
-        results = []
-        failure = []
-        completed_task = 0
-        terminated_worker = 0
-        
-        active_workers = size - 1
+        results, failure = [], []
+        completed_task, terminated_worker, active_workers = 0, 0, size - 1
 
         while completed_task < task_size or terminated_worker < active_workers:
             status = MPI.Status()
@@ -109,6 +105,7 @@ def VacancyHopping_parallel(data,
 
     else:
         while True:
+            comm.send((rank, None), dest=0, tag=2)
             task = comm.recv(source=0, tag=MPI.ANY_TAG)
             if task is None:
                 comm.send((rank, None), dest=0, tag=4)
