@@ -106,14 +106,19 @@ def VacancyHopping_parallel(data,
             if task is None:
                 # print(f"Worker {rank} received termination sign!")
                 break
-
-            cal = Calculator(
-                data=data,
-                index=task,
-                lattice=lattice,
-                interval=interval
-            )
-            comm.send((rank, cal), dest=0, tag=3)
+            
+            try:
+                cal = Calculator(
+                    data=data,
+                    index=task,
+                    lattice=lattice,
+                    interval=interval
+                )
+                comm.send((rank, cal), dest=0, tag=3)
+            except SystemExit:
+                comm.send((rank, None), dest=0, tag=3)  # 빈 결과를 보내서 rank=0이 기다리지 않도록 함
+                raise  # `sys.exit(0)`를 다시 호출하여 정상 종료
+            
     if rank==0:
         index = [data.datainfo.index([cal.temp, cal.label]) for cal in results]
         results = [x for _, x in sorted(zip(index, results))]
@@ -194,7 +199,7 @@ class Calculator:
             traj.check_multivacancy()
         except:
             # print(f"Error occured during trajectory analysis : {self.temp}K, {self.label}\n")
-            self.fail_reason = "Error occured during instantiating trajectory.Trajectory class"
+            self.fail_reason = "Error by trajectory.Trajectory"
             self.success = False
             return
         
@@ -205,15 +210,25 @@ class Calculator:
             return
         
         if self.data.force is not None:
-            traj.correct_transition_state()
+            try:
+                traj.correct_transition_state()
+            except SystemExit:
+                self.success = False
+                self.fail_reason = "Error during TS correction"
+                return
         
         # instantiate Analyzer
-        anal = TrajectoryAnalyzer(
-            traj=traj,
-            lattice=self.lattice,
-            verbose=False
-        )
-        
+        try:
+            anal = TrajectoryAnalyzer(
+                traj=traj,
+                lattice=self.lattice,
+                verbose=False
+            )
+        except SystemExit:
+            self.success = False
+            self.fail_reason = "Error by trajectory.TrajectoryAnalyzer"
+            return
+            
         self.path_vac = anal.path_vac
         self.counts = anal.counts[:self.num_path]
         self.unknown = anal.path[self.num_path:]
@@ -221,10 +236,16 @@ class Calculator:
         self.msd_rand = anal.msd_rand
         
         # instantiate Encounter
-        enc = Encounter(
-            analyzer=anal,
-            verbose=False
-        )
+        try:
+            enc = Encounter(
+                analyzer=anal,
+                verbose=False
+            )
+        except SystemExit:
+            self.success = False
+            self.fail_reason = "Error by trajectory.Encounter"
+            return
+        
         self.encounter_num = enc.num_enc
         self.encounter_msd = enc.msd
         self.encounter_path_names = enc.path_names
