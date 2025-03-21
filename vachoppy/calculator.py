@@ -88,10 +88,9 @@ def VacancyHopping_parallel(data,
                         f"  T={task_result.temp}K,  Label={task_result.label} ({task_result.fail_reason})"
                     )
                     status = 'fail'
-                print(
-                    f"Progress: {len(results)}/{task_size} finished ({status}) : "
-                      + f"T={task_result.temp}K,  Label={task_result.label}"
-                )
+                    
+                print(f"Progress: {len(results)}/{task_size} finished ({status}) : " +
+                      f"T={task_result.temp}K,  Label={task_result.label}")
 
             if task_queue:
                 new_task = task_queue.pop()
@@ -99,6 +98,7 @@ def VacancyHopping_parallel(data,
             else:
                 comm.send(None, dest=worker_id, tag=0)
     else:
+        # 현재 어떤 경우에 
         while True:
             comm.send((rank, None), dest=0, tag=2)
             task = comm.recv(source=0, tag=MPI.ANY_TAG)
@@ -114,10 +114,11 @@ def VacancyHopping_parallel(data,
                     lattice=lattice,
                     interval=interval
                 )
-                comm.send((rank, cal), dest=0, tag=3)
+                # comm.send((rank, cal), dest=0, tag=3)
             except SystemExit:
                 print(f"Worker {rank}: Task {task} failed due to SystemExit.", flush=True)
                 cal = Calculator_fail(data=data, index=task)
+            finally:
                 comm.send((rank, cal), dest=0, tag=3)
                 # raise  # `sys.exit(0)`를 다시 호출하여 정상 종료
             
