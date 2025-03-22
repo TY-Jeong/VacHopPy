@@ -626,7 +626,7 @@ class Trajectory:
         for step in tqdm(step,
                          bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
                          ascii=False,
-                         desc=f'{RED}{BOLD}snapshot{RESET}'):
+                         desc=f'{RED}{BOLD}Progress{RESET}'):
             
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')

@@ -394,8 +394,8 @@ def phase_transition_serial(snapshots,
     
     results = []
     for i in tqdm(list(range(task_size)),
-                  bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
-                  ascii=True,
+                  bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
+                  ascii=False,
                   desc=f'{RED}{BOLD}Progress{RESET}'):
         fingerprint = get_fingerprint(
                 poscar=os.path.join(path_poscar, f"POSCAR_{format(i, digit)}"),

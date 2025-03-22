@@ -36,8 +36,8 @@ def VacancyHopping_serial(data,
     failure = []
     task_size = len(data.datainfo)
     for i in tqdm(range(task_size),
-                  bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
-                  ascii=True,
+                  bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
+                  ascii=False,
                   desc=f'{RED}{BOLD}Progress{RESET}'):
         
         try:
