@@ -1,7 +1,26 @@
 import os
 import sys
+import time
 import numpy as np
 import matplotlib.pyplot as plt
+
+from tqdm import tqdm
+from colorama import Fore
+from itertools import combinations_with_replacement
+from vachoppy.utils import find_last_direct_line, CosineDistance
+
+try:
+    from mpi4py import MPI
+    PARALELL = True
+except:
+    PARALELL = False
+    
+BOLD = '\033[1m'
+CYAN = '\033[36m'
+MAGENTA = '\033[35m'
+GREEN = '\033[92m' # Green color
+RED = '\033[91m'   # Red color
+RESET = '\033[0m'  # Reset to default color
 
 
 class FingerPrint:
@@ -184,3 +203,367 @@ class FingerPrint:
             plt.savefig(outfig, dpi=dpi)
         if disp:
             plt.show()
+            
+class Snapshots:
+    def __init__(self,
+                 xdatcar,
+                 outcar,
+                 interval,
+                 prefix='snapshots'):
+        """
+        interval : time interval used in average (ps)
+        """
+        self.xdatcar = xdatcar
+        self.outcar = outcar
+        self.prefix = prefix
+        self.interval = interval
+        
+        # check file
+        if not os.path.isfile(self.xdatcar):
+            print(f'{self.xdatcar} is not found')
+            sys.exit(0)
+        if not os.path.isfile(self.outcar):
+            print(f'{self.outcar} is not found')
+            sys.exit(0)
+        if not os.path.isdir(self.prefix):
+            os.makedirs(self.prefix)
+            print(f'{self.prefix} directory is created.')
+            
+        # read outcar
+        self.potim = None
+        self.read_outcar()
+        if self.potim is None:
+            print(f"No POTIM data in {self.outcar} file.")
+            sys.exit(0)
+        else:
+            self.interval_step = int(self.interval * 1000 / self.potim)
+        
+        # read xdatcar
+        self.nsw = None
+        self.digit = None
+        self.num_step = None
+        self.position = []
+        self.read_xdatcar()
+        
+        self.pair = []
+        self.pair.extend(combinations_with_replacement(self.atom_species, 2))
+        
+        # save poscar
+        for i in range(self.num_step):
+            filename = os.path.join(
+                self.prefix, f"POSCAR_{format(i, self.digit)}"
+            )
+            self.save_poscar(i, filename)
+            
+        print(f"AIMD snapshots are saved in {self.prefix} directory.")
+        
+    def read_outcar(self):
+        with open(self.outcar, 'r') as f:
+            for line in f:
+                if 'POTIM' in line:
+                    self.potim = float(line.split()[2])
+                    break
+        
+    def read_xdatcar(self):
+        self.nsw = find_last_direct_line(self.xdatcar)
+        if self.nsw % self.interval_step != 0:
+            print(
+                f'NSW ({self.nsw} step) is not divided by interval ({self.interval_step} step)'
+            )
+            sys.exit(0)
+        
+        with open(self.xdatcar, 'r') as f:
+            lines = np.array([s.strip() for s in f])
+        
+        self.lattice = np.array([s.split() for s in lines[2:5]], dtype=float)
+        self.lattice *= float(lines[1])
+        
+        self.atom_species = np.array(lines[5].split())
+        self.num_species = len(self.atom_species)
+        
+        self.num_atoms = np.array(lines[6].split(), dtype=int)
+        num_atoms_tot = np.sum(self.num_atoms)
+        self.num_step = int(self.nsw / self.interval_step)
+        
+        digit = int(np.log10(self.num_step)) + 1
+        self.digit = f'0{digit}'
+        
+        for i, spec in enumerate(self.atom_species):           
+            atom = {}
+            atom['species'] = spec
+            atom['num'] = self.num_atoms[i]
+            
+            traj = np.zeros((atom['num'], self.num_step, 3)) 
+
+            for j in range(atom['num']):
+                start = np.sum(self.num_atoms[:i]) + j + 8
+                end = lines.shape[0] + 1
+                step = num_atoms_tot + 1
+                coords = [s.split() for s in lines[start:end:step]]
+                coords = np.array(coords, dtype=float)
+                
+                displacement = np.zeros_like(coords)
+                displacement[0,:] = 0
+                displacement[1:,:] = np.diff(coords, axis=0)
+
+                # correction for periodic boundary condition
+                displacement[displacement>0.5] -= 1.0
+                displacement[displacement<-0.5] += 1.0
+                displacement = np.cumsum(displacement, axis=0)
+                coords = coords[0] + displacement
+
+                # averaged coordination
+                coords = coords.reshape(self.num_step, self.interval_step, 3)
+                coords = np.average(coords, axis=1)
+
+                # wrap back into cell
+                coords = coords - np.floor(coords)
+                traj[j] = coords
+
+            atom['traj'] = traj
+            self.position += [atom]
+            
+    def save_poscar(self, 
+                    step, 
+                    filename):
+        with open(filename, 'w') as f:
+            f.write(f"step_{step}. generated by vachoppy.\n")
+            f.write("1.0\n")
+
+            for lat in self.lattice:
+                f.write("%.6f %.6f %.6f\n"%(lat[0], lat[1], lat[2]))
+
+            for atom in self.position:
+                f.write(f"{atom['species']} ")
+            f.write('\n')
+            for atom in self.position:
+                f.write(f"{atom['num']} ")
+            f.write('\n')
+            f.write("Direct\n")
+            for atom in self.position:
+                for traj in atom['traj'][:,step,:]:
+                    f.write("%.6f %.6f %.6f\n"%(traj[0], traj[1], traj[2]))
+                    
+def get_fingerprint(poscar, filename, atom_pair, Rmax, delta, sigma):
+    # get fingerprint
+    fingerprint = []
+    for (A, B) in atom_pair:
+        fingerprint_i = FingerPrint(A, B, poscar, Rmax, delta, sigma)
+        fingerprint.append(fingerprint_i.fingerprint)
+    fingerprint = np.array(fingerprint).reshape(1, -1).squeeze()
+    
+    # save fingerprint
+    with open(filename, 'w') as f:
+        f.write(f'# Rmax, delta, sigma = {Rmax}, {delta}, {sigma}\n')
+        f.write('# pair : ')
+        for (A, B) in atom_pair:
+            f.write(f'{A}-{B}, ')
+        f.write('\n')
+        
+        R = np.linspace(0, Rmax * len(atom_pair), len(fingerprint))
+        for x, y in zip(R, fingerprint):
+            f.write(f'  {x:2.6f}\t{y:2.6f}\n')
+
+    return fingerprint
+
+def phase_transition_serial(snapshots,
+                            poscar_ref,
+                            Rmax,
+                            delta,
+                            sigma,
+                            prefix='fingerprints'):
+    
+    digit = snapshots.digit
+    interval = snapshots.interval
+    atom_pair = snapshots.pair
+    path_poscar = snapshots.prefix
+    task_size = snapshots.num_step
+    
+    if not os.path.isdir(prefix):
+            os.makedirs(prefix)
+            print(f'{prefix} directory is created.')
+    
+    fingerprint_ref = get_fingerprint(
+        poscar=poscar_ref,
+        filename=os.path.join(prefix, "fingerprint_ref.txt"),
+        atom_pair=atom_pair,
+        Rmax=Rmax,
+        delta=delta,
+        sigma=sigma
+    )
+    
+    results = []
+    for i in tqdm(list(range(task_size)),
+                  bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
+                  ascii=True,
+                  desc=f'{RED}{BOLD}Progress{RESET}'):
+        fingerprint = get_fingerprint(
+                poscar=os.path.join(path_poscar, f"POSCAR_{format(i, digit)}"),
+                filename=os.path.join(prefix, f"fingerprint_{format(i, digit)}"),
+                atom_pair=atom_pair,
+                Rmax=Rmax,
+                delta=delta,
+                sigma=sigma
+            )
+        d_cos = CosineDistance(fingerprint_ref, fingerprint)
+        results.append([i, d_cos])
+    
+    results = np.array(results)
+    results[:,0] *= interval
+    
+    # plot cosine distance
+    plt.figure(figsize=(12, 4))
+    plt.scatter(results[:,0], results[:,1], s=25)
+    plt.xlabel("t (ps)", fontsize=13)
+    plt.ylabel('Cosine distnace', fontsize=13)
+    plt.savefig('cosine_distance.png', dpi=300)
+    plt.close()
+    print('cosine_distance.png is created.')
+    
+    # save cosine distance
+    with open('cosine_distance.txt', 'w') as f:
+        f.write(f'# Rmax, delta, sigma = {Rmax}, {delta}, {sigma}\n')
+        f.write('# pair : ')
+        for (A, B) in atom_pair:
+            f.write(f'{A}-{B}, ')
+        f.write('\n')
+        for [x, y] in results:
+                f.write(f'  {x}\t{y:.6f}\n')
+    print('cosine_distance.txt is created.')
+        
+
+def phase_transition_parallel(snapshots,
+                              poscar_ref,
+                              Rmax,
+                              delta,
+                              sigma,
+                              prefix='fingerprints'):
+    """
+    snapshots : instant of Snapshots class
+    """
+    # time estimation
+    time_i = time.time()
+    
+    # parameters from Snapshots
+    digit = snapshots.digit
+    interval = snapshots.interval
+    atom_pair = snapshots.pair
+    path_poscar = snapshots.prefix
+    task_size = snapshots.num_step
+    
+    # parallelization
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    
+    # master
+    if rank == 0:
+        if not os.path.isdir(prefix):
+            os.makedirs(prefix)
+            print(f'{prefix} directory is created.')
+            
+        task_queue = list(range(task_size))
+        print(f"Number of snapshots : {task_size}")
+        
+        results = []
+        completed_task = 0
+        terminated_worker = 0
+        active_workers = size - 1
+        
+        while completed_task < task_size or terminated_worker < active_workers:
+            status = MPI.Status()
+            worker_id, task_result = comm.recv(
+                source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status
+            )
+            
+            # tag=4 : response to termination sign
+            if status.Get_tag() == 4:
+                terminated_worker += 1
+                continue
+            
+            if task_result is not None:
+                completed_task += 1
+                results.append(task_result)
+                print(f"Progress: {completed_task}/{task_size}, " +
+                      f"remaining workers = {active_workers - terminated_worker}/{active_workers}")
+            
+            if task_queue:
+                new_task = task_queue.pop()
+                # tag=1 : allocating task
+                comm.send(new_task, dest=worker_id, tag=1)
+            else:
+                # tag=0 : termination sign
+                comm.send(None, dest=worker_id, tag=0)
+        
+        # to confirm all workers are terminated
+        while terminated_worker < active_workers:
+            worker_id, _ = comm.recv(source=MPI.ANY_SOURCE, tag=4)
+            terminated_worker += 1
+    
+    # workers
+    else:
+        # fingerprint of reference phase
+        fingerprint_ref = get_fingerprint(
+            poscar=poscar_ref,
+            filename=os.path.join(prefix, "fingerprint_ref.txt"),
+            atom_pair=atom_pair,
+            Rmax=Rmax,
+            delta=delta,
+            sigma=sigma
+        )
+            
+        # tag=2 : request for very first task
+        comm.send((rank, None), dest=0, tag=2)
+        
+        while True:
+            task = comm.recv(source=0, tag=MPI.ANY_TAG)
+            
+            if task is None:
+                # no remaining task
+                comm.send((rank, None), dest=0, tag=4)
+                break
+            
+            # get fingerprint
+            fingerprint = get_fingerprint(
+                poscar=os.path.join(path_poscar, f"POSCAR_{format(task, digit)}"),
+                filename=os.path.join(prefix, f"fingerprint_{format(task, digit)}"),
+                atom_pair=atom_pair,
+                Rmax=Rmax,
+                delta=delta,
+                sigma=sigma
+            )
+            
+            # get cosine distnace
+            d_cos = CosineDistance(fingerprint_ref, fingerprint)
+            
+            # tag=3 : send result to master
+            comm.send((rank, [task, d_cos]), dest=0, tag=3)
+            
+    if rank == 0:
+        # sort results
+        results.sort(key=lambda x: x[0])
+        results = np.array(results)
+        results[:,0] *= interval
+        
+        # plot cosine distance
+        plt.figure(figsize=(12, 4))
+        plt.scatter(results[:,0], results[:,1], s=25)
+        plt.xlabel("t (ps)", fontsize=13)
+        plt.ylabel('Cosine distnace', fontsize=13)
+        plt.savefig('cosine_distance.png', dpi=300)
+        plt.close()
+        print('cosine_distance.png is created.')
+        
+        # save cosine distance
+        with open('cosine_distance.txt', 'w') as f:
+            f.write(f'# Rmax, delta, sigma = {Rmax}, {delta}, {sigma}\n')
+            f.write('# pair : ')
+            for (A, B) in atom_pair:
+                f.write(f'{A}-{B}, ')
+            f.write('\n')
+            for [x, y] in results:
+                 f.write(f'  {x}\t{y:.6f}\n')
+        print('cosine_distance.txt is created.')
+        
+        time_f = time.time()
+        print(f"total time taken = {time_f - time_i} s")

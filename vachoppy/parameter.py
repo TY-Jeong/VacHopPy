@@ -100,9 +100,9 @@ def VacancyHopping_parallel(data,
                         f"  T={task_result.temp}K,  Label={task_result.label} ({task_result.fail_reason})"
                     )
                     state = 'fail'
-                print(f"Progress: {completed_task}/{task_size} finished ({state}) / " +
-                      f"T={task_result.temp}K, Label={task_result.label} / " + 
-                      f"remaining worker = {active_workers - terminated_worker}/{active_workers}")
+                print(f"Progress: {completed_task}/{task_size} finished ({state}), " +
+                      f"T={task_result.temp}K Label={task_result.label}, " + 
+                      f"remaining workers = {active_workers - terminated_worker}/{active_workers}")
                 
             if task_queue:
                 new_task = task_queue.pop()

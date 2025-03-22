@@ -560,230 +560,93 @@ class PhaseTransition:
                  xdatcar,
                  outcar,
                  interval,
-                 poscar_mother,
-                 prefix1='poscars',
+                 Rmax,
+                 delta,
+                 sigma,
+                 parallel,
+                 poscar_ref='POSCAR_REF',
+                 prefix1='snapshots',
                  prefix2='fingerprints'):
         
         self.xdatcar = xdatcar
         self.outcar = outcar
         self.interval = interval
-        self.poscar_mother = poscar_mother
+        self.Rmax = Rmax
+        self.delta = delta
+        self.sigma = sigma
+        self.parallel = parallel
+        self.poscar_ref = poscar_ref
         self.prefix1 = prefix1
         self.prefix2 = prefix2
         
-        if not os.path.isfile(self.xdatcar):
-            print(f'{self.xdatcar} is not found')
-            sys.exit(0)
+        if self.parallel:
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            size = comm.Get_size()
             
-        if not os.path.isfile(self.outcar):
-            print(f'{self.outcar} is not found')
-            sys.exit(0)
-            
-        if not os.path.isfile(self.poscar_mother):
-            print(f'{self.poscar_mother} is not found')
-            sys.exit(0)
-        
-        if not os.path.isdir(self.prefix1):
-            os.makedirs(self.prefix1)
-            print(f'{self.prefix1} directory is created.')
-        
-        if not os.path.isdir(self.prefix2):
-            os.makedirs(self.prefix2)
-            print(f'{self.prefix2} directory is created.')
-            
-        # read outcar
-        self.potim = None
-        self.read_outcar()
-        self.interval = int(interval * 1000 / self.potim) # step
-        
-        # read xdatcar
-        self.nsw = None
-        self.position = []
-        self.read_xdatcar()
-        
-        self.pair = []
-        self.pair.extend(combinations_with_replacement(self.atom_species, 2))
-        
-        # input steps
-        self.step = None
-        self.input_step()
-        
-        # params
-        self.Rmax = None
-        self.delta = None
-        self.sigma = None
-        self.get_params()
-        
-        # fingerprint of mother phase
-        self.finger_mother = self.get_fingerprint(self.poscar_mother)
-        self.R = np.linspace(0, self.Rmax*len(self.pair), len(self.finger_mother))
-        self.save_fingerprint(self.finger_mother, 'fingerprint_mother.txt')
-        
-        
-        # fingerprint of xdatcar
-        self.d_cos = np.zeros_like(self.step, dtype=float)
-        print('')
-        
-        for i, s in enumerate(tqdm(self.step, 
-                                   bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}',
-                                   ascii=True,
-                                   desc=f'{RED}{BOLD}Progress{RESET}')):
-            # save poscar
-            label = format(s, self.digit)
-            filename = os.path.join(self.prefix1, f"POSCAR_{label}")
-            self.save_poscar(s, filename)
-            
-            # get fingerpint
-            finger = self.get_fingerprint(filename)
-            finger_out = f'fingerprint_{label}.txt'
-            self.save_fingerprint(finger, finger_out)
-            
-            # cosine distance
-            self.d_cos[i] = CosineDistance(self.finger_mother, finger)
-        
-        # plot cosine distance
-        print('')
-        self.save_distance()
-            
-    def read_outcar(self):
-        with open(self.outcar, 'r') as f:
-            for line in f:
-                if 'POTIM' in line:
-                    self.potim = float(line.split()[2])
-                    break
+            if rank == 0:
+                print('VacHopPy is running...')
+                f = open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8')
+                original_stdout = sys.stdout
+                sys.stdout = f
+                if size < 2:
+                    print("number of cpu node shoud be >= 2.")
+                    MPI.COMM_WORLD.Abort(1)
+                try:
+                    snapshots = Snapshots(
+                        xdatcar=self.xdatcar, 
+                        outcar=self.outcar, 
+                        interval=self.interval,
+                        prefix=self.prefix1
+                    )
+                except SystemExit:
+                    print("Error occured duing instantiating fingerprint.Snapshots.")
+                    MPI.COMM_WORLD.Abort(1)
+                except Exception as e:
+                    print(f"Unexpected error: {e}")
+                    MPI.COMM_WORLD.Abort(1)
                 
-    def read_xdatcar(self):
-        self.nsw = find_last_direct_line(self.xdatcar)
-        if self.nsw % self.interval != 0:
-            print(f'{self.nsw} step (nsw) is not divided by {self.interval} step (interval)')
-            sys.exit(0)
-        
-        with open(self.xdatcar, 'r') as f:
-            lines = np.array([s.strip() for s in f])
-        
-        self.lattice = np.array([s.split() for s in lines[2:5]], dtype=float)
-        self.lattice *= float(lines[1])
-        
-        self.atom_species = np.array(lines[5].split())
-        self.num_species = len(self.atom_species)
-        
-        self.num_atoms = np.array(lines[6].split(), dtype=int)
-        num_atoms_tot = np.sum(self.num_atoms)
-        self.num_step = int(self.nsw / self.interval)
-        
-        digit = int(np.log10(self.num_step)) + 1
-        self.digit = f'0{digit}'
-        
-        for i, spec in enumerate(self.atom_species):           
-            atom = {}
-            atom['species'] = spec
-            atom['num'] = self.num_atoms[i]
+            else:
+                snapshots = None
             
-            traj = np.zeros((atom['num'], self.num_step, 3)) 
-
-            for j in range(atom['num']):
-                start = np.sum(self.num_atoms[:i]) + j + 8
-                end = lines.shape[0] + 1
-                step = num_atoms_tot + 1
-                coords = [s.split() for s in lines[start:end:step]]
-                coords = np.array(coords, dtype=float)
-                
-                displacement = np.zeros_like(coords)
-                displacement[0,:] = 0
-                displacement[1:,:] = np.diff(coords, axis=0)
-
-                # correction for periodic boundary condition
-                displacement[displacement>0.5] -= 1.0
-                displacement[displacement<-0.5] += 1.0
-                displacement = np.cumsum(displacement, axis=0)
-                coords = coords[0] + displacement
-
-                # averaged coordination
-                coords = coords.reshape(self.num_step, self.interval, 3)
-                coords = np.average(coords, axis=1)
-
-                # wrap back into cell
-                coords = coords - np.floor(coords)
-                traj[j] = coords
-
-            atom['traj'] = traj
-            self.position += [atom]
-        
-    def save_poscar(self, step, filename):
-        with open(filename, 'w') as f:
-            f.write(f"step_{step}. generated by vachoppy.\n")
-            f.write("1.0\n")
-
-            for lat in self.lattice:
-                f.write("%.6f %.6f %.6f\n"%(lat[0], lat[1], lat[2]))
-
-            for atom in self.position:
-                f.write(f"{atom['species']} ")
-            f.write('\n')
-            for atom in self.position:
-                f.write(f"{atom['num']} ")
-            f.write('\n')
-            f.write("Direct\n")
-            for atom in self.position:
-                for traj in atom['traj'][:,step,:]:
-                    f.write("%.6f %.6f %.6f\n"%(traj[0], traj[1], traj[2]))
+            snapshots = comm.bcast(snapshots, root=0)
             
-    def input_step(self):
-        print(f"Available step range : 0 - {self.num_step}")
-        print('')
-        step = input(
-            f"Input step range (init, final, interval) (ex. 0, 200, 10) : "
-        )
-        step = list(map(int, step.replace(" ", "").split(',')))
-        self.step = np.arange(step[0], step[1], step[2])
+            phase_transition_parallel(
+                snapshots=snapshots,
+                poscar_ref=self.poscar_ref,
+                Rmax=self.Rmax,
+                delta=self.delta,
+                sigma=self.sigma,
+                prefix=self.prefix2
+            )
+            
+            if rank==0:
+                print('VacHopPy is done.')
         
-    def get_params(self):
-        params = input(
-            "Input Rmax, delta, and sigma (ex. 15, 0.01, 0.03) : "
-        )
-        params = list(map(float, params.replace(" ", "").split(',')))
-        self.Rmax, self.delta, self.sigma = params[0], params[1], params[2]
+        else:
+            print('VacHopPy is running...')
+            snapshots = Snapshots(
+                xdatcar=self.xdatcar, 
+                outcar=self.outcar, 
+                interval=self.interval,
+                prefix=self.prefix1
+            )
+            phase_transition_serial(
+                snapshots=snapshots,
+                poscar_ref=self.poscar_ref,
+                Rmax=self.Rmax,
+                delta=self.delta,
+                sigma=self.sigma,
+                prefix=self.prefix2
+            )
+            print('VacHopPy is done.')
+    
         
-    def get_fingerprint(self, poscar):
-        fingerprint = []
-        for (A, B) in self.pair:
-            finger = FingerPrint(A, B, poscar, self.Rmax, self.delta, self.sigma)
-            fingerprint.append(finger.fingerprint)
-        fingerprint = np.array(fingerprint)
-        return fingerprint.reshape(1,-1).squeeze()
         
-    def save_fingerprint(self, fp, filename):
-        file_out = os.path.join(self.prefix2, filename)
-        with open(file_out, 'w') as f:
-            f.write(f'# Rmax, delta, sigma = {self.Rmax}, {self.delta}, {self.sigma}\n')
-            f.write('# pair : ')
-            for (A, B) in self.pair:
-                f.write(f'{A}-{B}, ')
-            f.write('\n')
-            for x, y in zip(self.R, fp):
-                f.write(f'  {x:2.6f}\t{y:2.6f}\n')
-                
-    def save_distance(self):
-        # plt.figure(figsize=(15, 5))
-        plt.scatter(self.step, self.d_cos, s=25)
-        plt.xlabel("Step", fontsize=13)
-        plt.ylabel('Cosine distnace', fontsize=13)
-        plt.ylim([np.min(self.d_cos)-0.05, np.max(self.d_cos)+0.05])
-        plt.savefig('cosine_distance.png', dpi=300)
-        plt.show()
-        plt.close()
-        print('cosine_distance.png is created.')
         
-        with open('cosine_distance.txt', 'w') as f:
-            f.write(f'# Rmax, delta, sigma = {self.Rmax}, {self.delta}, {self.sigma}\n')
-            f.write('# pair : ')
-            for (A, B) in self.pair:
-                f.write(f'{A}-{B}, ')
-            f.write('\n')
-            for x, y in zip(self.step, self.d_cos):
-                f.write(f'  {x}\t{y:.6f}\n')
-        print('cosine_distance.txt is created.')
-        
+
+
+
         
 # class PhaseTransition:
 #     def __init__(self,

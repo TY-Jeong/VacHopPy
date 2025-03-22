@@ -241,6 +241,15 @@ if check_mode:
             parser.add_argument('interval',
                                 type=float,
                                 help='time interval for averaging in ps')
+            parser.add_argument('Rmax',
+                                type=float,
+                                help='maxiumu distance range (Å)')
+            parser.add_argument('delta',
+                                type=float,
+                                help='bin size (Å)')
+            parser.add_argument('sigma',
+                                type=float,
+                                help='sigma for Gaussian-smeared delta function')
             parser.add_argument('-x','--xdatcar',
                                 type=str,
                                 default='XDATCAR',
@@ -249,10 +258,13 @@ if check_mode:
                                 type=str,
                                 default='OUTCAR',
                                 help='path to OUTCAR file (default: OUTCAR)')
-            parser.add_argument('-p','--poscar_reference',
-                                default='POSCAR',
+            parser.add_argument('-p','--poscar_ref',
+                                default='POSCAR_REF',
                                 type=str,
-                                help='path to POSCAR of reference phase (default: POSCAR)')
+                                help='path to POSCAR of reference phase (default: POSCAR_REF)')
+            parser.add_argument('--parallel',
+                                action='store_true',
+                                help='do parallel calculations (default: False)')
             parser.add_argument('--prefix1',
                                 type=str,
                                 default='snapshots',
@@ -332,11 +344,14 @@ def main():
             phase = PhaseTransition(xdatcar=args.xdatcar,
                                     outcar=args.outcar,
                                     interval=args.interval,
-                                    poscar_mother=args.poscar_reference,
+                                    Rmax=args.Rmax,
+                                    delta=args.delta,
+                                    sigma=args.sigma,
+                                    parallel=args.parallel,
+                                    poscar_ref=args.poscar_ref,
                                     prefix1=args.prefix1,
                                     prefix2=args.prefix2)
             
-                
     if check_util:
         if mode_value == 'extract_force':
             extract_force(args.file_in, args.file_out)
