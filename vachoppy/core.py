@@ -47,6 +47,7 @@ class MakeAnimation:
                  tol=1e-3,
                  tolerance=1e-3,
                  verbose=True):
+        print("VacHopPy is running...")
 
         if int(temp) in data.temp:
             self.temp = temp
@@ -131,7 +132,7 @@ class MakeAnimation:
         print(f'  Interval = {self.interval} step ({self.interval * self.potim / 1000} ps)')
         print(f'  Total step = {self.traj.num_step} (={self.traj.nsw}/{self.traj.interval})')
         print('')
-        step = input('Enter init and final steps (int; ex. 0 100 / 0 -1 for all): ')
+        step = input('Enter init and final steps (int; e.g. 0 100 / 0 -1 for all): ')
         try:
             step = list(map(int, step.split()))
         except:
@@ -144,7 +145,7 @@ class MakeAnimation:
             step[-1] = self.traj.num_step
         step = 'all' if step[-1]==-1 else np.arange(step[0], step[-1])
         
-        fps = input('Enter fps (int; ex. 20): ')
+        fps = input('Enter fps (int; e.g. 60): ')
         try:
             fps = int(fps)
         except:
