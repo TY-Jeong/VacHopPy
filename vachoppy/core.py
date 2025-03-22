@@ -97,6 +97,7 @@ class MakeAnimation:
             self.do_correction()
             
         self.save_animation()
+        print('VacHopPy is done.')
         
     def do_correction(self):
         check_multivac, check_TS = True, True
@@ -220,11 +221,15 @@ class EffectiveHoppingParameter:
                 sys.stdout = original_stdout
                 f.close()
                 self.get_parameters()
+                print('VacHopPy is done.')
+                
         else:
+            print('VacHopPy is running...')
             self.results = VacancyHopping_serial(
                 self.data, self.lattice, self.interval
             )
             self.get_parameters()
+            print('VacHopPy is done.')
             
     def get_parameters(self):
         with open(self.file_out, 'w', encoding='utf-8') as f:
