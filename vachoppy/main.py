@@ -30,14 +30,14 @@ group = parser.add_mutually_exclusive_group(required=True)
 # key functionalities
 group.add_argument(
     '-m', '--mode', 
-    choices=['p', 'pp', 't', 'f', 'e'], 
+    choices=['t', 'p', 'pp', 'f', 'e'], 
     help=(
         """Choose mode:
+        't'  - Make animation for vacancy trajectory
         'p'  - Determine vacancy trajectory and calculate effectie hopping parameters (excluding z and nu)
         'pp' - Calculate effective z and nu (postprocess of p option)
-        't'  - Make animation for vacancy trajectory
         'f'  - Fingerpring analysis : assess lattice stability or phase transition
-        'e'  - Calculate diffusion coefficient using Einstein relation
+        'e'  - Calculate diffusion coefficient using Einstein relation (test)
         """
         )
     )
@@ -142,68 +142,18 @@ if check_mode:
         mode_value = sys.argv[mode_index]
 
         # Arguments for DataInfo
-        if mode_value in ['p', 'e', 't']:
+        if mode_value in ['p', 't', 'e']:
             parser.add_argument('symbol',
                                 type=str,
                                 help='symbol of moving atom')
         
-        if mode_value in ['e', 'p', 't']:
+        if mode_value in ['p', 't', 'e']:
             parser.add_argument('-p1', '--prefix1', 
                                 default='traj', 
                                 help='name of outer directory (default: traj)')
             parser.add_argument('-p2', '--prefix2', 
                                 default='traj', 
                                 help='prefix of inner directories, ex.{prefix2}.{temp}K (default: traj)')
-            
-        if mode_value == 'e':
-            parser.add_argument('t_width',
-                                type=float,
-                                help='x-range in msd plot in ps')
-            parser.add_argument('--skip',
-                                type=float,
-                                default=0,
-                                help='steps to be skipped in ps (default: 0)')
-            parser.add_argument('--x_vac',
-                                type=str,
-                                default=1,
-                                help='fraction of vacancy (use 1 for atom) (default: 1)')
-            parser.add_argument('--start',
-                                type=float,
-                                default=1,
-                                help='initial time used for linear fit (default: 1)')
-            
-        if mode_value == 'p':
-            parser.add_argument('interval',
-                                type=float,
-                                help='time interval for averaging in ps')
-            parser.add_argument('-l', '--lattice',
-                                type=str,
-                                default='POSCAR_LATTICE',
-                                help='lattice file in POSCAR format (default: POSCAR_LATICE)')
-            parser.add_argument('--parallel',
-                                action='store_true',
-                                help='do parallel calculations (default: False)')
-            parser.add_argument('--rmax',
-                                type=float,
-                                default=3.0,
-                                help='maximum distance for hopping path identification (default: 3.0)')
-            parser.add_argument('--tol',
-                                type=float,
-                                default=1e-3,
-                                help='tolerance for VoronoiNN (default: 1e-3)')
-            parser.add_argument('--tolerance',
-                                type=float,
-                                default=1e-3,
-                                help='tolerance for distance comparison (default: 1e-3)')
-        if mode_value == 'pp':
-            parser.add_argument('-p', '--parameter',
-                                type=str,
-                                default='parameter.txt',
-                                help='parameter.txt file (default: parameter.txt)')
-            parser.add_argument('-n', '--neb',
-                                type=str,
-                                default='neb.csv',
-                                help='neb.csv file containing hopping barriers for each path (default: neb.csv)')
             
         if mode_value == 't':
             parser.add_argument('interval',
@@ -236,6 +186,40 @@ if check_mode:
             parser.add_argument('-v', '--verbose',
                                 action='store_true',
                                 help='verbosity for parameter calculation')
+            
+        if mode_value == 'p':
+            parser.add_argument('interval',
+                                type=float,
+                                help='time interval for averaging in ps')
+            parser.add_argument('-l', '--lattice',
+                                type=str,
+                                default='POSCAR_LATTICE',
+                                help='lattice file in POSCAR format (default: POSCAR_LATICE)')
+            parser.add_argument('--parallel',
+                                action='store_true',
+                                help='do parallel calculations (default: False)')
+            parser.add_argument('--rmax',
+                                type=float,
+                                default=3.0,
+                                help='maximum distance for hopping path identification (default: 3.0)')
+            parser.add_argument('--tol',
+                                type=float,
+                                default=1e-3,
+                                help='tolerance for VoronoiNN (default: 1e-3)')
+            parser.add_argument('--tolerance',
+                                type=float,
+                                default=1e-3,
+                                help='tolerance for distance comparison (default: 1e-3)')
+            
+        if mode_value == 'pp':
+            parser.add_argument('-p', '--parameter',
+                                type=str,
+                                default='parameter.txt',
+                                help='parameter.txt file (default: parameter.txt)')
+            parser.add_argument('-n', '--neb',
+                                type=str,
+                                default='neb.csv',
+                                help='neb.csv file containing hopping barriers for each path (default: neb.csv)')
             
         if mode_value == 'f':
             parser.add_argument('interval',
@@ -273,6 +257,23 @@ if check_mode:
                                 type=str,
                                 default='fingerprints',
                                 help='directory to save fingerprints (default: fingerprints)')
+        
+        if mode_value == 'e':
+            parser.add_argument('t_width',
+                                type=float,
+                                help='x-range in msd plot in ps')
+            parser.add_argument('--skip',
+                                type=float,
+                                default=0,
+                                help='steps to be skipped in ps (default: 0)')
+            parser.add_argument('--x_vac',
+                                type=str,
+                                default=1,
+                                help='fraction of vacancy (use 1 for atom) (default: 1)')
+            parser.add_argument('--start',
+                                type=float,
+                                default=1,
+                                help='initial time used for linear fit (default: 1)')
 
 
 args = parser.parse_args()
@@ -298,18 +299,23 @@ def main():
             print('')
         
         # functionalities
-        if mode_value in ['e', 'p', 't']:
+        if mode_value in ['p', 't', 'e']:
             data = DataInfo(prefix1=args.prefix1,
                             prefix2=args.prefix2,
                             verbose=True)
-
-        if mode_value == 'e':
-            msd = MSD(data=data, 
-                      tmax=args.t_width, 
-                      skip=args.skip,
-                      start=args.start,
-                      symbol=args.symbol, 
-                      x_vac=float(Fraction(args.x_vac)))
+        
+        if mode_value == 't':
+            traj = MakeAnimation(data=data,
+                                 temp=args.temp,
+                                 label=args.label,
+                                 interval=args.interval,
+                                 poscar_lattice=args.lattice,
+                                 symbol=args.symbol,
+                                 correlation=not(args.no_correction),
+                                 update_alpha=args.update_alpha,
+                                 show_index=args.show_index,
+                                 dpi=args.dpi,
+                                 verbose=args.verbose)
             
         if mode_value == 'p':
             effective_params = EffectiveHoppingParameter(data=data,
@@ -327,19 +333,6 @@ def main():
             post = PostEffectiveHoppingParameter(file_params=args.parameter,
                                                  file_neb=args.neb)
             
-        if mode_value == 't':
-            traj = MakeAnimation(data=data,
-                                 temp=args.temp,
-                                 label=args.label,
-                                 interval=args.interval,
-                                 poscar_lattice=args.lattice,
-                                 symbol=args.symbol,
-                                 correlation=not(args.no_correction),
-                                 update_alpha=args.update_alpha,
-                                 show_index=args.show_index,
-                                 dpi=args.dpi,
-                                 verbose=args.verbose)
-            
         if mode_value == 'f':
             phase = PhaseTransition(xdatcar=args.xdatcar,
                                     outcar=args.outcar,
@@ -351,6 +344,14 @@ def main():
                                     poscar_ref=args.poscar_ref,
                                     prefix1=args.prefix1,
                                     prefix2=args.prefix2)
+        
+        if mode_value == 'e':
+            msd = MSD(data=data, 
+                      tmax=args.t_width, 
+                      skip=args.skip,
+                      start=args.start,
+                      symbol=args.symbol, 
+                      x_vac=float(Fraction(args.x_vac)))
             
     if check_util:
         if mode_value == 'extract_force':
