@@ -1,4 +1,3 @@
-# parallelized version of parameter
 import os
 import sys
 import time
@@ -41,15 +40,23 @@ def VacancyHopping_serial(data,
                   ascii=True,
                   desc=f'{RED}{BOLD}Progress{RESET}'):
         
-        cal = Calculator(data=data, index=i, lattice=lattice, interval=interval)
+        try:
+            cal = Calculator(
+                data=data, index=i, lattice=lattice, interval=interval
+            )
+        except SystemExit:
+            cal = Calculator_fail(data=data, index=i)
+        
         if cal.success:
             results.append(cal)
         else:
             failure.append(
                 f"  T={cal.temp}K,  Label={cal.label} ({cal.fail_reason})"
             )
+    # sort by (temp, label)   
     index = [data.datainfo.index([cal.temp, cal.label]) for cal in results]
     results = [x for _, x in sorted(zip(index, results))]
+    # print failed calculations
     if len(failure) > 0:
         print(f"Error reports :")
         for x in failure:
@@ -212,7 +219,6 @@ class Calculator:
             traj.correct_multivacancy(start=1)
             traj.check_multivacancy()
         except SystemExit:
-            # print(f"Error occured during trajectory analysis : {self.temp}K, {self.label}\n")
             self.fail_reason = "Error by trajectory.Trajectory"
             self.success = False
             return
@@ -222,7 +228,6 @@ class Calculator:
             return
         
         if traj.multi_vac is True:
-            # print(f"Multi-vacancy issue occured : {self.temp}K, {self.label}\n")
             self.success = False
             self.fail_reason = "Multi-vacancy issue is not resolved"
             return

@@ -522,9 +522,16 @@ class Trajectory:
             norm_force = np.linalg.norm(force)
             norm_r_pre = np.linalg.norm(r_pre)
             norm_r_now = np.linalg.norm(r_now)
-
-            cos_pre = np.dot(r_pre, force) / (norm_force*norm_r_pre)
-            cos_now = np.dot(r_now, force) / (norm_force*norm_r_now)
+            
+            if norm_force == 0 or norm_r_pre == 0:
+                cos_pre = 0
+            else:
+                cos_pre = np.dot(r_pre, force) / (norm_force * norm_r_pre)
+                
+            if norm_force == 0 or norm_r_now == 0:
+                cos_now = 0
+            else:
+                cos_now = np.dot(r_now, force) / (norm_force*norm_r_now)
 
             if cos_now > cos_pre:
                 cond2 = True
