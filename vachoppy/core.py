@@ -346,6 +346,8 @@ class PhaseTransition:
             )
             
             if rank==0:
+                sys.stdout = original_stdout
+                f.close()
                 print('VacHopPy is done.')
         
         else:
@@ -467,6 +469,7 @@ class GetFingerPrint:
             for x, y in zip(R, self.fingerprint_concat):
                 f.write(f'  {x:2.6f}\t{y:2.6f}\n')
         print(f'{self.prefix}.txt is created.')
+
 
 # -u cosine_distance option
 class GetCosineDistance:
