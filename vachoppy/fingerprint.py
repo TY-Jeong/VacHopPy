@@ -399,7 +399,7 @@ def phase_transition_serial(snapshots,
                   desc=f'{RED}{BOLD}Progress{RESET}'):
         fingerprint = get_fingerprint(
                 poscar=os.path.join(path_poscar, f"POSCAR_{format(i, digit)}"),
-                filename=os.path.join(prefix, f"fingerprint_{format(i, digit)}"),
+                filename=os.path.join(prefix, f"fingerprint_{format(i, digit)}.txt"),
                 atom_pair=atom_pair,
                 Rmax=Rmax,
                 delta=delta,
@@ -526,7 +526,7 @@ def phase_transition_parallel(snapshots,
             # get fingerprint
             fingerprint = get_fingerprint(
                 poscar=os.path.join(path_poscar, f"POSCAR_{format(task, digit)}"),
-                filename=os.path.join(prefix, f"fingerprint_{format(task, digit)}"),
+                filename=os.path.join(prefix, f"fingerprint_{format(task, digit)}.txt"),
                 atom_pair=atom_pair,
                 Rmax=Rmax,
                 delta=delta,
