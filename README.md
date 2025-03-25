@@ -368,7 +368,7 @@ plt.rcParams['font.size'] = 10
 space = 0.09
 for i, data_i in enumerate(data):
     data_i[:,1] -= np.average(data_i[:,1]) - space * i
-    plt.scatter(data_i[:,0], data_i[:,1], s=10, label=label[i])
+    plt.scatter(data_i[:,0], data_i[:,1], s=10)
     
 plt.yticks([])
 plt.xlabel('Time (ps)', fontsize=12)
