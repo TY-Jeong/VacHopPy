@@ -162,19 +162,73 @@ Example files can be downloaded from:
 * **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (37 MB)](https://drive.google.com/file/d/1SuxEHmGdVNkk-mogdWWDOOUPZqX74QG5/view?usp=sharing)
 
 ## 0. Preparation
-To implement **VacHopPy**, four types of input data (XDATCAR, OUTCAR, FORCE, and POSCAR_LATTICE) and one hyperparameter (t<SUB>interval</SUB>) are required.
+### Input data
+To run **VacHopPy**, the user needs four types of input data: **XDATCAR**, **OUTCAR**, **FORCE**, and **POSCAR_LATTICE**. In current version, **VacHopPy** supports only single-vacancy simulation, with multi-vacancy support planned for a future update.
 
 #### (1) XDATCAR and OUTCAR 
+XDATCAR and OUTCAR are standard VASP output files containing atomic trajectory from AIMD simulation and simulation conditions, respectively. The input atomic structure (*i.e.*, POSCAR) must include a **single vacancy**, and the AIMD simulation should be performed under the **NVT ensemble** (set **NBLOCK = 1**).
+
+#### (2) FORCE (*optinal*)
+FORCE file contains force vectors acting on atoms and can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
+```ruby
+vachoppy -u extract_force -in vasprun.xml -out FORCE
+```
+The FORCE file helps assign atoms to corresponding lattice points based on their relatice positions to transition states. If the FORCE file is not provided, atomic occupancies will be determined solely based on proximity. Once atoms are assigned, the vacancy position is identified as an unoccupied lattice point.
+
+#### (3) POSCAR_LATTICE
+POSCAR_LATTICE contains the perfect crystal structure without a vacancy. Its lattice parameters must match those of input structure (POSCAR) of the AIMD simulations. This file is used to define the lattice points for vacancy identification.
+
+#### (4) File organization
+Since AIMD simulations commonly cover timescales shorter than nanoseconds, a single AIMD simulation may contain a few hopping events. However, since **VacHopPy** computes the effective hopping parameters in static manner, sufficient sampling of hopping events is necessary to ensure reliablilty. To address this, **VacHopPy** processes multiple AIMD datasets simultaneously. Each AIMD dataset is distinguished by a number appended after an underscore in the XDATCAR and FORCE file names (e.g., XDATCAR_01, FORCE_01). Below is an example of the recommended file structure:
+
+```ruby
+Example1
+ ┣ traj
+ ┃ ┣ traj.1900K # AIMD simulations conducted at 1900 K
+ ┃ ┃ ┣ XDATCAR_01, FORCE_01 # Simiulations in the same directory should be 
+ ┃ ┃ ┣ XDATCAR_02, FORCE_02 # conducted under the same conditions
+ ┃ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┃ ┗ OUTCAR
+ ┃ ┣ traj.2000K
+ ┃ ┃ ┣ XDATCAR_01, FORCE_01
+ ┃ ┃ ┣ XDATCAR_02, FORCE_02
+ ┃ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┃ ┗ OUTCAR
+ ┃ ┗ traj.2100K
+ ┃ ┃ ┣ XDATCAR_01, FORCE_01
+ ┃ ┃ ┣ XDATCAR_02, FORCE_02
+ ┃ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┃ ┗ OUTCAR
+ ┗ POSCAR_LATTICE # POSCAR of the perfect crystal
+```
+
+Simulations at the same temperature should be conducted under identical conditions. In other words, **NSW** and **POTIM** tags in INCAR should be the same. Therefore, only one OUTCAR file is needed per temperature directory.
 
 
-### (2) FORCE
+### t<SUB> interval</SUB>
 
 
-### (2) POSCAR_LATTICE
 
-POSCAR_LATTICE contains the atomic structure of perfect supecell
 
-### (3) t<SUB> interval</SUB>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
