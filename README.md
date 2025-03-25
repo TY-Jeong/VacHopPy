@@ -50,7 +50,7 @@ where $k_B$ represents the Boltzmann constant. Note that the exact expression of
 * Installation
 * List of commands
 * How to implement
-  * Vacancy trajectory determination
+  * Vacancy trajectory visualization
     * Making animation
     * Distribution of hopping path
   * Effective hopping parameter calculation
@@ -206,10 +206,7 @@ Simulations at the same temperature should be conducted under identical conditio
 
 
 ### Hyperparameter: Time interval (t<SUB> interval</SUB>)
-
-Thermal fluctuations inherent in AIMD simulations hamper accurate determination of atomic or vacancy occupancies. To address this, **VacHopPy** introduced 
-
-
+To run **VacHopPy**, the user needs to determine one hyperparameter, **t<SUB>interval</SUB>**, in advance. This parameter defines the time interval for averaging atomic positions and forces. Thermal fluctuations in AIMD simulations can obscure precise atomic occupancy determination. However, since these fluctuations are random, they can be effectively averaged out over time. **VacHopPy** processes AIMD data by dividing it into segments of length of t<SUB>interval</SUB>. Each segment represents a single step in the analysis. The total number of steps is given by t<SUB>simulation</SUB>/t<SUB>interval</SUB>, where t<SUB>simulation</SUB> is the total AIMD simulation time.
 
 
 <div align=center>
@@ -218,248 +215,31 @@ Thermal fluctuations inherent in AIMD simulations hamper accurate determination 
 </p>
 </div>
 
+Choosing an appropriate t<SUB>interval</SUB> is crucial for reliable analysis. The t<SUB>interval</SUB> should be large enough to mitigate thermal fluctuations but short enough to prevent multiple hopping events from being included in a single step. A typical value is around 0.1 ps, through it may vary depending on the system. 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-
-
-A Key improvement in **VacHopPy** is introduction of an **effective hopping parameter** set. The hopping parameters inherently depend on the selection of hopping paths, resulting in multiple sets of hopping parameters within a given lattice. However, in order to use the *ab initio* transport parameters in larger-scale simulations (e.g., TCAD, continuum models, KMC methods), a well-defined, single effective hopping parameter set is required. This is because macroscopic equations typically do not account for multiple hopping paths. To sum up, the **effective hopping parameter** set is a single, consolidated parameter set that represents all hopping paths within a given lattice, making it suitable for multiscale modeling.
-
+One recommended approach for determining the optimal t<SUB>interval</SUB> is through convergence tests using the correlation factor ($f$). Below is an example of a convergence test (example system: rutile TiO<SUB>2</SUB>):
 
 <div align=center>
 <p>
-    <img src="./imgs/fig2.jpg" width="550"/>
+    <img src="./imgs/convergence_test.jpg" width="550"/>
 </p>
 </div>
 
-
-## Features
-
-* Simultaneous calculation of **effective hopping parameters**
-* Tracking of **vacancy trajectories** in AIMD simulations
-* Assessment of lattice stability or **phase transitions**
-
- Belows are a **list of effective hopping parameters** which can be obtained from **VacHopPy**:
-
-<div align="center">
-
-|<center>Symbol</center>|<center>Description</center>|
-|:---:|---|
-| $`\bar{E}_{a}`$ |Hopping barrier (eV)|
-| $`\bar{a}`$ |Hopping distance (Å)|
-| $`\bar{z}`$ |Coordination number|
-| $`\bar{ν}`$ |Jump attempt frequency (THz)|
-| $`f`$ |Correlation factor|
-
-</div>
-
-The bar expression (e.g., $`\bar{x}`$) is used to emphasize the parameters are effective values. In this framework, the effective correlation factor ($`\bar{f}`$) is assumed to be identical to the original $f$; therefore,the correlation factor is uniformly denoted as $`f`$. 
-
-Effective diffusion quantities, including effective diffusion coefficient ($`\bar{D}`$) and effective residence time ($`\bar{τ}`$), can be derived by combining the effective hopping parameters, as follows:
-
-```math
-\bar{D} = \frac{1}{6}\bar{z}\bar{a}^{2}\bar{ν} \cdot \exp(-\frac{\bar{E}_{a}}{k_{B}T}) \times f(T)
-```
-```math
-\bar{τ} = \frac{1}{\bar{z}\cdot\bar{ν}} \cdot \exp(\frac{\bar{E}_{a}}{k_{B}T})
-```
-<br>
-Here, all parameters correspond to the effective value, hence, the diffusion quantities can be expressed as simple Arrhenims forms. The exact expressions for $`D`$ and $`τ`$ consist multiple exponential terms, each corresponds to a distinct vacancy hopping path. These complex expressions are unfavorable for continuum equations.
-
-## Contents
-
-* Installation
-* List of commands
-* How to implement
-  * Vacancy trajectory determination
-    * Making animation
-    * Distribution of hopping path
-  * Effective hopping parameter calculation
-    * Diffusion coefficient 
-    * Atomic vibration coefficient
-  * Assessment of lattice stability
-  
-
-## Installation
-
-This package can be easily installed via pip. The current version of  **VacHopPy** was developed based on VASP 5.4.4.
-
-```ruby
-pip intall vachoppy
-```
-
-## Available commands
-
-**VacHopPy** provides a command-line interface (CLI). Belows are available CLI commands:
-
-<div align=center>
-<table>
-    <tr>
-        <th scope="col">Option 1</td>
-        <th scope="col">Option 2</td>
-        <th scope="col">Use</td>
-    </tr>
-    <tr>
-        <td rowspan="4">-m<br>(main)</td>
-        <td>p</td>
-        <td>Calculate effective hopping parameters (excluding &#772;z and &#772;ν)</td>
-    </tr>
-    <tr>
-        <!-- <td>2</td> -->
-        <td>pp</td>
-        <td>Calculate &#772;z and &#772;ν (post-processing for `-m p` option)</td>
-    </tr>
-    <tr>
-        <!-- <td>4</td> -->
-        <td>t</td>
-        <td>Make an animation for vacancy trajectories</td>
-    </tr>
-    <tr>
-        <!-- <td>5</td> -->
-        <td>f</td>
-        <td>Perform fingerprint analyses</td>
-    <tr>
-        <td rowspan="6">-u<br>(utility)</td>
-        <td>extract_force</td>
-        <td>Extract FORCE file from vasprun.xml</td>
-    </tr>
-    <tr>
-        <!-- <td>2</td> -->
-        <td>concat_xdatcar</td>
-        <td>Concatenate two XDATCAR files</td>
-    </tr>
-    <tr>
-        <!-- <td>3</td> -->
-        <td>concat_force</td>
-        <td>Concatenate two FORCE files</td>
-    </tr>
-    <tr>
-        <!-- <td>4</td> -->
-        <td>update_outcar</td>
-        <td>Combine two OUTCAR files</td>
-    </tr>
-    <tr>
-        <!-- <td>5</td> -->
-        <td>fingerprint</td>
-        <td>Extract fingerprint</td>
-    </tr>
-    <tr>
-        <!-- <td>6</td> -->
-        <td>cosine_distance</td>
-        <td>Calculate cosine distance</td>
-    </tr>
-</table>
-</div>
-
-For detailed descriptions, please use `-h` options:
-```ruby
-vachoppy -h # list of available commands
-vachoppy -m p -h # explanation for '-m p' option
-```
-
-Belows is summary of the main commands:
-<div align=center>
-<p>
-    <img src="./imgs/flowchart.svg" width="700"/>
-</p>
-</div>
-For clarity, only the main modules and classes are shown in the VacHopPy architecture.
+The left and rigut figures show the convergences of $f$ with respect to the number of AIMD datasets (N<SUB>AIMD</SUB>) and t<SUB>interval</SUB>, respectively, at each temperature. The results confirm that convergence is achieved at N<SUB>AIMD</SUB>=20 and t<SUB>interval</SUB>=0.1 ps. (You can obtain the same reulsts using the data in **Example** 1 above)
 
 
-## How to implement
+## 1. Vacancy trajectory visualization
 
-Example files can be downloaded from:
+Download and unzup the **Example1** file linked above.
 
-* **Example1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (28 GB)](https://drive.google.com/file/d/1SudMlQk40cJnVgrkklK6b4nhiF3YWPOY/view?usp=sharing)
-* **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (37 MB)](https://drive.google.com/file/d/1SuxEHmGdVNkk-mogdWWDOOUPZqX74QG5/view?usp=sharing)
-
-## 0. Preparation
-**VacHopPy** reads AIMD simulation data in VASP format (XDATCAR, OUTCAR, and FORCE). **XDATCAR** and **OUTCAR** are the typical VASP output files, contain information on atomic positions and simulation conditions, respectively. **FORCE** (optinal) includes force vectors and can be extracted from **vasprun.xml** file using `vachoppy -u extract_force` command. If FORCE files are included in the input dataset, the atomic occupanciesa are determined based on transition state (TS) distribution; otherwise, the trajectory is determined based simply on proximity.
-
-> In current version, **VacHopPy** supports only AIMD simulations conducted using the **NVT ensmeble**. Each ensemble cell should contains a single vacancy. (Support for multi vacancies will be added in a future update) 
-
-Since AIMD simulations are commonly conducted on time scales shorter than nanoseconds, a single AIMD simulation includes a limited number of hopping events. To overcome this limitation, **VacHopPy** can simultaneously process multiple bundles of AIMD simulation results, each belonging to the same NVT ensemble group. Each bundle is distinguished by a number appended after an underscore in the XDATCAR and FORCE file names (e.g., XDATCAR_01, FORCE_01). Below is an example of file tree:
-
-
-```ruby
-Example1
- ┣ traj
- ┃ ┣ traj.1900K # AIMD simulations conducted at 1900 K
- ┃ ┃ ┣ XDATCAR_01, FORCE_01 # Simiulations should be 
- ┃ ┃ ┣ XDATCAR_02, FORCE_02 # conducted in the same condition
- ┃ ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┃ ┗ OUTCAR
- ┃ ┣ traj.2000K
- ┃ ┃ ┣ XDATCAR_01, FORCE_01
- ┃ ┃ ┣ XDATCAR_02, FORCE_02
- ┃ ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┃ ┗ OUTCAR
- ┃ ┗ traj.2100K
- ┃ ┃ ┣ XDATCAR_01, FORCE_01
- ┃ ┃ ┣ XDATCAR_02, FORCE_02
- ┃ ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┃ ┗ OUTCAR
- ┗ POSCAR_LATTICE # POSCAR of perfect cell
-```
-
-The simulations in the same temperature should be conducted with the same conditions. Hence, only one OUTCAR file exist in each subdirectory.
-
-## 1. Vacancy trajectory determination
-
-Please download and unzup **Example1** file attatched above.
-
-Open **Example1** directory, and run:
+Navigate to the **Example1** directory and run:
 ```ruby
  vachoppy -m t O 0.1 2100 03 # vacancy type, t_interval, temperature, label
  ```
 
-
-**Process:**
-
-
-The user can set the time range and fps of the trajectory animation through two messages in the prompt window:
-
-
-<div align=center>
-<p>
-    <img src="./imgs/screenshot01.png" width="550"/>
-</p>
-</div>
-
 **Output:**
 
-The result is saved in **traj.gif**, while the snapshots are located in **snapshot** directory. Below is an example of **traj.gif**:
+The result is saved as `traj.gif`, with individual snapshots stored in the `snapshot` directory. Below is an example of traj.gif:
 
 <div align=center>
 <p>
@@ -467,14 +247,25 @@ The result is saved in **traj.gif**, while the snapshots are located in **snapsh
 </p>
 </div>
 
-In this animation, the solid box and the color-coded circlesa represent the lattice (here, rutile TiO<SUB>2</SUB> lattice) and the lattice points (here, oxygen sites) corresponding to the atom designated in the CLI command (O), respectively. The yellow-colored circle corresponds to the vacancy position (*i.e.*, unoccupied lattice point), while other colors represent occupied lattice points. An atomic movements is represented with an arrow, whose color is the same as the moving atom. User can adjust the resolutions of the snapshote and animation using **--dpi** option (default: 300).
+In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB>), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The yellow-colored circle marks the vacancy position (*i.e.*, the unoccupied lattice point), while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms. User can adjust the resolution of the animation using the ``--dpi`` option (default: 300).
+
 
 ## 2. Effective hopping parameter calculation
-Use:
+
+Navigate to the **Example1** directory and run:
+
 ```ruby
+# For serial computation
 vachoppy -m p O 0.1 # symbol, t_interval
+
+# For parallel computation
+mpirun -np 10 vachoppy -m p O 0.1 --parallel # 10 = number of cpu nodes
 ```
-This command will provides effective hopping parameters of an oxygen vacancy.
+
+For serial computation, the process is indicatd by a progress bar, while for parallel computation, the process is recorded in `VACHOPPY_PROGRESS` file in real time.
+
+**Output:**
+All results are stored in `parameter.txt` file. This file includes (1) List of vacancy hopping paths in a given system, (2) Effective hopping parameters, and (3) Vacancy hopping history at each AIMD dataset.
 
 
 ## 3. Assessment of lattice stability
