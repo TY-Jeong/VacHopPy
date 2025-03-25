@@ -461,7 +461,7 @@ class Trajectory:
         ax.scatter(*self.lat_points_C.T, facecolor='none', edgecolors='k', alpha=0.8)
         if label:
             for i, coord in enumerate(self.lat_points_C):
-                ax.text(*coord.T, s=f"{i}", fontsize='xx-small')
+                ax.text(*coord.T, s=f"{i+1}", fontsize='xx-small')
         
         # axis label
         ax.set_xlabel('x (Å)')
@@ -1227,10 +1227,17 @@ class TrajectoryAnalyzer:
         print('')
         
         # print hopping sequence
-        header = ['num', 'path', 'step', 'init', 'final', 'a(Å)']
+        # header = ['num', 'path', 'step', 'init', 'final', 'a(Å)']
+        # data = [
+        #     [f"{i+1}", path['name'], f"{path['step']}", f"{path['index_init']} ({path['site_init']})", 
+        #      f"{path['index_final']} ({path['site_final']})", f"{path['distance']:.5f}"] 
+        #     for i, path in enumerate(self.path_vac)
+        # ]
+        header = ['num', 'step', 'path', 'a(Å)', 'initial site', 'final site']
         data = [
-            [f"{i+1}", path['name'], f"{path['step']}", f"{path['index_init']} ({path['site_init']})", 
-             f"{path['index_final']} ({path['site_final']})", f"{path['distance']:.5f}"] 
+            [f"{i+1}", f"{path['step']}", path['name'],  f"{path['distance']:.5f}",
+             f"{path['site_init']} {self.lat_points[path['index_init']]['coord']}", 
+             f"{path['site_final']} {self.lat_points[path['index_final']]['coord']}"] 
             for i, path in enumerate(self.path_vac)
         ]
         print('Hopping sequence :')

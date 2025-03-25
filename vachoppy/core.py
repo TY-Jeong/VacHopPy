@@ -97,6 +97,15 @@ class MakeAnimation:
             self.do_correction()
             
         self.save_animation()
+        
+        if self.verbose:
+            anal = TrajectoryAnalyzer(
+                traj=self.traj,
+                lattice=self.lattice,
+                tolerance=self.tolerance,
+                verbose=self.verbose
+            )
+        
         print('VacHopPy is done.')
         
     def do_correction(self):

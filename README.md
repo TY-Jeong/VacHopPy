@@ -234,7 +234,7 @@ The left and rigut figures show the convergences of $f$ with respect to the numb
 
 Navigate to the `Example1` directory and run:
 ```javascript
- vachoppy -m t O 0.1 2100 03 # vacancy type, t_interval, temperature, label
+ vachoppy -m t O 0.1 2100 03 -v # vacancy type, t_interval, temperature, label
  ```
 
 Here, the arguments are:
@@ -244,7 +244,7 @@ Here, the arguments are:
 * temperature = 2100 K
 * label = 03
 
-Therefore, this command visualizes the oxygen vacancy trajectory of **XDATCAR_03** in **traj.2100K** directory.
+Therefore, this command visualizes the oxygen vacancy trajectory of **XDATCAR_03** in **traj.2100K** directory. Using the `-v` option (verbosity tag) prints the computational details, including vacancy hopping paths and vacancy hopping histories.
 
 
 **Output:**
