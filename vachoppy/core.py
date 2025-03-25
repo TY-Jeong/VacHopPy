@@ -373,9 +373,16 @@ class PhaseTransition:
 class GetFingerPrint:
     def __init__(self, 
                  poscar,
+                 Rmax,
+                 delta,
+                 sigma,
                  prefix='fingerprint', 
                  disp=False):
+        
         self.poscar = poscar
+        self.Rmax = Rmax
+        self.delta = delta
+        self.sigma = sigma
         self.prefix = prefix
         self.disp = disp
         
@@ -387,15 +394,17 @@ class GetFingerPrint:
         self.atom = None
         self.read_poscar()
         
+        self.pair.extend(combinations_with_replacement(self.atom, 2))
+        
         # input parameters
-        self.pair = []
-        self.get_pair()
+        # self.pair = []
+        # self.get_pair()
         
         # params for fingerprint
-        self.Rmax = None
-        self.delta = None
-        self.sigma = None
-        self.get_params()
+        # self.Rmax = None
+        # self.delta = None
+        # self.sigma = None
+        # self.get_params()
         
         # fingerprint
         self.fingerprint = []

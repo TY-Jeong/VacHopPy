@@ -205,7 +205,7 @@ Example1
 Simulations at the same temperature should be conducted under identical conditions. In other words, **NSW** and **POTIM** tags in INCAR should be the same. Therefore, only one OUTCAR file is needed per temperature directory.
 
 
-### Hyperparameter: Time interval (t<SUB> interval</SUB>)
+### Hyperparameter: Time interval (t<SUB>interval</SUB>)
 To run **VacHopPy**, the user needs to determine one hyperparameter, **t<SUB>interval</SUB>**, in advance. This parameter defines the time interval for averaging atomic positions and forces. Thermal fluctuations in AIMD simulations can obscure precise atomic occupancy determination. However, since these fluctuations are random, they can be effectively averaged out over time. **VacHopPy** processes AIMD data by dividing it into segments of length of t<SUB>interval</SUB>. Each segment represents a single step in the analysis. The total number of steps is given by t<SUB>simulation</SUB>/t<SUB>interval</SUB>, where t<SUB>simulation</SUB> is the total AIMD simulation time.
 
 
@@ -225,14 +225,14 @@ One recommended approach for determining the optimal t<SUB>interval</SUB> is thr
 </p>
 </div>
 
-The left and rigut figures show the convergences of $f$ with respect to the number of AIMD datasets (N<SUB>AIMD</SUB>) and t<SUB>interval</SUB>, respectively, at each temperature. The results confirm that convergence is achieved at N<SUB>AIMD</SUB>=20 and t<SUB>interval</SUB>=0.1 ps. (You can obtain the same reulsts using the data in **Example** 1 above)
+The left and rigut figures show the convergences of $f$ with respect to the number of AIMD datasets (N<SUB>AIMD</SUB>) and t<SUB>interval</SUB>, respectively, at each temperature. The results confirm that convergence is achieved at **N<SUB>AIMD</SUB>=20** and **t<SUB>interval</SUB>=0.1 ps**. (You can obtain the same reulsts using the data in **Example** 1 above)
 
 
 ## 1. Vacancy trajectory visualization
 
-Download and unzup the **Example1** file linked above.
+Download and unzip the **Example1** file linked above.
 
-Navigate to the **Example1** directory and run:
+Navigate to the `Example1` directory and run:
 ```ruby
  vachoppy -m t O 0.1 2100 03 # vacancy type, t_interval, temperature, label
  ```
@@ -247,12 +247,12 @@ The result is saved as `traj.gif`, with individual snapshots stored in the `snap
 </p>
 </div>
 
-In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB>), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The yellow-colored circle marks the vacancy position (*i.e.*, the unoccupied lattice point), while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms. User can adjust the resolution of the animation using the ``--dpi`` option (default: 300).
+In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB>), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The yellow-colored circle marks the vacancy position (*i.e.*, the unoccupied lattice point), while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms. The user can adjust the resolution of the animation using the ``--dpi`` option (default: 300).
 
 
 ## 2. Effective hopping parameter calculation
 
-Navigate to the **Example1** directory and run:
+Navigate to the `Example1` directory and run:
 
 ```ruby
 # For serial computation
@@ -269,3 +269,7 @@ All results are stored in `parameter.txt` file. This file includes (1) List of v
 
 
 ## 3. Assessment of lattice stability
+
+Download and unzip the **Example2** file linked above.
+
+Navigate to the `Example2` directory and run:

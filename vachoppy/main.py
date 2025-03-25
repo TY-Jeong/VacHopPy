@@ -128,6 +128,15 @@ if check_util:
                                 required=True,
                                 type=str,
                                 help='POSCAR to be used for fingerprint extraction')
+            parser.add_argument('Rmax',
+                                type=float,
+                                help='maxiumu distance range (Å)')
+            parser.add_argument('delta',
+                                type=float,
+                                help='bin size (Å)')
+            parser.add_argument('sigma',
+                                type=float,
+                                help='sigma for Gaussian-smeared delta function')
             parser.add_argument('--prefix',
                                 type=str,
                                 default='fingerprint',
@@ -375,6 +384,9 @@ def main():
             
         if mode_value == 'fingerprint':
             finger = GetFingerPrint(poscar=args.poscar,
+                                    Rmax=args.Rmax,
+                                    delta=args.delta,
+                                    sigma=args.sigma,
                                     prefix=args.prefix,
                                     disp=args.disp)
             
