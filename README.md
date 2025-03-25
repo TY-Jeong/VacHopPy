@@ -1,7 +1,7 @@
 # VacHopPy 
 
 ---
-**VacHopPy** is a Python package for analyzing vacancy hopping mechanisms based on *Ab initio* molecular dynamics (AIMD) simulations. A detailed explanation on **VacHopPy** framwork is provided in **here**.
+**VacHopPy** is a Python package for analyzing vacancy hopping mechanisms based on *Ab initio* molecular dynamics (AIMD) simulations. A detailed explanation on **VacHopPy** framwork is available in **here**.
 
 
 <div align=center>
@@ -19,7 +19,7 @@
 
 <br>
 
-**Effective hopping parameter** set, a key improvement of **VacHopPy**, is a single, representative set of hopping parameters, which is determined by integrating all possible hopping paths in a given system. It includes the following parameters (the bar expression ($`\bar{x}`$) is used to emphasize the parameters are effective values):
+**Effective hopping parameter** set, a key improvement of **VacHopPy**, is a single, representative set of hopping parameters, which is determined by integrating all possible hopping paths in a given system considering energetic and geometric properties. It includes the following parameters (the bar expression ($`\bar{x}`$) is used to emphasize the parameters are effective values):
 
 <div align="center">
 
@@ -33,12 +33,185 @@
 
 </div>
 
-For reliable extraction of effective hopping parameter set, **VacHopPy** properly considers energetic and geometric factors of vacancy sites and vacancy hopping paths. A detailed explanation on this framework is available in **here**.
+
+Effective hopping parameter set is beneficial for **multiscale modeling**, which bridges the *ab intio* calculations and larger-scale simulations, such as TCAD, continuum models, and KMC methods, since required mass transport quantities are expressed in a simple Arrhenius equation. For example, diffusion coefficient ($D$) and residence time ($τ$) are given by:
+
+```math
+D = \frac{1}{6}\bar{z}\bar{a}^{2}\bar{ν}f \cdot \exp(-\frac{\bar{E}_{a}}{k_{B}T})
+```
+
+<br>
+
+where $k_B$ represents the Boltzmann constant. Note that the exact expression of $D$ consist multiple exponential terms, each corresponds to a distinct vacancy hopping path.
+
+
+## Contents
+
+* Installation
+* List of commands
+* How to implement
+  * Vacancy trajectory determination
+    * Making animation
+    * Distribution of hopping path
+  * Effective hopping parameter calculation
+    * Diffusion coefficient 
+    * Atomic vibration coefficient
+  * Assessment of lattice stability
+  
+
+
+## Installation
+
+This package can be easily installed via pip. The current version of  **VacHopPy** was developed based on VASP 5.4.4.
+
+```ruby
+pip intall vachoppy
+```
+
+## Available commands
+
+**VacHopPy** provides a command-line interface (CLI). Belows are available CLI commands:
+
+<div align=center>
+<table>
+    <tr>
+        <th scope="col">Option 1</td>
+        <th scope="col">Option 2</td>
+        <th scope="col">Use</td>
+    </tr>
+    <tr>
+        <td rowspan="4">-m<br>(main)</td>
+        <td>t</td>
+        <td>Make an animation for vacancy trajectories</td>
+    </tr>
+    <tr>
+        <!-- <td>2</td> -->
+        <td>p</td>
+        <td>Calculate effective hopping parameters (excluding &#772;z and &#772;ν)</td>
+    </tr>
+    <tr>
+        <!-- <td>4</td> -->
+        <td>pp</td>
+        <td>Calculate &#772;z and &#772;ν (post-processing for `-m p` option)</td>
+    </tr>
+    <tr>
+        <!-- <td>5</td> -->
+        <td>f</td>
+        <td>Perform fingerprint analyses</td>
+    <tr>
+        <td rowspan="6">-u<br>(utility)</td>
+        <td>extract_force</td>
+        <td>Extract FORCE file from vasprun.xml</td>
+    </tr>
+    <tr>
+        <!-- <td>2</td> -->
+        <td>concat_xdatcar</td>
+        <td>Concatenate two XDATCAR files</td>
+    </tr>
+    <tr>
+        <!-- <td>3</td> -->
+        <td>concat_force</td>
+        <td>Concatenate two FORCE files</td>
+    </tr>
+    <tr>
+        <!-- <td>4</td> -->
+        <td>update_outcar</td>
+        <td>Combine two OUTCAR files</td>
+    </tr>
+    <tr>
+        <!-- <td>5</td> -->
+        <td>fingerprint</td>
+        <td>Extract fingerprint</td>
+    </tr>
+    <tr>
+        <!-- <td>6</td> -->
+        <td>cosine_distance</td>
+        <td>Calculate cosine distance</td>
+    </tr>
+</table>
+</div>
+
+For detailed descriptions, please use `-h` options:
+
+```ruby
+vachoppy -h # list of available commands
+vachoppy -m p -h # explanation for '-m p' option
+```
+
+For time-consuming commaands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. Parallelization can be implemented by using `--parallel` option:
+
+```ruby
+vachoppy -m p O 0.1 # serial computation
+mpirun -np 10 vachoppy -m p O 0.1 --parallel # parallel computation with 10 cpu nodes.
+```
+
+
+Belows is summary of the main commands (only main modules are shown for clarity):
 <div align=center>
 <p>
-    <img src="./imgs/effective.svg" width="750"/>
+    <img src="./imgs/flowchart2.svg" width="800"/>
 </p>
 </div>
+
+
+## How to implement
+
+Example files can be downloaded from:
+
+* **Example1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (29 GB)](https://drive.google.com/file/d/1SudMlQk40cJnVgrkklK6b4nhiF3YWPOY/view?usp=sharing)
+* **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (37 MB)](https://drive.google.com/file/d/1SuxEHmGdVNkk-mogdWWDOOUPZqX74QG5/view?usp=sharing)
+
+## 0. Preparation
+**VacHopPy** reads AIMD simulation data in VASP format (XDATCAR, OUTCAR, and FORCE). **XDATCAR** and **OUTCAR** are the typical VASP output files, containing information on atomic positions and simulation conditions, respectively. **FORCE** (optinal) includes force vectors and can be extracted from **vasprun.xml** file using `vachoppy -u extract_force` command:
+```ruby
+vachoppy -u extract_force -in vasprun.xml -out FORCE
+```
+If FORCE files are included in the input dataset, the atomic occupanciesa are determined based on transition state (TS) distribution; otherwise, the trajectory is determined based simply on proximity.
+
+> In current version, **VacHopPy** supports only AIMD simulations conducted using the **NVT ensmeble**. Each ensemble cell should contains a single vacancy. (Support for multi vacancies will be added in a future update) 
+
+Since AIMD simulations are commonly conducted on time scales shorter than nanoseconds, a single AIMD simulation includes a limited number of hopping events. To overcome this limitation, **VacHopPy** can simultaneously process multiple bundles of AIMD simulation results, each belonging to the same NVT ensemble group. Each bundle is distinguished by a number appended after an underscore in the XDATCAR and FORCE file names (e.g., XDATCAR_01, FORCE_01). Below is an example of file tree:
+
+
+```ruby
+Example1
+ ┣ traj
+ ┃ ┣ traj.1900K # AIMD simulations conducted at 1900 K
+ ┃ ┃ ┣ XDATCAR_01, FORCE_01 # Simiulations should be 
+ ┃ ┃ ┣ XDATCAR_02, FORCE_02 # conducted in the same condition
+ ┃ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┃ ┗ OUTCAR
+ ┃ ┣ traj.2000K
+ ┃ ┃ ┣ XDATCAR_01, FORCE_01
+ ┃ ┃ ┣ XDATCAR_02, FORCE_02
+ ┃ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┃ ┗ OUTCAR
+ ┃ ┗ traj.2100K
+ ┃ ┃ ┣ XDATCAR_01, FORCE_01
+ ┃ ┃ ┣ XDATCAR_02, FORCE_02
+ ┃ ┃ ┣ XDATCAR_03, FORCE_03
+ ┃ ┃ ┗ OUTCAR
+ ┗ POSCAR_LATTICE # POSCAR of perfect cell
+```
+
+The simulations in the same temperature should be conducted with the same conditions. Hence, only one OUTCAR file exist in each subdirectory.
+
+## 1. Vacancy trajectory determination
+
+Please download and unzup **Example1** file attatched above.
+
+Open **Example1** directory, and run:
+```ruby
+ vachoppy -m t O 0.1 2100 03 # vacancy type, t_interval, temperature, label
+ ```
+
+
+
+
+
+
+
+
 
 
 
