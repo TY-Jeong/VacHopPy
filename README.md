@@ -349,7 +349,7 @@ vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_1600K -p POSCAR_MONO -o OUTCAR_1600K
 mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_1600K -p POSCAR_MONO -o OUTCAR_1600K --parallel
 ```
 
-Here, the parameters are:
+Here, the arguments are:
 
 * t<SUB>interval</SUB> = 0.05 ps
 * R<SUB>max</SUB> = 20 Å
