@@ -1,7 +1,7 @@
 # VacHopPy 
 
 ---
-**VacHopPy** is a Python package to analyze trajectory of vacancy hopping mechanisms, based on *Ab initio* molecular dynamics (AIMD) simulations. (see **here** for detailed explanation about **VacHopPy** framework)
+**VacHopPy** is a Python package for analyzing vacancy hopping mechanisms based on *Ab initio* molecular dynamics (AIMD) simulations. A detailed explanation on **VacHopPy** framwork is provided in **here**.
 
 
 <div align=center>
@@ -11,7 +11,52 @@
 </div>
 
 
-A Key improvement in **VacHopPy** is introduction of an **effective hopping parameter** set. The hopping parameters inherently depend on the selction of hopping paths, resulting in multiple sets of hopping parameters within a given lattice. However, for macroscopic simulations (e.g., TCAD, continuum models, KMC methods), a well-defined, single effective hopping parameter set is required. This is because macroscopic equations typically do not account for multiple hopping paths. To sum up, the **effective hopping parameter** set is a single, consolidated parameter set that represents all hopping paths within a given lattice, making it suitable for multiscale modeling.
+## Features
+
+* Tracking of **vacancy trajectories** in AIMD simulations
+* Extraction of **effective hopping parameter** set
+* Assessment of lattice stability or **phase transitions**
+
+<br>
+
+**Effective hopping parameter** set, a key improvement of **VacHopPy**, is a single, representative set of hopping parameters, which is determined by integrating all possible hopping paths in a given system. It includes the following parameters (the bar expression ($`\bar{x}`$) is used to emphasize the parameters are effective values):
+
+<div align="center">
+
+|<center>Symbol</center>|<center>Description</center>|
+|:---:|---|
+| $`\bar{a}`$ |Hopping distance (Å)|
+| $`\bar{E}_{a}`$ |Hopping barrier (eV)|
+| $`\bar{z}`$ |Coordination number|
+| $`\bar{ν}`$ |Jump attempt frequency (THz)|
+| $`f`$ |Correlation factor|
+
+</div>
+
+For reliable extraction of effective hopping parameter set, **VacHopPy** properly considers energetic and geometric factors of vacancy sites and vacancy hopping paths. A detailed explanation on this framework is available in **here**.
+<div align=center>
+<p>
+    <img src="./imgs/effective.svg" width="750"/>
+</p>
+</div>
+
+
+
+
+
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+A Key improvement in **VacHopPy** is introduction of an **effective hopping parameter** set. The hopping parameters inherently depend on the selection of hopping paths, resulting in multiple sets of hopping parameters within a given lattice. However, in order to use the *ab initio* transport parameters in larger-scale simulations (e.g., TCAD, continuum models, KMC methods), a well-defined, single effective hopping parameter set is required. This is because macroscopic equations typically do not account for multiple hopping paths. To sum up, the **effective hopping parameter** set is a single, consolidated parameter set that represents all hopping paths within a given lattice, making it suitable for multiscale modeling.
 
 
 <div align=center>
