@@ -237,6 +237,16 @@ Navigate to the `Example1` directory and run:
  vachoppy -m t O 0.1 2100 03 # vacancy type, t_interval, temperature, label
  ```
 
+Here, the arguments are:
+
+* vacancy type : O (oxygen vacancy)
+* t<SUB>interval</SUB> = 0.1 ps
+* temperature = 2100 K
+* label = 03
+
+Therefore, this command visualizes the oxygen vacancy trajectory of **XDATCAR_03** in **traj.2100K** directory.
+
+
 **Output:**
 
 The result is saved as `traj.gif`, with individual snapshots stored in the `snapshot` directory. Below is an example of traj.gif:
@@ -247,7 +257,7 @@ The result is saved as `traj.gif`, with individual snapshots stored in the `snap
 </p>
 </div>
 
-In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB>), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The yellow-colored circle marks the vacancy position (*i.e.*, the unoccupied lattice point), while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms. The user can adjust the resolution of the animation using the ``--dpi`` option (default: 300).
+In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB>), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The **yellow-colored circle** marks the vacancy position (*i.e.*, the unoccupied lattice point), while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms. The user can adjust the resolution of the animation using the ``--dpi`` option (**default: 300**).
 
 
 ## 2. Effective hopping parameter calculation
@@ -261,6 +271,11 @@ vachoppy -m p O 0.1 # symbol, t_interval
 # For parallel computation
 mpirun -np 10 vachoppy -m p O 0.1 --parallel # 10 = number of cpu nodes
 ```
+Here, the arguments are:
+
+* vacancy type = O (oxygen vacancy)
+* t<SUB>interval</SUB> = 0.1 ps
+
 
 For serial computation, the process is indicatd by a progress bar. In parallel computation, process is recorded in the `VACHOPPY_PROGRESS` file in real time.
 
@@ -297,7 +312,15 @@ Navigate to the `Example2` directory and run:
 vachoppy -u fingerprint POSCAR_MONO 20.0 0.04 0.04 -d # POSCAR, R_max, Δ, σ
 ```
 
-Here, R<SUB>max</SUB>, Δ, and σ are set to 20 Å, 0.04 Å, and 0.04 Å, respectively. Using `-d` option displays the resulting *ψ* in a pop-up window. Below is an example output (*ψ* for monoclinic HfO<SUB>2</SUB>):
+Here, the arguments are:
+
+* Atomic structure = POSCAR_MONO (monoclinic HfO<SUB>2</SUB>)
+* R<SUB>max</SUB> = 20 Å
+* Δ =0.04 Å
+* σ = 0.04 Å 
+
+
+Using `-d` option displays the resulting *ψ* in a pop-up window. Below is an example output (*ψ* for monoclinic HfO<SUB>2</SUB>):
 
 <div align=center>
 <p>
@@ -333,7 +356,9 @@ Here, the parameters are:
 * Δ = 0.04 Å
 * σ = 0.04 Å 
 
-The `-x` option specifies **XDATCAR** file, where `XDATCAR_1600K` contains the AIMD trajectory at 1600 K. The `-p` option specifies the reference phase, where `POSCAR_MONO` contains **monoclinic HfO<SUB>2</SUB>** lattice. The `-o` option specifies the **OUTCAR** file. Results are stored in `cosine_distance.txt` and `cosine_distance.png`. To prevent overwriting, rename `cosine_distance.txt` to `dcos_1600K_mono.txt`.
+The `-x` option specifies **XDATCAR** file (**default: XDATCAR**), where `XDATCAR_1600K` contains the AIMD trajectory at 1600 K. The `-p` option specifies the **reference phase** (**default: POSCAR_REF**), where `POSCAR_MONO` contains **monoclinic HfO<SUB>2</SUB>** lattice. The `-o` option specifies the **OUTCAR** file (**default: OUTCAR**). 
+
+Results are stored in `cosine_distance.txt` and `cosine_distance.png`. To prevent overwriting, rename `cosine_distance.txt` to `dcos_1600K_mono.txt`.
 
 ----
 Next, run:
