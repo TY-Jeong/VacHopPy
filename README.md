@@ -34,7 +34,7 @@
 </div>
 
 
-Effective hopping parameter set is beneficial for **multiscale modeling**, which bridges the *ab intio* calculations and larger-scale simulations, such as TCAD, continuum models, and KMC methods, since required mass transport quantities are expressed in a simple Arrhenius equation. For example, diffusion coefficient ($D$) and residence time ($τ$) are given by:
+Effective hopping parameter set is beneficial for **multiscale modeling**, which bridges the *ab intio* calculations and larger-scale simulations, such as TCAD, continuum models, and KMC methods, since required mass transport quantities are expressed in a simple Arrhenius equation. For example, diffusion coefficient ($D$) is given by:
 
 ```math
 D = \frac{1}{6}\bar{z}\bar{a}^{2}\bar{ν}f \cdot \exp(-\frac{\bar{E}_{a}}{k_{B}T})
@@ -92,7 +92,7 @@ pip intall vachoppy
     <tr>
         <!-- <td>4</td> -->
         <td>pp</td>
-        <td>Calculate &#772;z and &#772;ν (post-processing for `-m p` option)</td>
+        <td>Calculate &#772;z and &#772;ν (post-processing for -m p option)</td>
     </tr>
     <tr>
         <!-- <td>5</td> -->
@@ -138,7 +138,7 @@ vachoppy -h # list of available commands
 vachoppy -m p -h # explanation for '-m p' option
 ```
 
-For time-consuming commaands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. Parallelization can be implemented by using `--parallel` option:
+For time-consuming commaands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. For parallelization, please specify `--parallel` option:
 
 ```ruby
 vachoppy -m p O 0.1 # serial computation
@@ -162,6 +162,22 @@ Example files can be downloaded from:
 * **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (37 MB)](https://drive.google.com/file/d/1SuxEHmGdVNkk-mogdWWDOOUPZqX74QG5/view?usp=sharing)
 
 ## 0. Preparation
+To implement **VacHopPy**, four types of input data (XDATCAR, OUTCAR, FORCE, and POSCAR_LATTICE) and one hyperparameter (t<SUB>interval</SUB>) are required.
+
+#### (1) XDATCAR and OUTCAR 
+
+
+### (2) FORCE
+
+
+### (2) POSCAR_LATTICE
+
+POSCAR_LATTICE contains the atomic structure of perfect supecell
+
+### (3) t<SUB> interval</SUB>
+
+
+
 **VacHopPy** reads AIMD simulation data in VASP format (XDATCAR, OUTCAR, and FORCE). **XDATCAR** and **OUTCAR** are the typical VASP output files, containing information on atomic positions and simulation conditions, respectively. **FORCE** (optinal) includes force vectors and can be extracted from **vasprun.xml** file using `vachoppy -u extract_force` command:
 ```ruby
 vachoppy -u extract_force -in vasprun.xml -out FORCE
@@ -293,8 +309,6 @@ This package can be easily installed via pip. The current version of  **VacHopPy
 ```ruby
 pip intall vachoppy
 ```
-
-
 
 ## Available commands
 
