@@ -311,7 +311,7 @@ To enhance robustness of *ψ*, **VacHopPy** considers all possible atom pairs (e
 
 ### Cosine distance (d<SUB>cos</SUB>)
 
-Cosine distance (d<SUB>cos</SUB>($x$)) quantifies structural similarity to a reference phase $x$, where a lower d<SUB>cos</SUB>($x$) indicates a greater similarity. By analyzing variations in d<SUB>cos</SUB>($x$) over time, users can assess lattice stability or explore phase transitions occurred in the AIMD simulations.
+Cosine distance (**d<SUB>cos</SUB>($x$)**) quantifies structural similarity to a reference phase $x$, where a lower d<SUB>cos</SUB>($x$) indicates a greater similarity. By analyzing variations in d<SUB>cos</SUB>($x$) over time, users can **assess lattice stability** or **explore phase transitions** occurred in the AIMD simulations.
 
 
 #### (1) Assessment of lattice stability
@@ -333,7 +333,7 @@ Here, the parameters are:
 * Δ = 0.04 Å
 * σ = 0.04 Å 
 
-The `-x` option specifies **XDATCAR** file, where `XDATCAR_1600K` contains the AIMD trajectory at 1600 K. The `-p` option specifies the reference phase, where `POSCAR_MONO` contains **monoclinic HfO<SUB>2</SUB>** lattice. The `-o` option specifies the **OUTCAR** file. Results are stored in `cosine_distance.txt` and `cosine_distance.png`. To prevent overwriting, rename `cosine_distance.txt` to `cosine_distance_1600K.txt`.
+The `-x` option specifies **XDATCAR** file, where `XDATCAR_1600K` contains the AIMD trajectory at 1600 K. The `-p` option specifies the reference phase, where `POSCAR_MONO` contains **monoclinic HfO<SUB>2</SUB>** lattice. The `-o` option specifies the **OUTCAR** file. Results are stored in `cosine_distance.txt` and `cosine_distance.png`. To prevent overwriting, rename `cosine_distance.txt` to `dcos_1600K_mono.txt`.
 
 ----
 Next, run:
@@ -346,11 +346,11 @@ vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_MONO -o OUTCAR_2200K
 mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_MONO -o OUTCAR_2200K --parallel 
 ```
 
-Here, `XDATCAR_2200K` and `OUTCAR_2200K` contain the AIMD trajecoty and simulation conditions at 2200 K, respectively. Rename `cosine_distance.txt` to `cosine_distance_2200K.txt`.
+Here, `XDATCAR_2200K` and `OUTCAR_2200K` contain the AIMD trajecoty and simulation conditions at 2200 K, respectively. Rename `cosine_distance.txt` to `dcos_2200K_mono.txt`.
 
 ----
 
-For comparison, plot `cosine_distance_1600K.txt` and `cosine_distance_2200K.txt` simultaneously using `plot.py`:
+For comparison, plot `dcos_1600K_mono.txt` and `dcos_2200K_mono.txt` simultaneously using `plot.py`:
 
 ```ruby
 # plot.py
@@ -358,36 +358,32 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-data1 = np.loadtxt(sys.argv[1], skiprows=2)
-data2 = np.loadtxt(sys.argv[2], skiprows=2)
-
-data1[:,1] -= np.average(data1[:,1])
-data2[:,1] -= np.average(data2[:,1]) - 0.08
+data, num_data = [], len(sys.argv)-1
+for i in range(num_data):
+    data.append(np.loadtxt(sys.argv[i+1], skiprows=2))
 
 plt.rcParams['figure.figsize'] = (6, 2.5)
 plt.rcParams['font.size'] = 10
 
-plt.scatter(data1[:,0], data1[:,1], s=10, label='1600K')
-plt.scatter(data2[:,0], data2[:,1], s=10, label='2200K')
-
+space = 0.09
+for i, data_i in enumerate(data):
+    data_i[:,1] -= np.average(data_i[:,1]) - space * i
+    plt.scatter(data_i[:,0], data_i[:,1], s=10, label=label[i])
+    
 plt.yticks([])
 plt.xlabel('Time (ps)', fontsize=12)
-plt.ylabel(r'$d_{cos}$($mono$)', fontsize=12)
-
+plt.ylabel(r'$d_{cos}$($x$)', fontsize=12)
 plt.legend(loc='center right')
-plt.savefig('dcos.png', dpi=300, bbox_inches="tight")
 plt.show()
 ```
 
-
 ```ruby
-python plot.py cosine_distance_1600K.txt cosine_distance_2200K.txt
+python plot.py dcos_1600K_mono.txt dcos_2200K_mono.txt
 ```
-
 
 <div align=center>
 <p>
-    <img src="./imgs/dcos.png" width="550"/>
+    <img src="./imgs/dcos_1.png" width="550"/>
 </p>
 </div>
 
@@ -404,6 +400,41 @@ In unstable lattices, such as monoclinic HfO<SUB>2</SUB>2 at 2200 K, vacancies a
 
 #### (2) Exploring phase transition
 
+By varying the reference phase, users can explore phase transitions occured in AIMD simulatoins.
+
+Navigate to the `Example2` directory and run:
+```ruby
+# For serial computation
+vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_TET -o OUTCAR_2200K
+
+# For parallel computation
+mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_TET -o OUTCAR_2200K --parallel 
+```
+Here, `POSCAR_TET` contains the atomic structure of tetragonal HfO<SUB>2</SUB>. To prevent overwriting, rename `cosine_distance.txt` to `dcos_2200K_tet.txt`.
+
+---
+Next, run:
+```ruby
+# For serial computation
+vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_AO -o OUTCAR_2200K
+
+# For parallel computation
+mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_AO -o OUTCAR_2200K --parallel 
+```
+Here, `POSCAR_AO` contains the atomic structure of antipolar orthorhombic HfO<SUB>2</SUB>. Rename `cosine_distance.txt` to `dcos_2200K_ao.txt`.
+
+---
+To compare the results, run `plot.py` as:
+
+```ruby
+python plot.py dcos_2200K_mono.txt dcos_2200K_tet.txt dcos_2200K_ao.txt
+```
+
+<div align=center>
+<p>
+    <img src="./imgs/dcos_2.png" width="550"/>
+</p>
+</div>
 
 
-
+As d<SUB>cos</SUB>(*mono*) increases, d<SUB>cos</SUB>(*tet*) decreases, while d<SUB>cos</SUB>(*ao*) remain nearly constant. This result clearly suggets that the phase transition is directed toward the tetragonal phase.
