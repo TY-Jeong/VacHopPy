@@ -166,7 +166,7 @@ Example files can be downloaded from:
 To run **VacHopPy**, the user needs four types of input data: **XDATCAR**, **OUTCAR**, **FORCE**, and **POSCAR_LATTICE**. In current version, **VacHopPy** supports only single-vacancy simulation, with multi-vacancy support planned for a future update.
 
 #### (1) XDATCAR and OUTCAR 
-XDATCAR and OUTCAR are standard VASP output files containing atomic trajectory from AIMD simulation and simulation conditions, respectively. The input atomic structure (*i.e.*, POSCAR) must include a **single vacancy**, and the AIMD simulation should be performed under the **NVT ensemble** (set **NBLOCK = 1**).
+XDATCAR and OUTCAR are standard VASP output files containing atomic trajectory from AIMD simulation and simulation conditions, respectively. The input atomic structure (*i.e.*, POSCAR) must include a **single vacancy**, and the AIMD simulation should be performed under the **NVT ensemble** (set **MDALGO = 2**, **NBLOCK = 1**).
 
 #### (2) FORCE (*optinal*)
 FORCE file contains force vectors acting on atoms and can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
@@ -265,6 +265,7 @@ mpirun -np 10 vachoppy -m p O 0.1 --parallel # 10 = number of cpu nodes
 For serial computation, the process is indicatd by a progress bar, while for parallel computation, the process is recorded in `VACHOPPY_PROGRESS` file in real time.
 
 **Output:**
+
 All results are stored in `parameter.txt` file. This file includes (1) List of vacancy hopping paths in a given system, (2) Effective hopping parameters, and (3) Vacancy hopping history at each AIMD dataset.
 
 
