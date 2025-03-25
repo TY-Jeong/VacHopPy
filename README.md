@@ -205,7 +205,7 @@ Example1
 Simulations at the same temperature should be conducted under identical conditions. In other words, **NSW** and **POTIM** tags in INCAR should be the same. Therefore, only one OUTCAR file is needed per temperature directory.
 
 
-### Hyperparameter: Time interval (t<SUB>interval</SUB>)
+### Hyperparameter: t<SUB>interval</SUB>
 To run **VacHopPy**, the user needs to determine one hyperparameter, **t<SUB>interval</SUB>**, in advance. This parameter defines the time interval for averaging atomic positions and forces. Thermal fluctuations in AIMD simulations can obscure precise atomic occupancy determination. However, since these fluctuations are random, they can be effectively averaged out over time. **VacHopPy** processes AIMD data by dividing it into segments of length of t<SUB>interval</SUB>. Each segment represents a single step in the analysis. The total number of steps is given by t<SUB>simulation</SUB>/t<SUB>interval</SUB>, where t<SUB>simulation</SUB> is the total AIMD simulation time.
 
 
@@ -307,10 +307,11 @@ Here, R<SUB>max</SUB>, Δ, and σ are set to 20 Å, 0.04 Å, and 0.04 Å, respec
 
 To enhance robustness of *ψ*, **VacHopPy** considers all possible atom pairs (e.g., Hf-Hf, Hf-O, and O-O) and concatenates them to construct a single well-defined *ψ*.
 
+---
 
 ### Cosine distance (d<SUB>cos</SUB>)
 
-Cosine distance (d<SUB>cos</SUB>($x$)) quantifies structural similarity with a reference phase $x$, whre a lower d<SUB>cos</SUB>($x$) indicates a greater similarity. Hence, by analyzing variation of d<SUB>cos</SUB>($x$) over time, the user can assess the lattice stability or explore phase transitions during the AIMD simulations.
+Cosine distance (d<SUB>cos</SUB>($x$)) quantifies structural similarity to a reference phase $x$, where a lower d<SUB>cos</SUB>($x$) indicates a greater similarity. By analyzing variations in d<SUB>cos</SUB>($x$) over time, users can assess lattice stability or explore phase transitions occurred in the AIMD simulations.
 
 
 #### (1) Assessment of lattice stability
@@ -325,10 +326,17 @@ vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_1600K -p POSCAR_MONO -o OUTCAR_1600K
 mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_1600K -p POSCAR_MONO -o OUTCAR_1600K --parallel
 ```
 
-In this example, the parameters t<SUB>interval</SUB> = 0.05 ps, R<SUB>max</SUB> = 20 Å, Δ = 0.04 Å, and σ = 0.04 Å are used. The `-x` option specifies **XDATCAR** file, where `XDATCAR_1600K` contain the AIMD trajectory at 1600 K. The `-p` option specifies reference phase, where `POSCAR_MONO` contains **monoclinic HfO<SUB>2</SUB>** lattice. The `-o` option specifies **OUTCAR** file, where `OUTCAR_1600K` contains AIMD simulation consitions at 1600 K. The results are stored in `cosine_distance.txt` and `cosine_distance.png`. To prevent overwriting, rename `cosine_distance.txt` to `cosine_distance_1600K.txt`.
+Here, the parameters are:
 
+* t<SUB>interval</SUB> = 0.05 ps
+* R<SUB>max</SUB> = 20 Å
+* Δ = 0.04 Å
+* σ = 0.04 Å 
 
-Subsequently, run:
+The `-x` option specifies **XDATCAR** file, where `XDATCAR_1600K` contains the AIMD trajectory at 1600 K. The `-p` option specifies the reference phase, where `POSCAR_MONO` contains **monoclinic HfO<SUB>2</SUB>** lattice. The `-o` option specifies the **OUTCAR** file. Results are stored in `cosine_distance.txt` and `cosine_distance.png`. To prevent overwriting, rename `cosine_distance.txt` to `cosine_distance_1600K.txt`.
+
+----
+Next, run:
 
 ```ruby
 # For serial computation
@@ -338,7 +346,64 @@ vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_MONO -o OUTCAR_2200K
 mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_MONO -o OUTCAR_2200K --parallel 
 ```
 
-Then, rename `cosine_distance.txt` to `cosine_distance_1800K.txt`.
+Here, `XDATCAR_2200K` and `OUTCAR_2200K` contain the AIMD trajecoty and simulation conditions at 2200 K, respectively. Rename `cosine_distance.txt` to `cosine_distance_2200K.txt`.
+
+----
+
+For comparison, plot `cosine_distance_1600K.txt` and `cosine_distance_2200K.txt` simultaneously using `plot.py`:
+
+```ruby
+# plot.py
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
+
+data1 = np.loadtxt(sys.argv[1], skiprows=2)
+data2 = np.loadtxt(sys.argv[2], skiprows=2)
+
+data1[:,1] -= np.average(data1[:,1])
+data2[:,1] -= np.average(data2[:,1]) - 0.08
+
+plt.rcParams['figure.figsize'] = (6, 2.5)
+plt.rcParams['font.size'] = 10
+
+plt.scatter(data1[:,0], data1[:,1], s=10, label='1600K')
+plt.scatter(data2[:,0], data2[:,1], s=10, label='2200K')
+
+plt.yticks([])
+plt.xlabel('Time (ps)', fontsize=12)
+plt.ylabel(r'$d_{cos}$($mono$)', fontsize=12)
+
+plt.legend(loc='center right')
+plt.savefig('dcos.png', dpi=300, bbox_inches="tight")
+plt.show()
+```
 
 
-For comparison, d<SUB>cos</SUB> data at 1600 K and 2200 K is shown together as follows:
+```ruby
+python plot.py cosine_distance_1600K.txt cosine_distance_2200K.txt
+```
+
+
+<div align=center>
+<p>
+    <img src="./imgs/dcos.png" width="550"/>
+</p>
+</div>
+
+In this figure, the d<SUB>cos</SUB> data at each temperature is arranged vertically; hence, the absolute y-values are meaningless. Instead, the focus is on the relative change in d<SUB>cos</SUB> over time. 
+
+* At 1600 K, d<SUB>cos</SUB> remains nearly constant, indicating structural stability.
+* At 2200 K, d<SUB>cos</SUB> exhibits substantial fluctuations near 20 ps, suggesting that the monoclinic lattice becomes unstable at high temperatures.
+
+It is important to note that the lattice parameters were contrained to those of monoclinic lattice since the AIMD simulations were performed under **NVT ensmeble**. As a result, any lattice distortion is not sustained but instead revert to the original lattice, producing peaks in the d<SUB>cos</SUB> trace.
+
+In unstable lattices, such as monoclinic HfO<SUB>2</SUB>2 at 2200 K, vacancies are poorly defined since atomic vibrtaion centers may shift away from the original lattice point. Consequently, vacancy trajectory determination (`vachoppy -m t` command) and effective hopping parameter extraction (`vachoppy -m p` command) may lack accuracy.
+
+---
+
+#### (2) Exploring phase transition
+
+
+
+
