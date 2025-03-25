@@ -205,7 +205,18 @@ Example1
 Simulations at the same temperature should be conducted under identical conditions. In other words, **NSW** and **POTIM** tags in INCAR should be the same. Therefore, only one OUTCAR file is needed per temperature directory.
 
 
-### t<SUB> interval</SUB>
+### Hyperparameter: Time interval (t<SUB> interval</SUB>)
+
+Thermal fluctuations inherent in AIMD simulations hamper accurate determination of atomic or vacancy occupancies. To address this, **VacHopPy** introduced 
+
+
+
+
+<div align=center>
+<p>
+    <img src="./imgs/t_interval.jpg" width="800"/>
+</p>
+</div>
 
 
 
@@ -218,62 +229,6 @@ Simulations at the same temperature should be conducted under identical conditio
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-**VacHopPy** reads AIMD simulation data in VASP format (XDATCAR, OUTCAR, and FORCE). **XDATCAR** and **OUTCAR** are the typical VASP output files, containing information on atomic positions and simulation conditions, respectively. **FORCE** (optinal) includes force vectors and can be extracted from **vasprun.xml** file using `vachoppy -u extract_force` command:
-```ruby
-vachoppy -u extract_force -in vasprun.xml -out FORCE
-```
-If FORCE files are included in the input dataset, the atomic occupanciesa are determined based on transition state (TS) distribution; otherwise, the trajectory is determined based simply on proximity.
-
-> In current version, **VacHopPy** supports only AIMD simulations conducted using the **NVT ensmeble**. Each ensemble cell should contains a single vacancy. (Support for multi vacancies will be added in a future update) 
-
-Since AIMD simulations are commonly conducted on time scales shorter than nanoseconds, a single AIMD simulation includes a limited number of hopping events. To overcome this limitation, **VacHopPy** can simultaneously process multiple bundles of AIMD simulation results, each belonging to the same NVT ensemble group. Each bundle is distinguished by a number appended after an underscore in the XDATCAR and FORCE file names (e.g., XDATCAR_01, FORCE_01). Below is an example of file tree:
-
-
-```ruby
-Example1
- ┣ traj
- ┃ ┣ traj.1900K # AIMD simulations conducted at 1900 K
- ┃ ┃ ┣ XDATCAR_01, FORCE_01 # Simiulations should be 
- ┃ ┃ ┣ XDATCAR_02, FORCE_02 # conducted in the same condition
- ┃ ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┃ ┗ OUTCAR
- ┃ ┣ traj.2000K
- ┃ ┃ ┣ XDATCAR_01, FORCE_01
- ┃ ┃ ┣ XDATCAR_02, FORCE_02
- ┃ ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┃ ┗ OUTCAR
- ┃ ┗ traj.2100K
- ┃ ┃ ┣ XDATCAR_01, FORCE_01
- ┃ ┃ ┣ XDATCAR_02, FORCE_02
- ┃ ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┃ ┗ OUTCAR
- ┗ POSCAR_LATTICE # POSCAR of perfect cell
-```
-
-The simulations in the same temperature should be conducted with the same conditions. Hence, only one OUTCAR file exist in each subdirectory.
-
-## 1. Vacancy trajectory determination
-
-Please download and unzup **Example1** file attatched above.
-
-Open **Example1** directory, and run:
-```ruby
- vachoppy -m t O 0.1 2100 03 # vacancy type, t_interval, temperature, label
- ```
 
 
 
