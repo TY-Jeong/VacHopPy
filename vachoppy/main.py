@@ -124,8 +124,7 @@ if check_util:
                                 help='second fingerprint file')
             
         if mode_value == 'fingerprint':
-            parser.add_argument('-p','--poscar',
-                                required=True,
+            parser.add_argument('POSCAR',
                                 type=str,
                                 help='POSCAR to be used for fingerprint extraction')
             parser.add_argument('Rmax',

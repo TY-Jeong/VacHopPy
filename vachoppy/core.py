@@ -394,6 +394,7 @@ class GetFingerPrint:
         self.atom = None
         self.read_poscar()
         
+        self.pair = []
         self.pair.extend(combinations_with_replacement(self.atom, 2))
         
         # input parameters
