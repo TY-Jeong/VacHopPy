@@ -230,7 +230,7 @@ The left and rigut figures show the convergences of $f$ with respect to the numb
 
 ## 1. Vacancy trajectory visualization
 
-Download and unzip the **Example1** file linked above.
+>Download and unzip the **Example1** file linked above.
 
 Navigate to the `Example1` directory and run:
 ```ruby
@@ -262,15 +262,49 @@ vachoppy -m p O 0.1 # symbol, t_interval
 mpirun -np 10 vachoppy -m p O 0.1 --parallel # 10 = number of cpu nodes
 ```
 
-For serial computation, the process is indicatd by a progress bar, while for parallel computation, the process is recorded in `VACHOPPY_PROGRESS` file in real time.
+For serial computation, the process is indicatd by a progress bar. In parallel computation, process is recorded in the `VACHOPPY_PROGRESS` file in real time.
 
 **Output:**
 
-All results are stored in `parameter.txt` file. This file includes (1) List of vacancy hopping paths in a given system, (2) Effective hopping parameters, and (3) Vacancy hopping history at each AIMD dataset.
+All results are stored in `parameter.txt` file, which includes: 
+
+1. List of vacancy hopping paths in a given system 
+2. Effective hopping parameters
+3. Vacancy hopping history at each AIMD dataset.
+
+
 
 
 ## 3. Assessment of lattice stability
 
-Download and unzip the **Example2** file linked above.
+>Download and unzip the **Example2** file linked above.
 
-Navigate to the `Example2` directory and run:
+**VacHopPy** employs the fingerprint analysis proposed by Oganov *et al.* to assess lattice stability. The key quantities used in this analysis are the **fingerprint vector (*ψ*)** and the **cosine distance (d<SUB>cos</SUB>)**. Detailed descriptions can be found in [**this paper**](https://www.sciencedirect.com/science/article/pii/S0010465510001840).
+
+### Fingerprint vector (*ψ*)
+
+To construct *ψ*, three parameters are required: 
+
+1. Threshold radius (**R<SUB>max</SUB>**) 
+2. Bin size (**Δ**)
+3. Standard deviation for Gaussian-smeared delta function (**σ**) 
+
+A well-defined *ψ* satisfies *ψ*(r=0) = -1 and converges to 0 as r → ∞. Therefore, the user needs to set these parameters appropriately to ensure these conditions are met.
+
+To generate *ψ*, use the follow commands:
+```ruby
+vachoppy -u fingerprint POSCAR_MONOCLINIC 20.0 0.04 0.04 -d # POSCAR, R_max, Δ, σ
+```
+
+Here, R<SUB>max</SUB>, Δ, and σ are set to 20 Å, 0.04 Å, and 0.04 Å, respectively. Using `-d` option displays the resulting *ψ* in a pop-up window. Below is an example output:
+
+<div align=center>
+<p>
+    <img src="./imgs/fingerprint_mono.png" width="550"/>
+</p>
+</div>
+
+To enhance robustness of *ψ*, **VacHopPy** considers all possible atom pairs (e.g., Hf-Hf, Hf-O, and O-O) and concatenates them to construct a single well-defined *ψ*.
+
+
+### Cosine distance (d<SUB>cos</SUB>)
