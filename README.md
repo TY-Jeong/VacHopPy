@@ -64,7 +64,7 @@ where $k_B$ represents the Boltzmann constant. Note that the exact expression of
 
 This package can be easily installed via pip. The current version of  **VacHopPy** was developed based on VASP 5.4.4.
 
-```ruby
+```javascript
 pip intall vachoppy
 ```
 
@@ -133,14 +133,14 @@ pip intall vachoppy
 
 For detailed descriptions, please use `-h` options:
 
-```ruby
+```javascript
 vachoppy -h # list of available commands
 vachoppy -m p -h # explanation for '-m p' option
 ```
 
 For time-consuming commaands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. For parallelization, please specify `--parallel` option:
 
-```ruby
+```javascript
 vachoppy -m p O 0.1 # serial computation
 mpirun -np 10 vachoppy -m p O 0.1 --parallel # parallel computation with 10 cpu nodes.
 ```
@@ -170,7 +170,7 @@ XDATCAR and OUTCAR are standard VASP output files containing atomic trajectory f
 
 #### (2) FORCE (*optinal*)
 FORCE file contains force vectors acting on atoms and can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
-```ruby
+```javascript
 vachoppy -u extract_force -in vasprun.xml -out FORCE
 ```
 The FORCE file helps assign atoms to corresponding lattice points based on their relatice positions to transition states. If the FORCE file is not provided, atomic occupancies will be determined solely based on proximity. Once atoms are assigned, the vacancy position is identified as an unoccupied lattice point.
@@ -181,7 +181,7 @@ POSCAR_LATTICE contains the perfect crystal structure without a vacancy. Its lat
 #### (4) File organization
 Since AIMD simulations commonly cover timescales shorter than nanoseconds, a single AIMD simulation may contain a few hopping events. However, since **VacHopPy** computes the effective hopping parameters in static manner, sufficient sampling of hopping events is necessary to ensure reliablilty. To address this, **VacHopPy** processes multiple AIMD datasets simultaneously. Each AIMD dataset is distinguished by a number appended after an underscore in the XDATCAR and FORCE file names (e.g., XDATCAR_01, FORCE_01). Below is an example of the recommended file structure:
 
-```ruby
+```javascript
 Example1
  ┣ traj
  ┃ ┣ traj.1900K # AIMD simulations conducted at 1900 K
@@ -233,7 +233,7 @@ The left and rigut figures show the convergences of $f$ with respect to the numb
 >Download and unzip the **Example1** file linked above.
 
 Navigate to the `Example1` directory and run:
-```ruby
+```javascript
  vachoppy -m t O 0.1 2100 03 # vacancy type, t_interval, temperature, label
  ```
 
@@ -264,7 +264,7 @@ In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2<
 
 Navigate to the `Example1` directory and run:
 
-```ruby
+```javascript
 # For serial computation
 vachoppy -m p O 0.1 # symbol, t_interval
 
@@ -308,7 +308,7 @@ A well-defined *ψ* satisfies *ψ*(r=0) = -1 and converges to 0 as r → ∞. Th
 
 
 Navigate to the `Example2` directory and run:
-```ruby
+```javascript
 vachoppy -u fingerprint POSCAR_MONO 20.0 0.04 0.04 -d # POSCAR, R_max, Δ, σ
 ```
 
@@ -341,7 +341,7 @@ Cosine distance (**d<SUB>cos</SUB>($x$)**) quantifies structural similarity to a
 
 Navigate to the `Example2` directory and run:
 
-```ruby
+```javascript
 # For serial computation
 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_1600K -p POSCAR_MONO -o OUTCAR_1600K
 
@@ -363,7 +363,7 @@ Results are stored in `cosine_distance.txt` and `cosine_distance.png`. To preven
 ----
 Next, run:
 
-```ruby
+```javascript
 # For serial computation
 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_MONO -o OUTCAR_2200K
 
@@ -377,7 +377,7 @@ Here, `XDATCAR_2200K` and `OUTCAR_2200K` contain the AIMD trajecoty and simulati
 
 For comparison, plot `dcos_1600K_mono.txt` and `dcos_2200K_mono.txt` together using `plot.py`:
 
-```ruby
+```javascript
 # plot.py
 import sys
 import numpy as np
@@ -402,7 +402,7 @@ plt.legend(loc='center right')
 plt.show()
 ```
 
-```ruby
+```javascript
 python plot.py dcos_1600K_mono.txt dcos_2200K_mono.txt
 ```
 
@@ -428,7 +428,7 @@ In unstable lattices, such as monoclinic HfO<SUB>2</SUB> at 2200 K, vacancies ar
 By varying the reference phase, users can explore phase transitions occuring in AIMD simulatoins.
 
 Navigate to the `Example2` directory and run:
-```ruby
+```javascript
 # For serial computation
 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_TET -o OUTCAR_2200K
 
@@ -440,7 +440,7 @@ Here, `POSCAR_TET` contains the atomic structure of **tetragonal HfO<SUB>2</SUB>
 ---
 
 Next, run:
-```ruby
+```javascript
 # For serial computation
 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_AO -o OUTCAR_2200K
 
@@ -453,7 +453,7 @@ Here, `POSCAR_AO` contains the atomic structure of **antipolar orthorhombic HfO<
 
 To compare the results, run `plot.py`:
 
-```ruby
+```javascript
 python plot.py dcos_2200K_mono.txt dcos_2200K_tet.txt dcos_2200K_ao.txt
 ```
 
