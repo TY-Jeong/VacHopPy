@@ -350,7 +350,7 @@ Here, `XDATCAR_2200K` and `OUTCAR_2200K` contain the AIMD trajecoty and simulati
 
 ----
 
-For comparison, plot `dcos_1600K_mono.txt` and `dcos_2200K_mono.txt` simultaneously using `plot.py`:
+For comparison, plot `dcos_1600K_mono.txt` and `dcos_2200K_mono.txt` together using `plot.py`:
 
 ```ruby
 # plot.py
@@ -394,13 +394,13 @@ In this figure, the d<SUB>cos</SUB> data at each temperature is arranged vertica
 
 It is important to note that the lattice parameters were contrained to those of monoclinic lattice since the AIMD simulations were performed under **NVT ensmeble**. As a result, any lattice distortion is not sustained but instead revert to the original lattice, producing peaks in the d<SUB>cos</SUB> trace.
 
-In unstable lattices, such as monoclinic HfO<SUB>2</SUB>2 at 2200 K, vacancies are poorly defined since atomic vibrtaion centers may shift away from the original lattice point. Consequently, vacancy trajectory determination (`vachoppy -m t` command) and effective hopping parameter extraction (`vachoppy -m p` command) may lack accuracy.
+In unstable lattices, such as monoclinic HfO<SUB>2</SUB> at 2200 K, vacancies are poorly defined since atomic vibrtaion centers may shift away from the original lattice point. Consequently, vacancy trajectory determination (`vachoppy -m t`) and effective hopping parameter extraction (`vachoppy -m p`) may lack accuracy.
 
 ---
 
 #### (2) Exploring phase transition
 
-By varying the reference phase, users can explore phase transitions occured in AIMD simulatoins.
+By varying the reference phase, users can explore phase transitions occuring in AIMD simulatoins.
 
 Navigate to the `Example2` directory and run:
 ```ruby
@@ -410,9 +410,10 @@ vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_TET -o OUTCAR_2200K
 # For parallel computation
 mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_TET -o OUTCAR_2200K --parallel 
 ```
-Here, `POSCAR_TET` contains the atomic structure of tetragonal HfO<SUB>2</SUB>. To prevent overwriting, rename `cosine_distance.txt` to `dcos_2200K_tet.txt`.
+Here, `POSCAR_TET` contains the atomic structure of **tetragonal HfO<SUB>2</SUB>**. To prevent overwriting, rename `cosine_distance.txt` to `dcos_2200K_tet.txt`.
 
 ---
+
 Next, run:
 ```ruby
 # For serial computation
@@ -421,10 +422,11 @@ vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_AO -o OUTCAR_2200K
 # For parallel computation
 mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_AO -o OUTCAR_2200K --parallel 
 ```
-Here, `POSCAR_AO` contains the atomic structure of antipolar orthorhombic HfO<SUB>2</SUB>. Rename `cosine_distance.txt` to `dcos_2200K_ao.txt`.
+Here, `POSCAR_AO` contains the atomic structure of **antipolar orthorhombic HfO<SUB>2</SUB>**. Rename `cosine_distance.txt` to `dcos_2200K_ao.txt`.
 
 ---
-To compare the results, run `plot.py` as:
+
+To compare the results, run `plot.py`:
 
 ```ruby
 python plot.py dcos_2200K_mono.txt dcos_2200K_tet.txt dcos_2200K_ao.txt
@@ -436,5 +438,10 @@ python plot.py dcos_2200K_mono.txt dcos_2200K_tet.txt dcos_2200K_ao.txt
 </p>
 </div>
 
+As before, the d<SUB>cos</SUB> data is arranged vertically, so the absolute y-values are not meaningful. Instead, the focus is on the relative change in d<SUB>cos</SUB> over time. 
 
-As d<SUB>cos</SUB>(*mono*) increases, d<SUB>cos</SUB>(*tet*) decreases, while d<SUB>cos</SUB>(*ao*) remain nearly constant. This result clearly suggets that the phase transition is directed toward the tetragonal phase.
+* As d<SUB>cos</SUB>(*mono*) increases, 
+* d<SUB>cos</SUB>(*tet*) decreases, 
+* while d<SUB>cos</SUB>(*ao*) remain nearly constant. 
+
+This result clearly suggets that the phase transition is directed toward the **tetragonal phase**.
