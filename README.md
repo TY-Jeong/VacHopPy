@@ -50,12 +50,13 @@ where $k_B$ represents the Boltzmann constant. Note that the exact expression of
 * Installation
 * List of commands
 * How to implement
-  * 0. Preparation
-  * 1. Vacancy trajectory visualization
-  * 2. Extraction of effective hopping parameters
-  * 3. Assessment of lattice stability
+  1. Preparation
+  2. Vacancy trajectory visualization
+  3. Extraction of effective hopping parameters
+  4. Assessment of lattice stability
 * Reference
 * License
+
 
 
 ## Installation
@@ -159,7 +160,7 @@ Example files can be downloaded from:
 * **Example1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (29 GB)](https://drive.google.com/file/d/1SudMlQk40cJnVgrkklK6b4nhiF3YWPOY/view?usp=sharing)
 * **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (102 MB)](https://drive.google.com/file/d/1SuxEHmGdVNkk-mogdWWDOOUPZqX74QG5/view?usp=sharing)
 
-## 0. Preparation
+## 1. Preparation
 ### Input data
 To run **VacHopPy**, the user needs four types of input data: **XDATCAR**, **OUTCAR**, **FORCE**, and **POSCAR_LATTICE**. In current version, **VacHopPy** supports only single-vacancy simulation, with multi-vacancy support planned for a future update.
 
@@ -226,7 +227,7 @@ One recommended approach for determining the optimal t<SUB>interval</SUB> is thr
 The left and rigut figures show the convergences of $f$ with respect to the number of AIMD datasets (N<SUB>AIMD</SUB>) and t<SUB>interval</SUB>, respectively, at each temperature. The results confirm that convergence is achieved at **N<SUB>AIMD</SUB>=20** and **t<SUB>interval</SUB>=0.1 ps**. (You can obtain the same reulsts using the data in **Example** 1 above)
 
 
-## 1. Vacancy trajectory visualization
+## 2. Vacancy trajectory visualization
 
 >Download and unzip the **Example1** file linked above.
 
@@ -258,7 +259,7 @@ The result is saved as `traj.gif`, with individual snapshots stored in the `snap
 In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB>), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The **yellow-colored circle** marks the vacancy position (*i.e.*, the unoccupied lattice point), while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms. The user can adjust the resolution of the animation using the ``--dpi`` option (**default: 300**).
 
 
-## 2. Extraction of effective hopping parameters
+## 3. Extraction of effective hopping parameters
 
 Navigate to the `Example1` directory and run:
 
@@ -339,7 +340,7 @@ Additionally, **VacHopPy** provides **individual jump atempt frequencies** for e
 </div>
 
 
-## 3. Assessment of lattice stability
+## 4. Assessment of lattice stability
 
 >Download and unzip the **Example2** file linked above.
 
