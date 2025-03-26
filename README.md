@@ -287,6 +287,13 @@ All results are stored in `parameter.txt` file, which includes:
 2. Effective hopping parameters
 3. Vacancy hopping history at each AIMD dataset.
 
+To search the effective hopping parameters, find **Effective hopping parameters** in the `parameter.txt` file:
+
+<div align=center>
+<p>
+    <img src="./imgs/params.png" width="550"/>
+</p>
+</div>
 
 
 
