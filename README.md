@@ -291,7 +291,7 @@ To search the effective hopping parameters, find **Effective hopping parameters*
 
 <div align=center>
 <p>
-    <img src="./imgs/params.png" width="550"/>
+    <img src="./imgs/parameters.png" width="650"/>
 </p>
 </div>
 
