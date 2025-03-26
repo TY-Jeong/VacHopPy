@@ -269,7 +269,7 @@ Navigate to the `Example1` directory and run:
 vachoppy -m p O 0.1 # symbol, t_interval
 
 # For parallel computation
-mpirun -np 10 vachoppy -m p O 0.1 --parallel # 10 = number of cpu nodes
+mpirun -np 10 vachoppy -m p O 0.1 --parallel # 10: number of cpu nodes
 ```
 Here, the arguments are:
 
@@ -277,17 +277,17 @@ Here, the arguments are:
 * t<SUB>interval</SUB> = 0.1 ps
 
 
-For serial computation, the process is indicatd by a progress bar. In parallel computation, process is recorded in the `VACHOPPY_PROGRESS` file in real time.
+For serial computation, the process is displayed via a progress bar. For parallel computation, process is recorded in the `VACHOPPY_PROGRESS` file in real time.
 
 **Output:**
 
 All results are stored in `parameter.txt` file, which includes: 
 
-1. List of vacancy hopping paths in a given system 
-2. Effective hopping parameters
-3. Vacancy hopping history at each AIMD dataset.
+1. A list of **vacancy hopping paths** in the system 
+2. **Effective hopping parameters** (except for $\bar{z}$ and $\bar{\nu}$)
+3. **Vacancy hopping history** for each AIMD dataset.
 
-To search the effective hopping parameters, find **Effective hopping parameters** in the `parameter.txt` file:
+To find the **effective hopping parameters**, search for **Effective hopping parameters** in `parameter.txt` file:
 
 <div align=center>
 <p>
@@ -297,7 +297,7 @@ To search the effective hopping parameters, find **Effective hopping parameters*
 
 ---
 
-Using `vachoppy -m p` command provides effective hopping parameters except for $\bar{z}$ and $\bar{\nu}$. Calculating $\bar{z}$ and $\bar{\nu}$ requires additional input data, `neb.csv`. This file contains hopping barriers ($E_{a}$) for all vacancy hopping paths in a given system. Below is an example of `neb.csv`
+The `vachoppy -m p` command extracts effective hopping parameters except for $\bar{z}$ and $\bar{\nu}$. To calculate $\bar{z}$ and $\bar{\nu}$, the user needs an additional input data, `neb.csv`. This file contains **hopping barriers ($E_{a}$)** for all vacancy hopping paths in the system. Below is an example of `neb.csv` (example system: rutile TiO<SUB>2</SUB>):
 
 ```javascript
 # neb.csv
@@ -305,7 +305,7 @@ A1,0.8698
 A2,1.058
 A3,1.766
 ```
-Here, the first and second colums correspond to the path names and $E_{a}$ values, respectively. The path information can be found in the `parameter.txt` file. Find **Vacancy hopping paths** in the `parameter.txt`:
+Here, the **first column** corresponds to the **path names**, and the **second column** contains the **$E_{a}$ values**. The user can find the hopping path information in the `parameter.txt` file under **Vacancy hopping paths**:
 
 <div align=center>
 <p>
@@ -313,15 +313,18 @@ Here, the first and second colums correspond to the path names and $E_{a}$ value
 </p>
 </div>
 
-We strongly recommend **performing NEB calculations using larger supercells** than those in AIMD simulations. In AIMD, thermal fluctuations attenutate interactions with periodic images and allow for a broader sampling of atomic configurations, which are comparable to the benefits of using a larger supercell.
+**Recommendation:** It is highly recommended to **perform NEB calculations using a larger supercell** than that used in AIMD simulations. In AIMD, thermal fluctuations attenuate interactions with periodic images and provide a broader sampling of atomic configurations, which helps approximate the effects of a larger supercell.
+
+
+---
 
 Navigate to the `Example1` directory and run:
 
-```javascript
+```bash
 vachoppy -m pp
 ```
 
-This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.txt` which contains a complete set of the effective hopping parameters. Find **Effective hopping parameters** in the `postprocess.txt`:
+This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.txt` which contains the complete set of the effective hopping parameters. To find the final values, search for **Effective hopping parameters** in the `postprocess.txt`:
 
 <div align=center>
 <p>
@@ -329,7 +332,7 @@ This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.
 </p>
 </div>
 
-For temperature-dependent parameters, their values at each temperature are provided. Add to the effective hopping parameters, **VacHopPy** provides **individual jump atempt frequency** of each hopping paths. Find **Jump attempt frequency (THz)** in the `postprocess.txt`:
+Additionally, **VacHopPy** provides **individual jump atempt frequencies** for each hopping paths. Find **Jump attempt frequency (THz)** in `postprocess.txt`:
 
 <div align=center>
 <p>
