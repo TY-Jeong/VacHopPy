@@ -260,7 +260,7 @@ The result is saved as `traj.gif`, with individual snapshots stored in the `snap
 In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB>), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The **yellow-colored circle** marks the vacancy position (*i.e.*, the unoccupied lattice point), while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms. The user can adjust the resolution of the animation using the ``--dpi`` option (**default: 300**).
 
 
-## 2. Effective hopping parameter calculation
+## 2. Extract effective hopping parameter
 
 Navigate to the `Example1` directory and run:
 
@@ -295,6 +295,8 @@ To search the effective hopping parameters, find **Effective hopping parameters*
 </p>
 </div>
 
+---
+Using `vachoppy -m p` command provides effective hopping parameters except for $\bar{z}$ and $\bar{\nu}$. Calculating $\bar{z}$ and $\bar{\nu}$ requires additional input data, `neb.csv`.
 
 
 ## 3. Assessment of lattice stability
