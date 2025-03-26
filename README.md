@@ -50,14 +50,12 @@ where $k_B$ represents the Boltzmann constant. Note that the exact expression of
 * Installation
 * List of commands
 * How to implement
-  * Vacancy trajectory visualization
-    * Making animation
-    * Distribution of hopping path
-  * Effective hopping parameter calculation
-    * Diffusion coefficient 
-    * Atomic vibration coefficient
-  * Assessment of lattice stability
-  
+  * 0. Preparation
+  * 1. Vacancy trajectory visualization
+  * 2. Extraction of effective hopping parameters
+  * 3. Assessment of lattice stability
+* Reference
+* License
 
 
 ## Installation
@@ -260,7 +258,7 @@ The result is saved as `traj.gif`, with individual snapshots stored in the `snap
 In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB>), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The **yellow-colored circle** marks the vacancy position (*i.e.*, the unoccupied lattice point), while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms. The user can adjust the resolution of the animation using the ``--dpi`` option (**default: 300**).
 
 
-## 2. Extract effective hopping parameter
+## 2. Extraction of effective hopping parameters
 
 Navigate to the `Example1` directory and run:
 
@@ -521,3 +519,12 @@ As before, the d<SUB>cos</SUB> data is arranged vertically, so the absolute y-va
 * while d<SUB>cos</SUB>(*ao*) remain nearly constant. 
 
 This result clearly suggets that the phase transition is directed toward the **tetragonal phase**.
+
+
+## Reference
+If you use **VacHopPy** package, plese cite **this paper**
+
+If you use `vachoppy -m f` or `vachoppy -u fingerprint` commands, also cite [**this paper**](https://www.sciencedirect.com/science/article/pii/S0010465510001840).
+
+## License
+*will be updated*
