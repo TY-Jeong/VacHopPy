@@ -296,7 +296,46 @@ To search the effective hopping parameters, find **Effective hopping parameters*
 </div>
 
 ---
-Using `vachoppy -m p` command provides effective hopping parameters except for $\bar{z}$ and $\bar{\nu}$. Calculating $\bar{z}$ and $\bar{\nu}$ requires additional input data, `neb.csv`.
+
+Using `vachoppy -m p` command provides effective hopping parameters except for $\bar{z}$ and $\bar{\nu}$. Calculating $\bar{z}$ and $\bar{\nu}$ requires additional input data, `neb.csv`. This file contains hopping barriers ($E_{a}$) for all vacancy hopping paths in a given system. Below is an example of `neb.csv`
+
+```javascript
+# neb.csv
+A1,0.8698
+A2,1.058
+A3,1.766
+```
+Here, the first and second colums correspond to the path names and $E_{a}$ values, respectively. The path information can be found in the `parameter.txt` file. Find **Vacancy hopping paths** in the `parameter.txt`:
+
+<div align=center>
+<p>
+    <img src="./imgs/hopping_paths.png" width="650"/>
+</p>
+</div>
+
+We strongly recommend **performing NEB calculations using larger supercells** than those in AIMD simulations. In AIMD, thermal fluctuations attenutate interactions with periodic images and allow for a broader sampling of atomic configurations, which are comparable to the benefits of using a larger supercell.
+
+Navigate to the `Example1` directory and run:
+
+```javascript
+vachoppy -m pp
+```
+
+This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.txt` which contains a complete set of the effective hopping parameters. Find **Effective hopping parameters** in the `postprocess.txt`:
+
+<div align=center>
+<p>
+    <img src="./imgs/postprocess.png" width="650"/>
+</p>
+</div>
+
+For temperature-dependent parameters, their values at each temperature are provided. Add to the effective hopping parameters, **VacHopPy** provides **individual jump atempt frequency** of each hopping paths. Find **Jump attempt frequency (THz)** in the `postprocess.txt`:
+
+<div align=center>
+<p>
+    <img src="./imgs/nu.png" width="650"/>
+</p>
+</div>
 
 
 ## 3. Assessment of lattice stability
