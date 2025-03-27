@@ -1,9 +1,14 @@
 from setuptools import setup, find_packages
 
+with open("README.md", "r", encoding="utf-8") as f:
+    long_description = f.read()
+
 setup(
     name='vachoppy',
     version='1.0.0',
     description='Python package for analyzing vacancy hopping mechanism',
+    long_description = long_description,
+    long_description_content_type='text/markdown',
     author='TY-Jeong',
     author_email='helianthus312@gmail.com',
     url='https://github.com/TY-Jeong/VacHopPy',
@@ -14,7 +19,6 @@ setup(
         'colorama',
         'matplotlib>=3.10.0',
         'scipy',
-        'mpi4py',
         'tabulate',
         'pymatgen>=2024.6.10'
     ],
@@ -28,4 +32,10 @@ setup(
             'vachoppy=vachoppy.main:main',
         ],
     },
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Topic :: Scientific/Engineering :: Physics"
+    ],
 )
