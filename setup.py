@@ -7,7 +7,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name='vachoppy',
-    version='1.0.0',
+    version=__version__,
     description='Python package for analyzing vacancy hopping mechanism',
     long_description = long_description,
     long_description_content_type='text/markdown',
