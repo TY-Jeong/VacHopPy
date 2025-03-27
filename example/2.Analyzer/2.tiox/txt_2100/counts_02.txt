@@ -1,6 +1,0 @@
-total counts = 6
-
-path	counts
-OP	3
-IP1	3
-IP2	0

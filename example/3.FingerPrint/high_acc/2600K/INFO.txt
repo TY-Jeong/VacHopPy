@@ -1,4 +1,0 @@
-data: 2600K (10)
-Rmax: 20
-delta: 0.004
-sigma: 0.1
