@@ -191,7 +191,7 @@ class Trajectory:
         self.interval = interval
         self.verbose = verbose
         # color map for arrows
-        self.cmap = ['b', 'c', 'black', 'deeppink', 'darkorange', 
+        self.cmap = ['b', 'deeppink', 'black', 'c', 'darkorange', 
                      'saddlebrown', 'red', 'lawngreen', 'grey', 'darkkhaki', 
                      'slateblue', 'purple', 'g']
         
@@ -757,12 +757,12 @@ class Trajectory:
         # obtain atom numbers
         atom_idx = []
         for idx in lat_point:
-            check = np.sum(self.occ_lat_point[:,step[0]]==idx)
+            check = np.sum(self.occ_lat_point[:,step[0]]==idx-1)
             if check > 1:
                 print(f"there are multiple atom at site {idx} in step {step[0]}.")
                 sys.exit(0)
             else:
-                atom_idx += [np.argmax(self.occ_lat_point[:,step[0]]==idx)]
+                atom_idx += [np.argmax(self.occ_lat_point[:,step[0]]==idx-1)]
         
         check_first = True
         points_init = []
@@ -822,7 +822,7 @@ class Trajectory:
                         c=point['c'], 
                         marker='o', 
                         linestyle='none', 
-                        markersize=10, 
+                        markersize=15, 
                         alpha=0.4, 
                         zorder=0)
 
