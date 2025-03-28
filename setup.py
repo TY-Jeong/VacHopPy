@@ -16,8 +16,8 @@ setup(
     url='https://github.com/TY-Jeong/VacHopPy',
     packages = find_packages(),
     install_requires=[
-        'numpy>=1.26.4',
-        'tqdm>=4.67.1',
+        'numpy',
+        'tqdm',
         'colorama',
         'matplotlib>=3.10.0',
         'scipy',
