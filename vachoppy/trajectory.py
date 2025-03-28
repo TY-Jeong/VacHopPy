@@ -107,16 +107,20 @@ class Lattice:
                     if np.linalg.norm(coords - _site.coords) < self.tolerance:
                         index_sites.append(i)
             index.append(index_sites)
-        index = np.array(index, dtype=int)
+        # index = np.array(index, dtype=int)
         
         # save site names
         self.site_names = [f"site{i+1}" for i in range(len(index))]
         
         # save lattice points
         self.lat_points = []
-        for i in range(np.min(index), np.max(index)+1):
+        for i in range(min(map(min,index)), max(map(max,index))+1):
+            for j, index_j in enumerate(index):
+                if i in index_j:
+                    site_i = j+1
+                    break
             point = {}
-            point['site'] = f"site{np.where(index==i)[0][0]+1}"
+            point['site'] = f"site{site_i}"
             point['coord'] = self.structure[i].frac_coords
             point['coord_C'] = self.structure[i].coords
             self.lat_points.append(point)
@@ -124,7 +128,7 @@ class Lattice:
         # find hopping paths
         nn_finder = VoronoiNN(tol=self.tol)
         self.path, self.path_names = [], []
-        for i, idx in enumerate(index[:,0]):
+        for i, idx in enumerate([index_i[0] for index_i in index]):
             paths_idx = []
             distances = np.array([], dtype=float)
             site_init = f"site{i+1}"
@@ -135,7 +139,11 @@ class Lattice:
             for neighbor in neighbors:
                 distance = self.structure[idx].distance(neighbor['site'])
                 if distance < self.rmax:
-                    site_final = f"site{np.where(index==neighbor['site_index'])[0][0]+1}"
+                    for j, index_j in enumerate(index):
+                        if neighbor['site_index'] in index_j:
+                            site_final = j+1
+                            break
+                    site_final = f"site{site_final}"
                     path_index = np.where(abs(distances - distance) < self.tolerance)[0]
                     if len(path_index) == 0:
                         path = {}
@@ -164,10 +172,131 @@ class Lattice:
         headers = ['name', 'init', 'final', 'a(Å)', 'z', 'coord_init', 'coord_final']
         data = [
             [path['name'], path['site_init'], path['site_final'], f"{path['distance']:.5f}", path['z'],
-             path['coord_init'], path['coord_final']] 
+             f"[{path['coord_init'][0]:.6f} {path['coord_init'][1]:.6f} {path['coord_init'][2]:.6f}]", 
+             f"[{path['coord_final'][0]:.6f} {path['coord_final'][1]:.6f} {path['coord_final'][2]:.6f}]"]
             for path in self.path
-            ]
+        ]
         print(tabulate(data, headers=headers, tablefmt="simple"))
+
+
+# class Lattice:
+#     def __init__(self, 
+#                  poscar_lattice, 
+#                  symbol,
+#                  rmax=3.0,
+#                  tol=1e-3,
+#                  tolerance=1e-3,
+#                  verbose=False):
+#         # read arguments
+#         self.poscar_lattice = poscar_lattice
+#         self.symbol = symbol
+#         self.rmax = rmax
+#         self.tol = tol
+#         self.tolerance = tolerance
+#         self.verbose = verbose
+        
+#         # check error
+#         if not os.path.isfile(self.poscar_lattice):
+#             sys.exit(f"{self.poscar_lattice} is not found.")
+            
+#         with open(self.poscar_lattice, 'r', encoding='utf-8') as f:
+#             contents = f.read()
+#             self.structure = Structure.from_str(contents, fmt='poscar')
+        
+#         if not any(site.specie.symbol==self.symbol for site in self.structure):
+#             sys.exit(f"{self.symbol} is not in {self.poscar_lattice}")
+        
+#         # contributions    
+#         self.path = []
+#         self.path_names = []
+#         self.site_names = None
+#         self.lat_points = None
+#         self.lattice = self.structure.lattice.matrix
+#         self.find_hopping_path()
+        
+#         # summary path
+#         if self.verbose:
+#             self.summary()
+        
+#     def find_hopping_path(self):
+#         # find inequivalent sites
+#         sga = SpacegroupAnalyzer(self.structure)
+#         sym_structure = sga.get_symmetrized_structure()
+#         non_eq_sites = sym_structure.equivalent_sites
+#         non_eq_sites = [
+#             site_group for site_group in non_eq_sites if site_group[0].specie.symbol==self.symbol
+#             ]
+#         index = []
+#         for sites in non_eq_sites:
+#             index_sites = []
+#             for site in sites:
+#                 coords = site.coords
+#                 for i, _site in enumerate(self.structure.sites):
+#                     if np.linalg.norm(coords - _site.coords) < self.tolerance:
+#                         index_sites.append(i)
+#             print(index_sites)
+#             index.append(index_sites)
+#         index = np.array(index, dtype=int)
+        
+#         # save site names
+#         self.site_names = [f"site{i+1}" for i in range(len(index))]
+        
+#         # save lattice points
+#         self.lat_points = []
+#         for i in range(np.min(index), np.max(index)+1):
+#             point = {}
+#             point['site'] = f"site{np.where(index==i)[0][0]+1}"
+#             point['coord'] = self.structure[i].frac_coords
+#             point['coord_C'] = self.structure[i].coords
+#             self.lat_points.append(point)
+            
+#         # find hopping paths
+#         nn_finder = VoronoiNN(tol=self.tol)
+#         self.path, self.path_names = [], []
+#         for i, idx in enumerate(index[:,0]):
+#             paths_idx = []
+#             distances = np.array([], dtype=float)
+#             site_init = f"site{i+1}"
+#             neighbors = nn_finder.get_nn_info(self.structure, idx)
+#             neighbors = [
+#                 neighbor for neighbor in neighbors if neighbor['site'].specie.symbol==self.symbol
+#                 ]
+#             for neighbor in neighbors:
+#                 distance = self.structure[idx].distance(neighbor['site'])
+#                 if distance < self.rmax:
+#                     site_final = f"site{np.where(index==neighbor['site_index'])[0][0]+1}"
+#                     path_index = np.where(abs(distances - distance) < self.tolerance)[0]
+#                     if len(path_index) == 0:
+#                         path = {}
+#                         path['site_init'] = site_init
+#                         path['site_final'] = site_final
+#                         path['distance'] = float(distance)
+#                         path['z'] = 1
+#                         path['coord_init'] = self.structure[idx].frac_coords
+#                         path['coord_final'] = neighbor['site'].frac_coords
+#                         paths_idx.append(path)
+#                         distances = np.append(distances, distance)
+#                         self.path_names.append(f"{chr(i+65)}{len(paths_idx)}")
+#                     else:
+#                         paths_idx[path_index[0]]['z'] += 1
+#             self.path += paths_idx
+#         self.path = sorted(self.path, key=lambda x: (x['site_init'], x['distance']))
+#         self.path_names = sorted(self.path_names)
+#         for path, name in zip(self.path, self.path_names):
+#             path['name'] = name
+    
+#     def summary(self):
+#         print(f"Number of inequivalent sites for {self.symbol} : {len(self.site_names)}")
+#         print(f"Number of inequivalent paths for {self.symbol} : {len(self.path_names)} (Rmax = {self.rmax:.2f} Å)")
+#         print('')
+#         print('Path information')
+#         headers = ['name', 'init', 'final', 'a(Å)', 'z', 'coord_init', 'coord_final']
+#         data = [
+#             [path['name'], path['site_init'], path['site_final'], f"{path['distance']:.5f}", path['z'],
+#              path['coord_init'], path['coord_final']] 
+#             for path in self.path
+#             ]
+#         print(tabulate(data, headers=headers, tablefmt="simple"))
 
 
 class Trajectory:
