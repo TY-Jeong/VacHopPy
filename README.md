@@ -293,9 +293,10 @@ To find the **effective hopping parameters**, search for **Effective hopping par
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/parameters.png" width="650"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/parameters.png?raw=true" width="650"/>
 </p>
 </div>
+
 
 ---
 
@@ -330,7 +331,7 @@ This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/postprocess.png" width="650"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/postprocess.png?raw=true" width="650"/>
 </p>
 </div>
 
