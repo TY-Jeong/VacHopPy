@@ -3,10 +3,9 @@
 ---
 **VacHopPy** is a Python package for analyzing vacancy hopping mechanisms based on *Ab initio* molecular dynamics (AIMD) simulations. A detailed explanation on **VacHopPy** framwork is available in **here(*will be updated*)**.
 
-
-<div align=center>
+<div align="center">
 <p>
-    <img src="./imgs/logo.png" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/logo.png" width="550"/>
 </p>
 </div>
 
@@ -164,7 +163,7 @@ mpirun -np 10 vachoppy -m p O 0.1 --parallel # parallel computation with 10 cpu 
 Belows is summary of the main commands (only main modules are shown for clarity):
 <div align=center>
 <p>
-    <img src="./imgs/flowchart2.svg" width="800"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/2f139bd1a4d42207c96ca57c27c404f4d2b2b394/imgs/flowchart2.svg" width="800"/>
 </p>
 </div>
 
@@ -226,7 +225,7 @@ To run **VacHopPy**, the user needs to determine one hyperparameter, **t<SUB>int
 
 <div align=center>
 <p>
-    <img src="./imgs/t_interval.jpg" width="800"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/t_interval.jpg" width="800"/>
 </p>
 </div>
 
@@ -236,7 +235,7 @@ One recommended approach for determining the optimal t<SUB>interval</SUB> is thr
 
 <div align=center>
 <p>
-    <img src="./imgs/convergence_test.jpg" width="550"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/convergence_test.jpg" width="550"/>
 </p>
 </div>
 
@@ -268,7 +267,7 @@ The result is saved as `traj.gif`, with individual snapshots stored in the `snap
 
 <div align=center>
 <p>
-    <img src="./imgs/traj.gif" width="550"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/traj.gif" width="550"/>
 </p>
 </div>
 
@@ -306,7 +305,7 @@ To find the **effective hopping parameters**, search for **Effective hopping par
 
 <div align=center>
 <p>
-    <img src="./imgs/parameters.png" width="650"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/parameters.png?raw=true" width="650"/>
 </p>
 </div>
 
@@ -324,7 +323,7 @@ Here, the **first column** corresponds to the **path names**, and the **second c
 
 <div align=center>
 <p>
-    <img src="./imgs/hopping_paths.png" width="650"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/hopping_paths.png" width="650"/>
 </p>
 </div>
 
@@ -343,7 +342,7 @@ This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.
 
 <div align=center>
 <p>
-    <img src="./imgs/postprocess.png" width="650"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/postprocess.png" width="650"/>
 </p>
 </div>
 
@@ -351,7 +350,7 @@ Additionally, **VacHopPy** provides **individual jump atempt frequencies** for e
 
 <div align=center>
 <p>
-    <img src="./imgs/nu.png" width="650"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/nu.png" width="650"/>
 </p>
 </div>
 
@@ -390,7 +389,7 @@ Using `-d` option displays the resulting *ψ* in a pop-up window. Below is an ex
 
 <div align=center>
 <p>
-    <img src="./imgs/fingerprint_mono.png" width="550"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/fingerprint_mono.png" width="550"/>
 </p>
 </div>
 
@@ -474,7 +473,7 @@ python plot.py dcos_1600K_mono.txt dcos_2200K_mono.txt
 
 <div align=center>
 <p>
-    <img src="./imgs/dcos_1.png" width="550"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/dcos_1.png" width="550"/>
 </p>
 </div>
 
@@ -525,7 +524,7 @@ python plot.py dcos_2200K_mono.txt dcos_2200K_tet.txt dcos_2200K_ao.txt
 
 <div align=center>
 <p>
-    <img src="./imgs/dcos_2.png" width="550"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/dcos_2.png" width="550"/>
 </p>
 </div>
 
