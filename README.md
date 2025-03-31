@@ -67,6 +67,15 @@ This package can be easily installed via pip. The current version of  **VacHopPy
 pip intall vachoppy
 ```
 
+For parallelization, the user should install `mpi4py` manually
+
+```bash
+# for conda environment
+conda install mpi4py
+# for pip
+pip install mpipy
+```
+
 ## Available commands
 
 **VacHopPy** provides a command-line interface (CLI). Belows are available CLI commands:
