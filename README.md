@@ -94,7 +94,7 @@ pip install mpipy
     <tr>
         <!-- <td>4</td> -->
         <td>pp</td>
-        <td>Calculate &#772;z and &#772;ν (post-processing for -m p option)</td>
+        <td>Calculate z and ν (post-processing for -m p option)</td>
     </tr>
     <tr>
         <!-- <td>5</td> -->
@@ -286,7 +286,7 @@ For serial computation, the process is displayed via a progress bar. For paralle
 All results are stored in `parameter.txt` file, which includes: 
 
 1. A list of **vacancy hopping paths** in the system 
-2. **Effective hopping parameters** (except for $z$ and $\nu$)
+2. **Effective hopping parameters** (except for z and ν)
 3. **Vacancy hopping history** for each AIMD dataset.
 
 To find the **effective hopping parameters**, search for **Effective hopping parameters** in `parameter.txt` file:
@@ -299,7 +299,7 @@ To find the **effective hopping parameters**, search for **Effective hopping par
 
 ---
 
-The `vachoppy -m p` command extracts effective hopping parameters except for $\bar{z}$ and $\bar{\nu}$. To calculate $\bar{z}$ and $\bar{\nu}$, the user needs an additional input data, `neb.csv`. This file contains **hopping barriers ($E_{a}$)** for all vacancy hopping paths in the system. Below is an example of `neb.csv` (example system: rutile TiO<SUB>2</SUB>):
+The `vachoppy -m p` command extracts effective hopping parameters except for z and ν. To calculate z and ν, the user needs an additional input data, `neb.csv`. This file contains **hopping barriers ($E_{a}$)** for all vacancy hopping paths in the system. Below is an example of `neb.csv` (example system: rutile TiO<SUB>2</SUB>):
 
 ```bash
 # neb.csv
