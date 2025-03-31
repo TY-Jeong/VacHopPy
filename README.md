@@ -18,30 +18,18 @@
 
 <br>
 
-**Effective hopping parameter** set, a key improvement of **VacHopPy**, is a single, representative set of hopping parameters, which is determined by integrating all possible hopping paths in a given system considering energetic and geometric properties. It includes the following parameters (the bar expression ($`\bar{x}`$) is used to emphasize the parameters are effective values):
+**Effective hopping parameter** set, a key improvement of **VacHopPy**, is a single, representative set of hopping parameters, which is determined by integrating all possible hopping paths in a given system considering energetic and geometric properties. Hence, the effective hopping parameters are suitable for multiscaling modeling, bridging the *ab initio* calculations and device-scale simulations (e.g., continuum models)
+
+The list of effective hopping parameters, which can be obtained using **VacHopPy** is summarized below"
 
 <div align="center">
-
-|<center>Symbol</center>|<center>Description</center>|
-|:---:|---|
-| $`\bar{a}`$ |Hopping distance (Å)|
-| $`\bar{E}_{a}`$ |Hopping barrier (eV)|
-| $`\bar{z}`$ |Coordination number|
-| $`\bar{ν}`$ |Jump attempt frequency (THz)|
-| $`f`$ |Correlation factor|
-
+<p>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/notation.png" width="550"/>
+</p>
 </div>
 
+Within the **VacHopPy** framework, the temperature dependencies of overall diffusion behavior, represented by *D* and *τ*, are simplified to an Arrehnius equation composed of the effective hopping parameters. Please see the original paper for a detailed description.
 
-Effective hopping parameter set is beneficial for **multiscale modeling**, which bridges the *ab intio* calculations and larger-scale simulations, such as TCAD, continuum models, and KMC methods, since required mass transport quantities are expressed in a simple Arrhenius equation. For example, diffusion coefficient ($D$) is given by:
-
-```math
-D = \frac{1}{6}\bar{z}\bar{a}^{2}\bar{ν}f \cdot \exp(-\frac{\bar{E}_{a}}{k_{B}T})
-```
-
-<br>
-
-where $k_B$ represents the Boltzmann constant. Note that the exact expression of $D$ consist multiple exponential terms, each corresponds to a distinct vacancy hopping path.
 
 
 ## Contents
