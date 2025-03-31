@@ -67,7 +67,14 @@ This package can be easily installed via pip. The current version of  **VacHopPy
 pip intall vachoppy
 ```
 
-For parallelization, the user should install `mpi4py` manually
+The `mpi4pu` package is not included in this command. If you need parallelized calculations, use:
+```bash
+pip install vachoppy[parallel]
+```
+This command automatically download the `mpi4py` package.
+
+
+You can download the `mpi4py` manually:
 
 ```bash
 # for conda environment
