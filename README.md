@@ -18,9 +18,9 @@
 
 <br>
 
-**Effective hopping parameter** set, a key improvement of **VacHopPy**, is a single, representative set of hopping parameters, which is determined by integrating all possible hopping paths in a given system considering energetic and geometric properties. Hence, the effective hopping parameters are suitable for multiscaling modeling, bridging the *ab initio* calculations and device-scale simulations (e.g., continuum models)
+**Effective hopping parameter** set, a key improvement of **VacHopPy**, is a single, representative set of hopping parameters, which is determined by integrating all possible hopping paths in a given system considering energetic and geometric properties. Hence, the effective hopping parameters are suitable for multiscaling modeling, bridging the *ab initio* calculations and device-scale simulations (e.g., continuum models).
 
-The list of effective hopping parameters, which can be obtained using **VacHopPy** is summarized below"
+The list of effective hopping parameters, which can be obtained using **VacHopPy** is summarized below:
 
 <div align="center">
 <p>
@@ -89,7 +89,7 @@ pip install mpipy
     <tr>
         <!-- <td>2</td> -->
         <td>p</td>
-        <td>Calculate effective hopping parameters (excluding &#772;z and &#772;ν)</td>
+        <td>Calculate effective hopping parameters (excluding z and ν)</td>
     </tr>
     <tr>
         <!-- <td>4</td> -->
@@ -286,7 +286,7 @@ For serial computation, the process is displayed via a progress bar. For paralle
 All results are stored in `parameter.txt` file, which includes: 
 
 1. A list of **vacancy hopping paths** in the system 
-2. **Effective hopping parameters** (except for $\bar{z}$ and $\bar{\nu}$)
+2. **Effective hopping parameters** (except for $z$ and $\nu$)
 3. **Vacancy hopping history** for each AIMD dataset.
 
 To find the **effective hopping parameters**, search for **Effective hopping parameters** in `parameter.txt` file:
