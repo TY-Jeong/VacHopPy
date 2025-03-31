@@ -5,7 +5,7 @@
 
 <div align="center">
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/logo.png" width="400"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/logo.png" width="550"/>
 </p>
 </div>
 
@@ -24,7 +24,7 @@ The list of effective hopping parameters, which can be obtained using **VacHopPy
 
 <div align="center">
 <p>
-    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/notation.png" width="550"/>
+    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/notation.png" width="400"/>
 </p>
 </div>
 
