@@ -54,7 +54,7 @@ This package can be easily installed via pip. The current version of  **VacHopPy
 pip intall vachoppy
 ```
 
-The `mpi4pu` package is not included in this command. If you need parallelized calculations, use:
+If you need parallelized calculations, use:
 ```bash
 pip install vachoppy[parallel]
 ```
