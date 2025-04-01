@@ -527,6 +527,6 @@ This result clearly suggets that the phase transition is directed toward the **t
 
 
 ## Reference
-If you used **VacHopPy** package, plese cite [**this paper**](https://arxiv.org/abs/2503.23467)
+If you used **VacHopPy** package, please cite [**this paper**](https://arxiv.org/abs/2503.23467)
 
 If you used `vachoppy -m f` or `vachoppy -u fingerprint` commands, also cite [**this paper**](https://www.sciencedirect.com/science/article/pii/S0010465510001840).
