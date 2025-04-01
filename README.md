@@ -1,7 +1,7 @@
 # VacHopPy 
 
 ---
-**VacHopPy** is a Python package for analyzing vacancy hopping mechanisms based on *Ab initio* molecular dynamics (AIMD) simulations. A detailed explanation on **VacHopPy** framwork is available in **here(*will be updated*)**.
+**VacHopPy** is a Python package for analyzing vacancy hopping mechanisms based on *Ab initio* molecular dynamics (AIMD) simulations. A detailed explanation on **VacHopPy** framwork is available in [**here**](https://arxiv.org/abs/2503.23467).
 
 <div align="center">
 <p>
@@ -527,6 +527,6 @@ This result clearly suggets that the phase transition is directed toward the **t
 
 
 ## Reference
-If you used **VacHopPy** package, plese cite **this paper(*will be updated*: please contact helianthus312@gmail.com)**
+If you used **VacHopPy** package, plese cite [**this paper**](https://arxiv.org/abs/2503.23467)
 
 If you used `vachoppy -m f` or `vachoppy -u fingerprint` commands, also cite [**this paper**](https://www.sciencedirect.com/science/article/pii/S0010465510001840).
