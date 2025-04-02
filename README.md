@@ -291,12 +291,17 @@ All results are stored in `parameter.txt` file, which includes:
 
 To find the **effective hopping parameters**, search for **Effective hopping parameters** in `parameter.txt` file:
 
-<div align=center>
+<!-- <div align=center>
 <p>
     <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/parameters.png?raw=true" width="650"/>
 </p>
-</div>
+</div> -->
 
+<div align=center>
+<p>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/parameters.png" width="650"/>
+</p>
+</div>
 
 ---
 
@@ -329,9 +334,15 @@ vachoppy -m pp
 
 This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.txt` which contains the complete set of the effective hopping parameters. To find the final values, search for **Effective hopping parameters** in the `postprocess.txt`:
 
-<div align=center>
+<!-- <div align=center>
 <p>
     <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/postprocess.png?raw=true" width="650"/>
+</p>
+</div> -->
+
+<div align=center>
+<p>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/postprocess.png" width="650"/>
 </p>
 </div>
 
