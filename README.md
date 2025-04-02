@@ -299,7 +299,7 @@ To find the **effective hopping parameters**, search for **Effective hopping par
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/parameters_v2" width="650"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/parameters_v2.png" width="650"/>
 </p>
 </div>
 
