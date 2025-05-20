@@ -882,6 +882,9 @@ class Trajectory:
         """
         if not os.path.isdir(foldername):
             os.makedirs(foldername, exist_ok=True)
+        if 0 in step:
+            print("step 0 is excluded.")
+            step.remove(0)
 
         # obtain atom numbers
         atom_idx = []
@@ -913,7 +916,7 @@ class Trajectory:
                            edgecolor='none', 
                            alpha=0.8, 
                            label=f"{lat_point[i]}")
-                lat_p = self.occ_lat_point[idx][s]
+                lat_p = self.occ_lat_point[idx][s-1]
                 color_atom[lat_p] = self.cmap[i%len(self.cmap)]
                 
                 # save initial postions
@@ -932,7 +935,7 @@ class Trajectory:
                 arrow_head = arrow['lat_points'][1]
                 if  arrow_head in lat_p_atoms:
                     arrows.append(arrow)
-                    color_arrows.append(color_atom[arrow['lat_points'][1]])
+                    color_arrows.append(color_atom[arrow['lat_points'][0]])
 
             alpha = 1
             for i, line in enumerate(arrows):
