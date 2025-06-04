@@ -143,7 +143,7 @@ class MakeAnimation:
             
         step = 'all' if step[-1] == -1 else np.arange(step[0], step[-1])
         
-        fps = input('Enter fps (int; e.g. 60): ')
+        fps = input('Enter fps (int; e.g. 10): ')
         
         try:
             fps = int(fps)
