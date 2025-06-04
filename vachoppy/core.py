@@ -219,7 +219,7 @@ class EffectiveHoppingParameter:
                 print('')
                 print(f"Vacancy type : {self.symbol}")
                 print(f"Number of vacancies : {self.num_vac}")
-                print('')
+                
                 f = open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8')
                 original_stdout = sys.stdout
                 sys.stdout = f
@@ -248,7 +248,7 @@ class EffectiveHoppingParameter:
             print('')
             print(f"Vacancy type : {self.symbol}")
             print(f"Number of vacancies : {self.num_vac}")
-            print('')
+            
             self.results = Automation_serial(
                 data=self.data, 
                 lattice=self.lattice, 
@@ -265,6 +265,7 @@ class EffectiveHoppingParameter:
         with open(self.file_out, 'w', encoding='utf-8') as f:
             original_stdout = sys.stdout
             sys.stdout = f
+            
             try:
                 extractor=ParameterExtractor(
                     data=self.data,
@@ -302,6 +303,7 @@ class PostEffectiveHoppingParameter:
         with open(self.file_out, 'w', encoding='utf-8') as f:
             original_stdout = sys.stdout
             sys.stdout = f
+            
             try:
                 postprocess = PostProcess(
                     file_params=self.file_params,
@@ -360,9 +362,11 @@ class PhaseTransition:
                         interval=self.interval,
                         prefix=self.prefix1
                     )
+                    
                 except SystemExit:
                     print("Error occured duing instantiating fingerprint.Snapshots.")
                     MPI.COMM_WORLD.Abort(1)
+                    
                 except Exception as e:
                     print(f"Unexpected error: {e}")
                     MPI.COMM_WORLD.Abort(1)
@@ -466,12 +470,16 @@ class GetFingerPrint:
         
         if pair == 'all':
             self.pair.extend(combinations_with_replacement(self.atom, 2))
+            
         else:
             pair = pair.split(',')
+            
             for p in pair:
                 atoms = p.split('-')
+                
                 if len(atoms) == 2 and all(atom in self.atom for atom in atoms):
                     self.pair.append(tuple(atoms))
+                    
                 else:
                     print(f'Invalid pair : {p}')
                     sys.exit(0)
@@ -595,13 +603,15 @@ class MSD:
             else:
                 segment = int((self.data.nsw[i] - step_skip) / step_tmax)
                 
-            msd = EnsembleEinstein(symbol=self.symbol,
-                                   prefix=path_dir,
-                                   labels=self.data.label[i],
-                                   segments=segment,
-                                   skip=step_skip,
-                                   start=step_start,
-                                   end=step_end)
+            msd = EnsembleEinstein(
+                symbol=self.symbol,
+                prefix=path_dir,
+                labels=self.data.label[i],
+                segments=segment,
+                skip=step_skip,
+                start=step_start,
+                end=step_end
+            )
             self.msd.append(msd)
     
     def saveMSD(self):
