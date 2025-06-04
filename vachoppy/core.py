@@ -122,16 +122,17 @@ class MakeAnimation:
         print('VacHopPy is done.')
             
     def save_animation(self):
-        print('\nInformation on animation')
-        print(f"Total simulation time  : {self.traj.num_step * self.traj.interval} ps")
-        print(f"Time interval per step : {self.traj.interval} ps")
-        print(f"Total number of steps  : {self.traj.num_step} (={self.traj.num_step * self.traj.interval}/{self.traj.interval})")
+        print(f'{GREEN}{BOLD}\nInformation on animation{RESET}')
+        print(f"  Total simulation time  : {self.traj.num_step * self.traj.interval} ps")
+        print(f"  Time interval per step : {self.traj.interval} ps")
+        print(f"  Total number of steps  : {self.traj.num_step} (={self.traj.num_step * self.traj.interval}/{self.traj.interval})")
         print('')
-        step = input('Enter init and final steps (int; e.g. 0 100 / 0 -1 for all): ')
         
+        print(f'Enter the initial and final steps (min: 0, max: {self.traj.num_step})')
+        step = input(f'{MAGENTA}{BOLD}Answer{RESET} (example: 0 500) : ')
+    
         try:
-            step = list(map(int, step.split()))
-            
+            step = list(map(int, step.split())) 
         except:
             print('The step number must be integer.')
             sys.exit(0)
@@ -143,11 +144,11 @@ class MakeAnimation:
             
         step = 'all' if step[-1] == -1 else np.arange(step[0], step[-1])
         
-        fps = input('Enter fps (int; e.g. 10): ')
+        print('\nEnter the fps value for animation')
+        fps = input(f'{MAGENTA}{BOLD}Answer{RESET} (example: 10) : ')
         
         try:
             fps = int(fps)
-            
         except:
             print('The fps must be integer.')
             sys.exit(0)
