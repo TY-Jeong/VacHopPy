@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vachoppy"
+version = "1.0.0"
+description = "Python package for analyzing vacancy hopping mechanism"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+  { name = "Taeyoung Jeong", email = "helianthus312@gmail.com" }
+]
+dependencies = [
+  "numpy",
+  "tqdm",
+  "colorama",
+  "matplotlib>=3.10.0",
+  "scipy",
+  "tabulate",
+  "pymatgen>=2024.6.10"
+]
+keywords = ["vachoppy", "vacancy", "hopping"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Physics"
+]
+
+[project.optional-dependencies]
+parallel = ["mpi4py"]
+
+[project.scripts]
+vachoppy = "vachoppy.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
