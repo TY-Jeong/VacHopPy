@@ -2,8 +2,8 @@ import os
 import sys
 import argparse
 from fractions import Fraction
-from vhp.inout import DataInfo
-from vhp.core import *
+from vachoppy.inout import DataInfo
+from vachoppy.core import *
 from vachoppy.utils import *
 
 try:
