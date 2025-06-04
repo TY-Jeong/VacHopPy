@@ -217,8 +217,8 @@ if check_mode:
                                 type=float,
                                 default=1e-3,
                                 help='tolerance for distance comparison (default: 1e-3)')
-            parser.add_argument('--use_incomplete_encounter',
-                                action='store_false',
+            parser.add_argument('--use_complete_encounter',
+                                action='store_true',
                                 help='')
             parser.add_argument('--inset_correlatoin_factor',
                                 action='store_true',
@@ -342,7 +342,7 @@ def main():
                 rmax=args.rmax,
                 tol=args.tol,
                 tolerance=args.tolerance,
-                use_incomplete_encounter=args.use_incomplete_encounter,
+                use_incomplete_encounter=not(args.use_complete_encounter),
                 inset_correlatoin_factor=args.inset_correlatoin_factor,
                 verbose=True
             )
