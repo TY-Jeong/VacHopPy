@@ -394,7 +394,7 @@ class ParameterExtractor:
         
         print('Lattice information :')
         print('  Vacancy type : ', self.lattice.symbol)
-        print(f"Number of vacancies : {self.num_vac}")
+        print(f"  Number of vacancies : {self.num_vac}")
         print('  Number of sites : ', len(self.lattice.site_name))
         print('  Number of hopping paths : ', end='')
         for num in num_path_site:
