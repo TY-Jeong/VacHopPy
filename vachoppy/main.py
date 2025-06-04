@@ -313,9 +313,11 @@ def main():
         
         # functionalities
         if mode_value in ['p', 't', 'e']:
-            data = DataInfo(prefix1=args.prefix1,
-                            prefix2=args.prefix2,
-                            verbose=True)
+            data = DataInfo(
+                prefix1=args.prefix1,
+                prefix2=args.prefix2,
+                verbose=True
+            )
         
         if mode_value == 't':
             traj = MakeAnimation(

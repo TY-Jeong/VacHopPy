@@ -43,7 +43,7 @@ class MakeAnimation:
                  tolerance=1e-3,
                  verbose=True):
         
-        print("VacHopPy is running...")
+        print("VacHopPy is running...\n")
 
         if int(temp) in data.temp:
             self.temp = temp
@@ -59,7 +59,11 @@ class MakeAnimation:
             print(f"{label} is not valid.")
             sys.exit(0)
             
-        index_temp = list(data.temp).index(self.temp)
+        for i, temp_i in enumerate(data.temp):
+            if abs(self.temp - temp_i) < 1e-9:
+                index_temp = i
+                break
+        
         index_label = data.label[index_temp].index(self.label)
         
         self.xdatcar = data.xdatcar[index_temp][index_label]
@@ -119,9 +123,9 @@ class MakeAnimation:
             
     def save_animation(self):
         print('\nInformation on animation')
-        print(f'  NSW = {self.traj.nsw} ({self.traj.nsw * self.potim / 1000} ps)')
-        print(f'  Interval = {self.interval} step ({self.interval * self.potim / 1000} ps)')
-        print(f'  Total step = {self.traj.num_step} (={self.traj.nsw}/{self.traj.interval})')
+        print(f"Total simulation time  : {self.traj.num_step * self.traj.interval} ps")
+        print(f"Time interval per step : {self.traj.interval} ps")
+        print(f"Total number of steps  : {self.traj.num_step} (={self.traj.num_step * self.traj.interval}/{self.traj.interval})")
         print('')
         step = input('Enter init and final steps (int; e.g. 0 100 / 0 -1 for all): ')
         
@@ -136,14 +140,17 @@ class MakeAnimation:
             print(f'    The final step should be less than {self.traj.num_step}')
             print(f'    The final step is set to {self.traj.num_step}')
             step[-1] = self.traj.num_step
-        step = 'all' if step[-1]==-1 else np.arange(step[0], step[-1])
+            
+        step = 'all' if step[-1] == -1 else np.arange(step[0], step[-1])
         
         fps = input('Enter fps (int; e.g. 60): ')
+        
         try:
             fps = int(fps)
             
         except:
             print('The fps must be integer.')
+            sys.exit(0)
         
         print('')
         self.traj.animation(

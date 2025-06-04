@@ -103,6 +103,8 @@ class DataInfo:
             if not os.path.isfile(outcar):
                 print(f"{outcar} is not found.")
                 sys.exit(0)
+            else:
+                self.outcar.append(outcar)
             
             check_temp, check_potim = False, False
             with open(outcar, 'r') as f:
