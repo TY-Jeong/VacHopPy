@@ -394,6 +394,7 @@ class ParameterExtractor:
         
         print('Lattice information :')
         print('  Vacancy type : ', self.lattice.symbol)
+        print(f"Number of vacancies : {self.num_vac}")
         print('  Number of sites : ', len(self.lattice.site_name))
         print('  Number of hopping paths : ', end='')
         for num in num_path_site:
@@ -413,7 +414,7 @@ class ParameterExtractor:
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
         
-        print('Unknown hopping paths : ') # 수정됨
+        print('Unknown hopping paths : ')
         header = ['path', 'a (Å)', 'z', 'initial site', 'final site']
         data = [
             [path['name'],  
@@ -426,9 +427,6 @@ class ParameterExtractor:
         print('')
         
     def print_simulation_condition(self):
-        print(f"Number of vacancies : {self.num_vac}")
-        print('')
-        
         print(f'Time ineterval used for average (t_interval) : {self.results[0].interval} ps')
         print('')
         
@@ -848,8 +846,8 @@ class PostProcess:
             
         for i, line in enumerate(lines):
             if "Lattice information :" in line:
-                self.num_sites = int(lines[i+1].split()[-1])
-                self.num_paths = list(map(int, lines[i+2].split()[-self.num_sites:]))
+                self.num_sites = int(lines[i+3].split()[-1])
+                self.num_paths = list(map(int, lines[i+4].split()[-self.num_sites:]))
                 self.num_paths = np.array(self.num_paths)
                 
             if "Vacancy hopping paths :" in line:
