@@ -2,17 +2,16 @@ import os
 import sys
 import argparse
 from fractions import Fraction
-from vachoppy.inout import DataInfo
-from vachoppy.core import *
+from vhp.inout import DataInfo
+from vhp.core import *
 from vachoppy.utils import *
-from colorama import Fore
 
 try:
     from mpi4py import MPI
     PARALELL = True
 except:
     PARALELL = False
-
+    
 BOLD = '\033[1m'
 CYAN = '\033[36m'
 MAGENTA = '\033[35m'
@@ -150,10 +149,13 @@ if check_mode:
         mode_value = sys.argv[mode_index]
 
         # Arguments for DataInfo
-        if mode_value in ['p', 't', 'e']:
-            parser.add_argument('symbol',
-                                type=str,
-                                help='symbol of moving atom')
+        # if mode_value in ['p', 't', 'e']:
+        #     parser.add_argument('symbol',
+        #                         type=str,
+        #                         help='symbol of moving atom')
+        #     parser.add_argument('num_vac',
+        #                         type=int,
+        #                         help='number of vacancies')
         
         if mode_value in ['p', 't', 'e']:
             parser.add_argument('-p1', '--prefix1', 
@@ -181,9 +183,6 @@ if check_mode:
                                 type=float,
                                 default=0.75,
                                 help='adjust the remaining time of the arrow (default: 0.75)')
-            parser.add_argument('--no_correction',
-                                action='store_true',
-                                help='if use, corrections will be skipped')
             parser.add_argument('--show_index',
                                 action='store_true',
                                 help='if use, index of each atom will be shown')
@@ -218,6 +217,12 @@ if check_mode:
                                 type=float,
                                 default=1e-3,
                                 help='tolerance for distance comparison (default: 1e-3)')
+            parser.add_argument('--use_incomplete_encounter',
+                                action='store_false',
+                                help='')
+            parser.add_argument('--inset_correlatoin_factor',
+                                action='store_true',
+                                help='')
             
         if mode_value == 'pp':
             parser.add_argument('-p', '--parameter',
@@ -313,53 +318,62 @@ def main():
                             verbose=True)
         
         if mode_value == 't':
-            traj = MakeAnimation(data=data,
-                                 temp=args.temp,
-                                 label=args.label,
-                                 interval=args.interval,
-                                 poscar_lattice=args.lattice,
-                                 symbol=args.symbol,
-                                 correlation=not(args.no_correction),
-                                 update_alpha=args.update_alpha,
-                                 show_index=args.show_index,
-                                 dpi=args.dpi,
-                                 verbose=args.verbose)
+            traj = MakeAnimation(
+                data=data,
+                temp=args.temp,
+                label=args.label,
+                interval=args.interval,
+                poscar_lattice=args.lattice,
+                update_alpha=args.update_alpha,
+                show_index=args.show_index,
+                dpi=args.dpi,
+                verbose=args.verbose
+            )
             
         if mode_value == 'p':
-            effective_params = EffectiveHoppingParameter(data=data,
-                                                         interval=args.interval,
-                                                         poscar_lattice=args.lattice,
-                                                         symbol=args.symbol,
-                                                         parallel=args.parallel,
-                                                         file_out='parameter.txt',
-                                                         rmax=args.rmax,
-                                                         tol=args.tol,
-                                                         tolerance=args.tolerance,
-                                                         verbose=True)
+            effective_params = EffectiveHoppingParameter(
+                data=data,
+                interval=args.interval,
+                poscar_lattice=args.lattice,
+                parallel=args.parallel,
+                file_out='parameter.txt',
+                rmax=args.rmax,
+                tol=args.tol,
+                tolerance=args.tolerance,
+                use_incomplete_encounter=args.use_incomplete_encounter,
+                inset_correlatoin_factor=args.inset_correlatoin_factor,
+                verbose=True
+            )
         
         if mode_value == 'pp':
-            post = PostEffectiveHoppingParameter(file_params=args.parameter,
-                                                 file_neb=args.neb)
+            post = PostEffectiveHoppingParameter(
+                file_params=args.parameter,
+                file_neb=args.neb
+            )
             
         if mode_value == 'f':
-            phase = PhaseTransition(xdatcar=args.xdatcar,
-                                    outcar=args.outcar,
-                                    interval=args.interval,
-                                    Rmax=args.Rmax,
-                                    delta=args.delta,
-                                    sigma=args.sigma,
-                                    parallel=args.parallel,
-                                    poscar_ref=args.poscar_ref,
-                                    prefix1=args.prefix1,
-                                    prefix2=args.prefix2)
+            phase = PhaseTransition(
+                xdatcar=args.xdatcar,
+                outcar=args.outcar,
+                interval=args.interval,
+                Rmax=args.Rmax,
+                delta=args.delta,
+                sigma=args.sigma,
+                parallel=args.parallel,
+                poscar_ref=args.poscar_ref,
+                prefix1=args.prefix1,
+                prefix2=args.prefix2
+            )
         
         if mode_value == 'e':
-            msd = MSD(data=data, 
-                      tmax=args.t_width, 
-                      skip=args.skip,
-                      start=args.start,
-                      symbol=args.symbol, 
-                      x_vac=float(Fraction(args.x_vac)))
+            msd = MSD(
+                data=data, 
+                tmax=args.t_width, 
+                skip=args.skip,
+                start=args.start,
+                symbol=args.symbol, 
+                x_vac=float(Fraction(args.x_vac))
+            )
             
     if check_util:
         if mode_value == 'extract_force':
@@ -382,11 +396,11 @@ def main():
             GetCosineDistance(args.fingerprint_in1, args.fingerprint_in2)
             
         if mode_value == 'fingerprint':
-            finger = GetFingerPrint(poscar=args.poscar,
-                                    Rmax=args.Rmax,
-                                    delta=args.delta,
-                                    sigma=args.sigma,
-                                    prefix=args.prefix,
-                                    disp=args.disp)
-            
-
+            finger = GetFingerPrint(
+                poscar=args.poscar,
+                Rmax=args.Rmax,
+                delta=args.delta,
+                sigma=args.sigma,
+                prefix=args.prefix,
+                disp=args.disp
+            )

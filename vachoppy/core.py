@@ -1,12 +1,9 @@
 import os
 import sys
-import csv
-import copy
 import numpy as np
 from tqdm import tqdm
 from colorama import Fore
 import matplotlib.pyplot as plt
-from scipy.optimize import minimize_scalar
 from itertools import combinations_with_replacement
 
 from vachoppy.inout import *
@@ -38,8 +35,6 @@ class MakeAnimation:
                  label,
                  interval,
                  poscar_lattice,
-                 symbol,
-                 correlation=True,
                  update_alpha=0.75,
                  show_index=False,
                  dpi=300,
@@ -47,15 +42,19 @@ class MakeAnimation:
                  tol=1e-3,
                  tolerance=1e-3,
                  verbose=True):
+        
         print("VacHopPy is running...")
 
         if int(temp) in data.temp:
             self.temp = temp
+             
         else:
             print(f"{temp}K is not valid.")
             sys.exit(0)
+            
         if label in data.label[list(data.temp).index(self.temp)]:
             self.label = label
+            
         else:
             print(f"{label} is not valid.")
             sys.exit(0)
@@ -65,13 +64,10 @@ class MakeAnimation:
         
         self.xdatcar = data.xdatcar[index_temp][index_label]
         self.outcar = data.outcar[index_temp]
-        self.force = None if data.force is None else data.force[index_temp][index_label]
+        self.force = data.force[index_temp][index_label]
         self.potim = data.potim[index_temp]
-        
-        self.interval = int(interval * 1000 / self.potim) # ps to iteration
+        self.interval = interval
         self.poscar_lattice = poscar_lattice
-        self.symbol = symbol
-        self.correlation = correlation
         self.update_alpha = update_alpha
         self.show_index = show_index
         self.dpi = dpi
@@ -80,61 +76,46 @@ class MakeAnimation:
         self.tolerance = tolerance
         self.verbose = verbose
         
-        self.lattice = Lattice(poscar_lattice=self.poscar_lattice,
-                               symbol=self.symbol,
-                               rmax=self.rmax,
-                               tol=self.tol,
-                               tolerance=self.tolerance,
-                               verbose=self.verbose)
+        vac_info = VacancyInfo(
+            data=data,
+            poscar_lattice=poscar_lattice
+        )
         
-        self.traj = Trajectory(xdatcar=self.xdatcar,
-                               lattice=self.lattice,
-                               force=self.force,
-                               interval=self.interval,
-                               verbose=self.verbose)
+        self.symbol = vac_info.symbol_vac
+        self.num_vac = vac_info.number_vac
+        print(f"Vacancy type : {self.symbol}")
+        print(f"Number of vacancies : {self.num_vac}")
         
-        if self.correlation:
-            self.do_correction()
+        self.lattice = Lattice(
+            poscar_lattice=self.poscar_lattice,
+            symbol=self.symbol,
+            rmax=self.rmax,
+            tol=self.tol,
+            tolerance=self.tolerance,
+            verbose=self.verbose
+        )
+        
+        self.traj = Trajectory(
+            xdatcar=self.xdatcar,
+            lattice=self.lattice,
+            interval=interval,
+            potim=self.potim,
+            num_vac=self.num_vac,
+            force=self.force,
+            verbose=self.verbose
+        )
             
         self.save_animation()
         
         if self.verbose:
             anal = TrajectoryAnalyzer(
-                traj=self.traj,
                 lattice=self.lattice,
+                trajectory=self.traj,
                 tolerance=self.tolerance,
                 verbose=self.verbose
             )
         
         print('VacHopPy is done.')
-        
-    def do_correction(self):
-        check_multivac, check_TS = True, True
-        _traj = copy.deepcopy(self.traj)
-        # multi-vacancy
-        try:
-            self.traj.correct_multivacancy(start=1)
-            self.traj.check_multivacancy()
-            if self.traj.multi_vac == False:
-                print('Correction for multi-vacancy : success')
-            else:
-                print('Correction for multi-vacancy : fail')
-                check_multivac = False
-        except:
-            print('Correction for multi-vacancy : fail')
-            check_multivac = False
-        
-        # TS criteria
-        try:
-            self.traj.correct_transition_state()
-            print('Correction for TS criteria : success')
-        except:
-            print('Correction for TS criteria : fail')
-            check_TS = False
-        
-        if not(check_multivac and check_TS):
-            print('The raw trajectory without corrections will be used.')
-            self.traj = _traj
             
     def save_animation(self):
         print('\nInformation on animation')
@@ -143,8 +124,10 @@ class MakeAnimation:
         print(f'  Total step = {self.traj.num_step} (={self.traj.nsw}/{self.traj.interval})')
         print('')
         step = input('Enter init and final steps (int; e.g. 0 100 / 0 -1 for all): ')
+        
         try:
             step = list(map(int, step.split()))
+            
         except:
             print('The step number must be integer.')
             sys.exit(0)
@@ -158,17 +141,19 @@ class MakeAnimation:
         fps = input('Enter fps (int; e.g. 60): ')
         try:
             fps = int(fps)
+            
         except:
             print('The fps must be integer.')
         
         print('')
-        self.traj.animation(step=step,
-                            potim=self.potim,
-                            foldername='snapshot',
-                            update_alpha=self.update_alpha,
-                            fps=fps,
-                            dpi=self.dpi,
-                            label=self.show_index)
+        self.traj.animation(
+            step=step,
+            foldername='snapshot',
+            update_alpha=self.update_alpha,
+            fps=fps,
+            dpi=self.dpi,
+            label=self.show_index
+        )
         
         print('snapshot directory was created.')
     
@@ -177,26 +162,35 @@ class MakeAnimation:
 class EffectiveHoppingParameter:
     def __init__(self, 
                  data, 
-                 interval, 
+                 interval,
                  poscar_lattice, 
-                 symbol,
                  parallel,
                  file_out='parameter.txt', 
                  rmax=3.0,
                  tol=1e-3,
                  tolerance=1e-3,
+                 use_incomplete_encounter=True,
+                 inset_correlatoin_factor=True,
                  verbose=True):
         
         self.data = data
         self.interval = interval
         self.poscar_lattice = poscar_lattice
         self.parallel = parallel
-        self.symbol = symbol
         self.file_out = file_out
         self.rmax = rmax
         self.tol = tol
         self.tolerance = tolerance
+        self.use_incomplete_encounter = use_incomplete_encounter
+        self.inset_correlatoin_factor = inset_correlatoin_factor
         self.verbose = verbose
+        
+        vac_info = VacancyInfo(
+            data=data,
+            poscar_lattice=poscar_lattice
+        )
+        self.symbol = vac_info.symbol_vac
+        self.num_vac = vac_info.number_vac
         
         self.lattice = Lattice(
             poscar_lattice=self.poscar_lattice,
@@ -215,6 +209,10 @@ class EffectiveHoppingParameter:
             
             if rank == 0:
                 print('VacHopPy is running...')
+                print('')
+                print(f"Vacancy type : {self.symbol}")
+                print(f"Number of vacancies : {self.num_vac}")
+                print('')
                 f = open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8')
                 original_stdout = sys.stdout
                 sys.stdout = f
@@ -222,21 +220,37 @@ class EffectiveHoppingParameter:
                     print("number of cpu node shoud be >= 2.")
                     MPI.COMM_WORLD.Abort(1)
 
-            self.results = VacancyHopping_parallel(
-                self.data, self.lattice,self.interval
+            self.results = Automation_parallel(
+                data=self.data, 
+                lattice=self.lattice, 
+                interval=self.interval,
+                num_vac=self.num_vac,
+                tolerance=self.tolerance,
+                use_incomplete_encounter=self.use_incomplete_encounter
             )
                 
             if rank == 0:
                 sys.stdout = original_stdout
                 f.close()
+                
                 self.get_parameters()
                 print('VacHopPy is done.')
                 
         else:
             print('VacHopPy is running...')
-            self.results = VacancyHopping_serial(
-                self.data, self.lattice, self.interval
+            print('')
+            print(f"Vacancy type : {self.symbol}")
+            print(f"Number of vacancies : {self.num_vac}")
+            print('')
+            self.results = Automation_serial(
+                data=self.data, 
+                lattice=self.lattice, 
+                interval=self.interval,
+                num_vac=self.num_vac,
+                tolerance=self.tolerance,
+                use_incomplete_encounter=self.use_incomplete_encounter
             )
+            
             self.get_parameters()
             print('VacHopPy is done.')
             
@@ -246,13 +260,15 @@ class EffectiveHoppingParameter:
             sys.stdout = f
             try:
                 extractor=ParameterExtractor(
-                    results=self.results,
                     data=self.data,
-                    lattice=self.lattice,
+                    results=self.results,
                     tolerance=self.tolerance,
                     verbose=self.verbose,
-                    figure=self.verbose
+                    figure=self.verbose,
+                    file_out=None,
+                    inset_correlatoin_factor=self.inset_correlatoin_factor
                 )
+                
             finally:
                 sys.stdout = original_stdout  
                 
@@ -270,6 +286,7 @@ class PostEffectiveHoppingParameter:
                  file_neb='neb.csv',
                  file_out='postprocess.txt',
                  verbose=True):
+        
         self.file_params = file_params
         self.file_neb = file_neb
         self.file_out = file_out
@@ -279,9 +296,12 @@ class PostEffectiveHoppingParameter:
             original_stdout = sys.stdout
             sys.stdout = f
             try:
-                postprocess = PostProcess(file_params=self.file_params,
-                                          file_neb=self.file_neb,
-                                          verbose=self.verbose)
+                postprocess = PostProcess(
+                    file_params=self.file_params,
+                    file_neb=self.file_neb,
+                    verbose=self.verbose
+                )
+                
             finally:
                 sys.stdout = original_stdout
                 
