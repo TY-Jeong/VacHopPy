@@ -808,13 +808,28 @@ class Trajectory:
                     r_final = self.displacement_PBC(p_atom, p_final)
                     
                     # cos theta
-                    cos_init = (np.dot(force_atom, r_init) 
-                                / (np.linalg.norm(force_atom) * np.linalg.norm(r_init)))
-                    cos_final = (np.dot(force_atom, r_final) 
-                                 / (np.linalg.norm(force_atom) * np.linalg.norm(r_final)))
+                    eps = 1e-9
+                    norm_f = np.linalg.norm(force_atom)
+                    norm_init = np.linalg.norm(r_init)
+                    norm_final = np.linalg.norm(r_final)
+                    
+                    if norm_f < eps or norm_init < eps:
+                        cos_init = np.nan
+                    else:
+                        cos_init = np.dot(force_atom, r_init) / (norm_f * norm_init)
+
+                    if norm_f < eps or norm_final < eps:
+                        cos_final = np.nan
+                    else:
+                        cos_final = np.dot(force_atom, r_final) / (norm_f * norm_final)
                     
                     # TS-refinement
-                    if cos_init < cos_final: # valid hop
+                    if np.isnan(cos_init) or np.isnan(cos_final):
+                        print("WARNING: NaN in cos_init/final at frame")
+                        print(f"{self.xdatcar} (step: {step})")
+                        continue
+                    
+                    elif cos_init <= cos_final: # valid hop
                         continue
                     
                     else: # invalid hop                           
