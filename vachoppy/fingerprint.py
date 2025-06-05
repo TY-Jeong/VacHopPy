@@ -315,7 +315,8 @@ class Snapshots:
 
             for j in range(atom['num']):
                 start = np.sum(num_atoms[:i]) + j + 8
-                end = lines.shape[0] + 1
+                # end = lines.shape[0] + 1
+                end = 7 + nsw_cut * (num_atoms_tot + 1)
                 step = num_atoms_tot + 1
                 coords = [s.split() for s in lines[start:end:step]]
                 coords = np.array(coords, dtype=float)
