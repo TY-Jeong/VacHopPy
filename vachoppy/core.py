@@ -349,7 +349,7 @@ class PhaseTransition:
             size = comm.Get_size()
             
             if rank == 0:
-                print('VacHopPy is running...')
+                print('VacHopPy is running...\n')
                 f = open('VACHOPPY_PROGRESS', 'w', buffering=1, encoding='utf-8')
                 original_stdout = sys.stdout
                 sys.stdout = f
@@ -392,7 +392,7 @@ class PhaseTransition:
                 print('VacHopPy is done.')
         
         else:
-            print('VacHopPy is running...')
+            print('VacHopPy is running...\n')
             snapshots = Snapshots(
                 xdatcar=self.xdatcar, 
                 outcar=self.outcar, 

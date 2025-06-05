@@ -247,11 +247,11 @@ class Snapshots:
         self.interval_nsw = self._compute_interval_nsw(interval, self.potim)
         
         # read xdatcar
-        self.lattice_parameter = None
-        self.nsw_cut = None
         self.digit = None
+        self.nsw_cut = None
         self.num_step = None
         self.atom_species = None
+        self.lattice_parameter = None
         self.position = []
         self.read_xdatcar()
         
@@ -316,7 +316,6 @@ class Snapshots:
 
             for j in range(atom['num']):
                 start = np.sum(num_atoms[:i]) + j + 8
-                # end = lines.shape[0] + 1
                 end = 7 + nsw_cut * (num_atoms_tot + 1)
                 step = num_atoms_tot + 1
                 coords = [s.split() for s in lines[start:end:step]]
@@ -343,11 +342,12 @@ class Snapshots:
             
             self.position += [atom]
         
-        self.lattice_parameter = lattice_parameter
+        self.digit = digit
         self.nsw_cut = nsw_cut
         self.num_step = num_step
         self.atom_species = atom_species
-        self.digit = digit
+        self.lattice_parameter = lattice_parameter
+        
             
             
     def save_poscar(self, 
