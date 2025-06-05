@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -205,25 +206,32 @@ class FingerPrint:
             
 class Snapshots:
     def __init__(self,
-                 xdatcar,
-                 outcar,
-                 interval,
-                 prefix='snapshots'):
+                 xdatcar: str,
+                 outcar: str,
+                 interval: float,
+                 prefix: str ='snapshots'):
         """
-        interval : time interval used in average (ps)
+        Arguements
+        ----------
+        xdatcar : str
+            Path to XDATCAR file
+        outcar : str
+            Path to OUTCAR file
+        interval : float 
+            Time interval (ps)
+        prefix : str, optional
+            Prefix for output files
         """
+
+        self._validate_file(xdatcar, "XDATCAR")
+        self._validate_file(outcar, "OUTCAR")
+
         self.xdatcar = xdatcar
         self.outcar = outcar
         self.prefix = prefix
         self.interval = interval
         
-        # check file
-        if not os.path.isfile(self.xdatcar):
-            print(f'{self.xdatcar} is not found')
-            sys.exit(0)
-        if not os.path.isfile(self.outcar):
-            print(f'{self.outcar} is not found')
-            sys.exit(0)
+            
         if not os.path.isdir(self.prefix):
             os.makedirs(self.prefix)
             print(f'{self.prefix} directory is created.')
@@ -231,14 +239,16 @@ class Snapshots:
         # read outcar
         self.potim = None
         self.read_outcar()
+        
         if self.potim is None:
-            print(f"No POTIM data in {self.outcar} file.")
+            print(f"POTIM does not exist in OUTCAR.")
             sys.exit(0)
-        else:
-            self.interval_step = int(self.interval * 1000 / self.potim)
+            
+        self.interval_nsw = self._compute_interval_nsw(interval, self.potim)
         
         # read xdatcar
-        self.nsw = None
+        self.lattice_parameter = None
+        self.nsw_cut = None
         self.digit = None
         self.num_step = None
         self.position = []
@@ -255,7 +265,20 @@ class Snapshots:
             self.save_poscar(i, filename)
             
         print(f"AIMD snapshots are saved in {self.prefix} directory.")
-        
+    
+    def _validate_file(self, path, label="file"):
+        if not os.path.isfile(path):
+            print(f"ERROR: {label} '{path}' is not found.")
+            sys.exit(0)
+
+    def _compute_interval_nsw(self, interval, potim):
+        eps = 1e-9
+        val = interval * 1000 / potim
+        if math.isclose(val, round(val), abs_tol=eps):
+            return int(round(val))
+        print("ERROR: interval must be a multiple of potim.")
+        sys.exit(0)
+                
     def read_outcar(self):
         with open(self.outcar, 'r') as f:
             for line in f:
@@ -264,38 +287,34 @@ class Snapshots:
                     break
         
     def read_xdatcar(self):
-        self.nsw = find_last_direct_line(self.xdatcar)
-        if self.nsw % self.interval_step != 0:
-            print(
-                f'NSW ({self.nsw} step) is not divided by interval ({self.interval_step} step)'
-            )
-            sys.exit(0)
         
         with open(self.xdatcar, 'r') as f:
             lines = np.array([s.strip() for s in f])
         
-        self.lattice = np.array([s.split() for s in lines[2:5]], dtype=float)
-        self.lattice *= float(lines[1])
+        nsw = find_last_direct_line(self.xdatcar)
+        num_step = int(nsw / self.interval_nsw)
+        nsw_cut = num_step * self.interval_nsw
         
-        self.atom_species = np.array(lines[5].split())
-        self.num_species = len(self.atom_species)
+        lattice_parameter = np.array(
+            [s.split() for s in lines[2:5]], dtype=np.float64
+        ) * np.float64(lines[1])
         
-        self.num_atoms = np.array(lines[6].split(), dtype=int)
-        num_atoms_tot = np.sum(self.num_atoms)
-        self.num_step = int(self.nsw / self.interval_step)
+        atom_species = np.array(lines[5].split())
+        num_atoms = np.array(lines[6].split(), dtype=np.int32)
+        num_atoms_tot = np.sum(num_atoms)
         
-        digit = int(np.log10(self.num_step)) + 1
-        self.digit = f'0{digit}'
+        digit = int(np.log10(num_step)) + 1
+        digit = f'0{digit}'
         
-        for i, spec in enumerate(self.atom_species):           
+        for i, spec in enumerate(atom_species):           
             atom = {}
             atom['species'] = spec
-            atom['num'] = self.num_atoms[i]
+            atom['num'] = num_atoms[i]
             
-            traj = np.zeros((atom['num'], self.num_step, 3)) 
+            traj = np.zeros((atom['num'], num_step, 3)) 
 
             for j in range(atom['num']):
-                start = np.sum(self.num_atoms[:i]) + j + 8
+                start = np.sum(num_atoms[:i]) + j + 8
                 end = lines.shape[0] + 1
                 step = num_atoms_tot + 1
                 coords = [s.split() for s in lines[start:end:step]]
@@ -312,38 +331,54 @@ class Snapshots:
                 coords = coords[0] + displacement
 
                 # averaged coordination
-                coords = coords.reshape(self.num_step, self.interval_step, 3)
+                coords = coords.reshape(num_step, self.interval_nsw, 3)
                 coords = np.average(coords, axis=1)
 
                 # wrap back into cell
                 coords = coords - np.floor(coords)
                 traj[j] = coords
-
             atom['traj'] = traj
+            
             self.position += [atom]
+        
+        self.lattice_parameter = lattice_parameter
+        self.nsw_cut = nsw_cut
+        self.num_step = num_step
+        self.digit = digit
+            
             
     def save_poscar(self, 
                     step, 
                     filename):
+        
         with open(filename, 'w') as f:
             f.write(f"step_{step}. generated by vachoppy.\n")
             f.write("1.0\n")
 
-            for lat in self.lattice:
+            for lat in self.lattice_parameter:
                 f.write("%.6f %.6f %.6f\n"%(lat[0], lat[1], lat[2]))
 
             for atom in self.position:
                 f.write(f"{atom['species']} ")
             f.write('\n')
+            
             for atom in self.position:
                 f.write(f"{atom['num']} ")
             f.write('\n')
+            
             f.write("Direct\n")
+            
             for atom in self.position:
                 for traj in atom['traj'][:,step,:]:
                     f.write("%.6f %.6f %.6f\n"%(traj[0], traj[1], traj[2]))
-                    
-def get_fingerprint(poscar, filename, atom_pair, Rmax, delta, sigma):
+
+                   
+def get_fingerprint(poscar, 
+                    filename, 
+                    atom_pair, 
+                    Rmax, 
+                    delta, 
+                    sigma):
     # get fingerprint
     fingerprint = []
     for (A, B) in atom_pair:
