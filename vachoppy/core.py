@@ -123,9 +123,9 @@ class MakeAnimation:
             
     def save_animation(self):
         print(f'{GREEN}{BOLD}\nInformation on animation{RESET}')
-        print(f"    Total simulation time  : {self.traj.num_step * self.traj.interval} ps")
-        print(f"    Time interval per step : {self.traj.interval} ps")
-        print(f"    Total number of steps  : {self.traj.num_step} (={self.traj.num_step * self.traj.interval}/{self.traj.interval})")
+        print(f"    Total simulation time  : {self.traj.num_step * self.traj.interval:.3f} ps")
+        print(f"    Time interval per step : {self.traj.interval:.3f} ps")
+        print(f"    Total number of steps  : {self.traj.num_step} (={self.traj.num_step * self.traj.interval:.3f}/{self.traj.interval}:.3f)")
         print('')
         
         print(f'Enter the initial and final steps (min: 0, max: {self.traj.num_step})')
