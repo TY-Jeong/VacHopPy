@@ -251,6 +251,7 @@ class Snapshots:
         self.nsw_cut = None
         self.digit = None
         self.num_step = None
+        self.atom_species = None
         self.position = []
         self.read_xdatcar()
         
@@ -345,6 +346,7 @@ class Snapshots:
         self.lattice_parameter = lattice_parameter
         self.nsw_cut = nsw_cut
         self.num_step = num_step
+        self.atom_species = atom_species
         self.digit = digit
             
             
