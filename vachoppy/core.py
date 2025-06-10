@@ -1,5 +1,6 @@
 import os
 import sys
+import copy
 import numpy as np
 from tqdm import tqdm
 from colorama import Fore
@@ -240,7 +241,8 @@ class EffectiveHoppingParameter:
             if rank == 0:
                 sys.stdout = original_stdout
                 f.close()
-                
+                # merge unknown paths in parallel calculculations
+                self.results[-1].lattice = self.merge_lattice()
                 self.get_parameters()
                 print('VacHopPy is done.')
                 
@@ -258,9 +260,62 @@ class EffectiveHoppingParameter:
                 tolerance=self.tolerance,
                 use_incomplete_encounter=self.use_incomplete_encounter
             )
-            
             self.get_parameters()
             print('VacHopPy is done.')
+            
+    def append_unknown_path(self, path, lattice):
+        for path_unknown in lattice.path_unknown:
+            check1 = True if path['site_init'] == path_unknown['site_init'] else False
+            check2 = True if path['site_final'] == path_unknown['site_final'] else False
+            check3 = True if abs(path['distance'] - path_unknown['distance']) < self.tolerance else False
+            
+            if check1 and check2 and check3:
+                return path['name'], path_unknown['name']
+        
+        name_before = path['name']
+        path['name'] = f"unknown{len(lattice.path_unknown) + 1}"
+        lattice.path_unknown.append(path)
+    
+        return name_before, path['name']
+            
+    def merge_lattice(self):
+        lattice_merged = None
+        for result in self.results:
+    
+            if lattice_merged is None:
+                lattice_merged = copy.deepcopy(result.lattice)
+                continue
+            
+            if int(np.sum(result.counts_unknown)) == 0:
+                # no unknown path detected
+                continue
+            
+            name_unknown_before = []
+            name_unknown_after = []
+            
+            for path in result.path_unknown:
+                name_before, name_after = self.append_unknown_path(path, lattice_merged)
+                
+                if name_before == name_after:
+                    continue
+                
+                name_unknown_after.append(name_before)
+                name_unknown_after.append(name_after)
+            
+            # update hopping history
+            for history in result.hopping_history:
+                for hop in history:
+                    if hop['name'] in name_unknown_before:
+                        index = name_unknown_before.index(hop['name'])
+                        hop['name'] = name_unknown_after[index]
+            
+            # update unknown_name
+            for i, name in enumerate(result.unknown_name):
+                if name in name_unknown_before:
+                    index = name_unknown_before.index(name)
+                    result.unknown_name[i] = name_unknown_after[index]
+        
+        return lattice_merged
             
     def get_parameters(self):
         with open(self.file_out, 'w', encoding='utf-8') as f:

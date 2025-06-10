@@ -285,8 +285,7 @@ class ParameterExtractor:
                         sys.stdout = original_stdout
         
         if figure:
-            self.save_figure(inset_correlatoin_factor=inset_correlatoin_factor)
-        
+            self.save_figure(inset_correlatoin_factor=inset_correlatoin_factor)  
         
     def correlation_factor(self):
         self.f_ind = []
