@@ -842,7 +842,7 @@ class Trajectory:
                 break
             
             if self.verbose:
-                print(f"[{loop}] Number of TS-refined hops : {counts}")
+                print(f"[{loop}] (invalid hops) / (total hops) : {counts} / {len(step_hop)}")
                 
             if counts == 0:
                 break
