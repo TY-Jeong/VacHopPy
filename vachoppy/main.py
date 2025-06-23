@@ -371,7 +371,6 @@ def main():
     if check_util:
         if mode_value == 'extract_input':
             extract_from_vasp(args.symbol, vasprun=args.file_in)
-            print(f'{args.file_out} is created')
             
         if mode_value == 'concat_xdatcar':
             concat_xdatcar(args.xdatcar_in1, args.xdatcar_in2, args.xdatcar_out)
