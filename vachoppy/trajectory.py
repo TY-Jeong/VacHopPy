@@ -210,8 +210,8 @@ class Trajectory:
         self.nsw = None
         self.temp = None
         self.potim = None
-        self.symbol = None
         self.nblock = None
+        self.symbol = None
         self.nsw_cut = None
         self.num_step = None
         self.num_atom = None
@@ -720,8 +720,8 @@ class Trajectory:
                         zorder=1)
 
             # make snapshot
-            time = step * self.interval_nsw * self.potim / 1000 # ps
-            time_tot = self.nsw_cut * self.potim / 1000 # ps
+            time = step * self.interval_nsw * self.potim * self.nblock / 1000 # ps
+            time_tot = self.nsw_cut * self.potim * self.nblock / 1000 # ps
             plt.title("(%.2f/%.2f) ps, (%d/%d) step"%(time, time_tot, step, self.num_step))
 
             if legend:
