@@ -185,78 +185,49 @@ class Lattice:
         ]
         print(tabulate(data, headers=headers, tablefmt="simple"))
 
-    
+
 class Trajectory:
     def __init__(self,
-                 xdatcar: str,
-                 lattice,
                  interval: float,
-                 potim: float,
                  num_vac: int,
-                 force: str = None,
+                 lattice,
+                 pos_file: str,
+                 force_file: str,
+                 cond_file: str,
                  verbose: bool = True):
-        """
-        Arguments
-        ---------
-        xdatcar : str
-            Path to XDATCAR file
-        lattice : Lattice
-            Lattice object
-        interval : float
-            Time interval (ps)
-        potim : float
-            AIMD time step (fs)
-        num_vac : int
-            Number of vacancies
-        force : str, optional
-            Path to FORCE file
-        verbose : bool, optional
-            Verbosity flag
-        """
-
-        # color map
+        
+        self._validate_file(pos_file)
+        self._validate_file(force_file)
+        self._validate_file(cond_file)
+        
+        self.interval = interval
+        self.num_vac = num_vac
+        self.vervose = verbose
         self.cmap = self._custrom_cmap()
         
-        # arguments
-        self.verbose = verbose
-        self.num_vac = num_vac
-        self.interval = interval
-        self.potim = potim
-        self._validate_file(xdatcar, "XDATCAR")
-        self.xdatcar = xdatcar
-        self.interval_nsw = self._compute_interval_nsw(interval, potim)
-        
-        if force:
-            self._validate_file(force, "FORCE")
-        self.force = force
+        # md conditions
+        self.nsw = None
+        self.temp = None
+        self.potim = None
+        self.symbol = None
+        self.nblock = None
+        self.nsw_cut = None
+        self.num_step = None
+        self.num_atom = None
+        self.interval_nsw = None
+        self.read_cond_file(cond_file)
         
         # lattice information
-        self.lattice = copy.deepcopy(lattice)
-        self.symbol = lattice.symbol
+        self.lattice = lattice
         self.lattice_point = None
         self.lattice_point_C = None
-        self.num_lattice_point = None
-        self._init_lattice_point()
-        
-        # xdatcar
-        self.trajectory = {} # for all atoms
         self.lattice_parameter = None
-        self.num_step = None
-        self.num_traced_atom = None
-        self.num_tot_atom = None
-        self.num_pre_atom = None
-        self.nsw_cut = None
-        self.read_xdatcar()
+        self.num_lattice_point = None
+        self._init_lattice_point(lattice)
         
-        # force
-        if force:
-            self.force_vector = None
-            self.read_force()
-        
-        # lattice occupation
-        self.occupation = None # modified
-        self.occupation_C = None # modified
-        self.lattice_occupation()
+        self.occupation = None
+        self.trace_arrows = None
+        self.atomic_trajectory(pos_file, force_file)
         
         # trace arrows
         self.trace_arrows = None
@@ -264,190 +235,85 @@ class Trajectory:
         
         # vacancy trajectory
         self.hopping_sequence = {}
-        self.vacancy_trajectory_index = {} # modified
-        self.vacancy_trajectory_coord_C = {} # modified
+        self.vacancy_trajectory_index = {}
+        self.vacancy_trajectory_coord_C = {}
         self.transient_vacancy = {}
-        self.get_vacancy_trajectory() # modified
-        
-        # TS-refinement
-        if force:
-            if verbose:
-                print("Correcting occupancies using force vectors...")
-            self.correct_transition_state()
-        
-    def _custrom_cmap(self):
-        cmap = [
-            'blue',
-            'red',
-            'teal',
-            'indigo',
-            'lime',
-            'darkgoldenrod',
-            'cyan',
-            'hotpink',
-            'dodgerblue',
-            'dimgray',
-            'forestgreen',
-            'slateblue'
-        ]
-        return cmap
-        
-    def _validate_file(self, path, label="file"):
-        if not os.path.isfile(path):
-            print(f"ERROR: {label} '{path}' is not found.")
-            sys.exit(0)
-
-    def _compute_interval_nsw(self, interval, potim):
-        eps = 1e-9
-        val = interval * 1000 / potim
-        if math.isclose(val, round(val), abs_tol=eps):
-            return int(round(val))
-        print("ERROR: interval must be a multiple of potim.")
-        sys.exit(0)
-
-    def _init_lattice_point(self):
-        self.lattice_point = np.array(
-            [p['coord'] for p in self.lattice.lattice_point], dtype=float
-        )
-        self.lattice_point_C = np.array(
-            [p['coord_C'] for p in self.lattice.lattice_point], dtype=float
-        )
-        self.num_lattice_point = len(self.lattice_point)
-        
-    def read_xdatcar(self):
-        with open(self.xdatcar, 'r') as f:
-            lines = np.array([line.strip() for line in f])
-        
-        lattice_parameter = np.array(
-            [line.split() for line in lines[2:5]], dtype=float
-        ) * float(lines[1]) # lattice parameters
-
-        species = np.array(lines[5].split()) # modified
-        num_atoms = np.array(lines[6].split(), dtype=int)
-        for i, spec in enumerate(species):
-            if self.symbol == spec:
-                idx_traced_atom = i
-                num_traced_atom = num_atoms[i]
-        
-        nsw = int((len(lines) - 7) / (1 + np.sum(num_atoms)))
-        num_step = int(nsw / self.interval_nsw)
-        nsw_cut = num_step * self.interval_nsw # cut last iterations.
-        
-        traj = np.zeros((num_traced_atom, num_step, 3)) # averaged coordinates wrapped back into cell
-        coords_C = np.zeros((num_traced_atom, nsw_cut, 3)) # unwrapped coordinates in Cartesian
-        
-        for i in range(num_traced_atom):
-            start = 8 + np.sum(num_atoms[:idx_traced_atom]) + i
-            step = np.sum(num_atoms) + 1
-            coords = np.array(
-                [lines[start + step * j].split() for j in range(nsw_cut)], dtype=float
-            )
-            
-            displacement = np.zeros_like(coords)
-            displacement[0,:] = 0
-            displacement[1:,:] = np.diff(coords, axis=0)
-            
-            # correction for periodic boundary condition
-            displacement[displacement>0.5] -= 1.0
-            displacement[displacement<-0.5] += 1.0
-            displacement = np.cumsum(displacement, axis=0)
-            coords = coords[0] + displacement
-            
-            # covert to cartesian coordination
-            coords_C[i] = np.dot(coords, lattice_parameter)
-            
-            # averaged coordination
-            coords = coords.reshape(num_step, self.interval_nsw, 3)
-            coords = np.average(coords, axis=1)
-            
-            # wrap back into cell
-            coords = coords - np.floor(coords)
-            traj[i] = coords
-        
-        self.trajectory['coords_C'] = coords_C
-        self.trajectory['traj'] = traj
-        self.trajectory['traj_C'] = np.dot(traj, lattice_parameter)
-        
-        self.lattice_parameter = lattice_parameter
-        self.num_step = num_step
-        self.nsw_cut = nsw_cut
-        self.num_tot_atom = np.sum(num_atoms)
-        self.num_pre_atom = np.sum(num_atoms[:idx_traced_atom])
-        self.num_traced_atom = num_atoms[idx_traced_atom]
+        self.get_vacancy_trajectory()
     
-    def distance_PBC(self, 
-                     coord1: list, 
-                     coord2: list):
-        """
-        Argument
-        --------
-        coord1 : list
-            Initial coordinate in fraction (one point or multiple points)
-        coord2 : list
-            Final coordinate in fraction    
-        """
-        distance = coord1 - coord2
-        distance[distance>0.5] -= 1.0
-        distance[distance<-0.5] += 1.0
+    def nearest_lattice_points(self, coords):  
+        # coords: (num_atom, 3)
+        diff = self.lattice_point[None, :, :] - coords[:, None, :]
+        diff = diff - np.floor(diff)
+        diff[diff > 0.5] -= 1.0
+        diff[diff < -0.5] += 1.0
+        diff_cart = np.tensordot(diff, self.lattice_parameter, axes=([2], [1]))
+        norm = np.linalg.norm(diff_cart, axis=2)
+        return np.argmin(norm, axis=1).astype(np.int16) 
 
-        if coord1.ndim == 1:
-            return np.sqrt(np.sum(np.dot(distance, self.lattice_parameter)**2))
-        else:
-            return np.sqrt(np.sum(np.dot(distance, self.lattice_parameter)**2,axis=1))
-    
-    def displacement_PBC(self, 
-                         r1, 
-                         r2):
-        disp = r2 - r1
-        disp[disp > 0.5] -= 1.0
-        disp[disp < -0.5] += 1.0
-        return np.dot(disp, self.lattice_parameter)
-    
-    def plot_lattice(self, ax, label=False):
-        coord_origin = np.zeros((1, 3))
+    def atomic_trajectory(self, 
+                          pos_file, 
+                          force_file):
+        pos = np.load(pos_file, mmap_mode='r')
+        force = np.load(force_file, mmap_mode='r')
         
-        def plot_edge(start, end):
-            edge = np.concatenate((start.reshape(1, 3), end.reshape(1, 3)), axis=0).T
-            ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
+        check_init = False
+        occupation = np.zeros((self.num_step, self.num_atom), dtype=np.int16)
+        for i in range(self.num_step):
+            # read step-wise data
+            start = i * self.interval_nsw
+            end = start + self.interval_nsw
+            pos_chunk = np.average(pos[start:end], axis=0) # (num_atom, 3)
+            force_chunk = np.average(force[start:end], axis=0) # (num_atom, 3)
+            
+            # proximity-based occupation
+            occupation_i = self.nearest_lattice_points(pos_chunk)
+            
+            # initial occupation
+            if not check_init:
+                if len(set(occupation_i)) == self.num_atom:
+                    for j in range(i+1):
+                        occupation[j] = occupation_i
+                    check_init = True
+                continue
+            
+            # TS criterion
+            indices_move_atom = np.where(occupation_i != occupation[i-1])[0]
+            
+            for index in indices_move_atom:
+                site_init = occupation[i-1][index]
+                site_final = occupation_i[index]
+                force_atom = force_chunk[index]
+                
+                p_init = self.lattice_point[site_init]
+                p_final = self.lattice_point[site_final]
+                p_atom = pos_chunk[index]
+                
+                r_init = self.displacement_PBC(p_atom, p_init)
+                r_final = self.displacement_PBC(p_atom, p_final)
+                
+                eps = 1e-12
+                norm_f = np.linalg.norm(force_atom)
+                norm_init = np.linalg.norm(r_init)
+                norm_final = np.linalg.norm(r_final)
+                
+                if norm_f < eps or norm_init < eps:
+                    cos_init = np.nan
+                else:
+                    cos_init = np.dot(force_atom, r_init) / (norm_f * norm_init)
 
-        a, b, c = self.lattice_parameter
-        edges = [
-            (coord_origin, a), (coord_origin, b), (coord_origin, c),
-            (a + b, a), (a + b, b),
-            (b + c, b), (b + c, c),
-            (c + a, c), (c + a, a),
-            (a + b + c, a + b), 
-            (a + b + c, b + c),
-            (a + b + c, c + a)
-        ]
+                if norm_f < eps or norm_final < eps:
+                    cos_final = np.nan
+                else:
+                    cos_final = np.dot(force_atom, r_final) / (norm_f * norm_final)
+                    
+                if np.isnan(cos_init) or np.isnan(cos_final):
+                    print(f"WARNING: NaN in cos_init/final at step {i}")
+                    
+                if cos_init > cos_final:
+                    occupation_i[index] = site_init
+            occupation[i] = occupation_i
+        self.occupation = occupation.T
 
-        for start, end in edges:
-            plot_edge(start, end)
-
-        ax.scatter(*self.lattice_point_C.T, facecolor='none', edgecolors='k', alpha=0.8)
-        
-        if label:
-            for i, coord in enumerate(self.lattice_point_C):
-                ax.text(*coord.T, s=f"{i}", fontsize='xx-small')
-
-        ax.set_xlabel('x (Å)')
-        ax.set_ylabel('y (Å)')
-        ax.set_zlabel('z (Å)')
-    
-    def lattice_occupation(self):
-        # distance from lattice points
-        displacement = (
-            self.lattice_point[np.newaxis, np.newaxis, :, :] 
-            - self.trajectory['traj'][:, :, np.newaxis, :]
-        )
-        displacement[displacement > 0.5] -= 1.0
-        displacement[displacement < -0.5] += 1.0
-        distance = np.linalg.norm(np.dot(displacement, self.lattice_parameter), axis=3)
-        
-        # save trajectory on lattice
-        self.occupation = np.argmin(distance, axis=2)
-        self.occupation_C = self.lattice_point_C[self.occupation]
-        
     def get_trace_arrows(self):
         change_in_occ = np.diff(self.occupation, axis=1)
         move_atom, move_step = np.where(change_in_occ != 0)
@@ -456,16 +322,15 @@ class Trajectory:
         self.trace_arrows = {}
         for step, atom in zip(move_step, move_atom):
             arrow = {}
-            arrow['p'] = np.vstack((
-                self.occupation_C[atom][step-1],
-                self.occupation_C[atom][step]
-            ))
-            # arrow['c'] = self.cmap[(atom+1)%len(self.cmap)]
             arrow['c'] = self.cmap[(atom)%len(self.cmap)]
             arrow['lattice_point'] = [
                 self.occupation[atom][step-1],
                 self.occupation[atom][step]
             ]
+            arrow['p'] = np.vstack((
+                self.lattice_point_C[self.occupation[atom][step-1]],
+                self.lattice_point_C[self.occupation[atom][step]]
+            ))
             
             if step in self.trace_arrows.keys():
                 self.trace_arrows[step].append(arrow)
@@ -474,14 +339,14 @@ class Trajectory:
         
         for step in range(self.num_step):
             if not step in self.trace_arrows.keys():
-                self.trace_arrows[step] = []
-        
+                self.trace_arrows[step] = []              
+
     def get_vacancy_trajectory(self): 
         # initiallization
         self.hopping_sequence = {}
         self.vacancy_trajectory_index = {}
         self.vacancy_trajectory_coord_C = {}
-        self.transient_vacancy = {0: np.array([], dtype=np.int32)}
+        self.transient_vacancy = {0: np.array([], dtype=np.int16)}
         step_transient = {0: False}
         lattice_site = np.arange(self.num_lattice_point)
         
@@ -641,6 +506,123 @@ class Trajectory:
                 
             # update trasient vacancy
             self.transient_vacancy[step] = site_final
+                   
+    def _custrom_cmap(self):
+        cmap = [
+            'blue',
+            'red',
+            'teal',
+            'indigo',
+            'lime',
+            'darkgoldenrod',
+            'cyan',
+            'hotpink',
+            'dodgerblue',
+            'dimgray',
+            'forestgreen',
+            'slateblue'
+        ]
+        return cmap  
+
+    def _validate_file(self, file):
+        if not os.path.isfile(file):
+            print(f"ERROR: '{file}' is not found.")
+            sys.exit(0)
+
+    def _init_lattice_point(self, lattice):
+        if lattice.symbol != self.symbol:
+            print(f"Error: unmatched atomic symbol")
+            sys.exit(0)
+        
+        self.lattice_point = np.array(
+            [p['coord'] for p in lattice.lattice_point], dtype=np.float64
+        )
+        self.lattice_point_C = np.array(
+            [p['coord_C'] for p in lattice.lattice_point], dtype=np.float64
+        )
+        self.num_lattice_point = len(self.lattice_point)
+        self.lattice_parameter = lattice.lattice_parameter
+        
+    def read_cond_file(self, cond_file):
+        with open(cond_file, "r") as f:
+            condition = json.load(f)
+        
+        self.nsw = condition["nsw"]
+        self.potim = condition["potim"]
+        self.nblock = condition["nblock"]
+        self.symbol = condition["symbol"]
+        self.temp = condition["temperature"]
+        self.num_atom = condition["atom_counts"][self.symbol]
+        
+        eps = 1e-9
+        val = self.interval * 1000 / self.potim
+        if math.isclose(val, round(val), abs_tol=eps):
+             self.interval_nsw = int(round(val))
+        else:
+            print("ERROR: interval must be a multiple of potim.")
+            sys.exit(0)
+            
+        self.num_step = int(self.nsw / self.interval_nsw)
+        self.nsw_cut = self.num_step * self.interval_nsw
+    
+    def distance_PBC(self, 
+                     coord1: list, 
+                     coord2: list):
+        """
+        Argument
+        --------
+        coord1 : list
+            Initial coordinate in fraction (one point or multiple points)
+        coord2 : list
+            Final coordinate in fraction    
+        """
+        distance = coord1 - coord2
+        distance[distance>0.5] -= 1.0
+        distance[distance<-0.5] += 1.0
+
+        if coord1.ndim == 1:
+            return np.sqrt(np.sum(np.dot(distance, self.lattice_parameter)**2))
+        else:
+            return np.sqrt(np.sum(np.dot(distance, self.lattice_parameter)**2,axis=1))
+    
+    def displacement_PBC(self, 
+                         r1, 
+                         r2):
+        disp = r2 - r1
+        disp[disp > 0.5] -= 1.0
+        disp[disp < -0.5] += 1.0
+        return np.dot(disp, self.lattice_parameter)
+    
+    def plot_lattice(self, ax, label=False):
+        coord_origin = np.zeros((1, 3))
+        
+        def plot_edge(start, end):
+            edge = np.concatenate((start.reshape(1, 3), end.reshape(1, 3)), axis=0).T
+            ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
+
+        a, b, c = self.lattice_parameter
+        edges = [
+            (coord_origin, a), (coord_origin, b), (coord_origin, c),
+            (a + b, a), (a + b, b),
+            (b + c, b), (b + c, c),
+            (c + a, c), (c + a, a),
+            (a + b + c, a + b), 
+            (a + b + c, b + c),
+            (a + b + c, c + a)
+        ]
+
+        for start, end in edges:
+            plot_edge(start, end)
+
+        ax.scatter(*self.lattice_point_C.T, facecolor='none', edgecolors='k', alpha=0.8)
+        
+        if label:
+            for i, coord in enumerate(self.lattice_point_C):
+                ax.text(*coord.T, s=f"{i}", fontsize='xx-small')
+
+        ax.set_xlabel('x (Å)')
+        ax.set_ylabel('y (Å)')
+        ax.set_zlabel('z (Å)')
 
     def animation(self,
                   index: list = 'all',
@@ -677,7 +659,7 @@ class Trajectory:
             os.mkdir(foldername)
 
         if index == 'all':
-            index = np.arange(self.num_traced_atom)
+            index = np.arange(self.num_atom)
         
         if str(step) == 'all':
             step = np.arange(self.num_step)
@@ -696,7 +678,7 @@ class Trajectory:
 
             # plot atoms
             for i, idx in enumerate(index):
-                ax.scatter(*self.occupation_C[idx][step].T,
+                ax.scatter(*self.lattice_point_C[self.occupation][idx][step].T,
                            facecolor=self.cmap[idx%len(self.cmap)],
                            edgecolor='none',
                            alpha=0.8,
@@ -758,99 +740,673 @@ class Trajectory:
                          save_all=True, duration=int(1000/fps), loop=loop)
             print(f"{filename} was created.")
 
-    def read_force(self):
-        with open(self.force, 'r') as f:
-            lines = [line.strip() for line in f]
-            
-        self.force_vector = np.zeros((self.nsw_cut, self.num_traced_atom, 3))
-        for i in range(self.nsw_cut):
-            start = (self.num_tot_atom + 1) * i + self.num_pre_atom + 1
-            end = start + self.num_traced_atom
-            self.force_vector[i] = np.array(
-                [line.split() for line in lines[start:end]], dtype=float
-            )
-            
-        self.force_vector = (
-            self.force_vector
-            .reshape(self.num_step, self.interval_nsw, self.num_traced_atom, 3)
-            .mean(axis=1)
-        )
+
     
-    def correct_transition_state(self): 
-        loop, loop_max = 0, 100
-        while True:
-            counts, loop = 0, loop + 1
-            
-            step_hop = [key for key in self.trace_arrows.keys() if self.trace_arrows[key]]
-            step_hop.sort()
-            
-            occupation = copy.deepcopy(self.occupation)
-            for step in step_hop:
-                for arrow in self.trace_arrows[step]:
-                    # index of moving atom
-                    check_pre = np.where(occupation[:, step-1] == arrow['lattice_point'][0])[0]
-                    check_now = np.where(occupation[:, step] == arrow['lattice_point'][1])[0]
-                    index_atom = np.intersect1d(check_pre, check_now)
+# class Trajectory:
+#     def __init__(self,
+#                  xdatcar: str,
+#                  lattice,
+#                  interval: float,
+#                  potim: float,
+#                  num_vac: int,
+#                  force: str = None,
+#                  verbose: bool = True):
+#         """
+#         Arguments
+#         ---------
+#         xdatcar : str
+#             Path to XDATCAR file
+#         lattice : Lattice
+#             Lattice object
+#         interval : float
+#             Time interval (ps)
+#         potim : float
+#             AIMD time step (fs)
+#         num_vac : int
+#             Number of vacancies
+#         force : str, optional
+#             Path to FORCE file
+#         verbose : bool, optional
+#             Verbosity flag
+#         """
 
-                    if len(index_atom) != 1:
-                        print(f"ERROR: Cannot classify atom index (step={step}).")
-                        sys.exit(0)
-                    
-                    index_atom = index_atom[0]
-                    force_atom = self.force_vector[step][index_atom]
-                    
-                    # direction vectors
-                    p_init = self.lattice_point[arrow['lattice_point'][0]]
-                    p_final = self.lattice_point[arrow['lattice_point'][1]]
-                    p_atom = self.trajectory['traj'][index_atom][step]
-                    
-                    r_init = self.displacement_PBC(p_atom, p_init)
-                    r_final = self.displacement_PBC(p_atom, p_final)
-                    
-                    # cos theta
-                    eps = 1e-9
-                    norm_f = np.linalg.norm(force_atom)
-                    norm_init = np.linalg.norm(r_init)
-                    norm_final = np.linalg.norm(r_final)
-                    
-                    if norm_f < eps or norm_init < eps:
-                        cos_init = np.nan
-                    else:
-                        cos_init = np.dot(force_atom, r_init) / (norm_f * norm_init)
+#         # color map
+#         self.cmap = self._custrom_cmap()
+        
+#         # arguments
+#         self.verbose = verbose
+#         self.num_vac = num_vac
+#         self.interval = interval
+#         self.potim = potim
+#         self._validate_file(xdatcar, "XDATCAR")
+#         self.xdatcar = xdatcar
+#         self.interval_nsw = self._compute_interval_nsw(interval, potim)
+        
+#         if force:
+#             self._validate_file(force, "FORCE")
+#         self.force = force
+        
+#         # lattice information
+#         self.lattice = copy.deepcopy(lattice)
+#         self.symbol = lattice.symbol
+#         self.lattice_point = None
+#         self.lattice_point_C = None
+#         self.num_lattice_point = None
+#         self._init_lattice_point()
+        
+#         # xdatcar
+#         self.trajectory = {} # for all atoms
+#         self.lattice_parameter = None
+#         self.num_step = None
+#         self.num_traced_atom = None
+#         self.num_tot_atom = None
+#         self.num_pre_atom = None
+#         self.nsw_cut = None
+#         self.read_xdatcar()
+        
+#         # force
+#         if force:
+#             self.force_vector = None
+#             self.read_force()
+        
+#         # lattice occupation
+#         self.occupation = None # modified
+#         self.occupation_C = None # modified
+#         self.lattice_occupation()
+        
+#         # trace arrows
+#         self.trace_arrows = None
+#         self.get_trace_arrows()
+        
+#         # vacancy trajectory
+#         self.hopping_sequence = {}
+#         self.vacancy_trajectory_index = {} # modified
+#         self.vacancy_trajectory_coord_C = {} # modified
+#         self.transient_vacancy = {}
+#         self.get_vacancy_trajectory() # modified
+        
+#         # TS-refinement
+#         if force:
+#             if verbose:
+#                 print("Correcting occupancies using force vectors...")
+#             self.correct_transition_state()
+        
+#     def _custrom_cmap(self):
+#         cmap = [
+#             'blue',
+#             'red',
+#             'teal',
+#             'indigo',
+#             'lime',
+#             'darkgoldenrod',
+#             'cyan',
+#             'hotpink',
+#             'dodgerblue',
+#             'dimgray',
+#             'forestgreen',
+#             'slateblue'
+#         ]
+#         return cmap
+        
+#     def _validate_file(self, path, label="file"):
+#         if not os.path.isfile(path):
+#             print(f"ERROR: {label} '{path}' is not found.")
+#             sys.exit(0)
 
-                    if norm_f < eps or norm_final < eps:
-                        cos_final = np.nan
-                    else:
-                        cos_final = np.dot(force_atom, r_final) / (norm_f * norm_final)
-                    
-                    # TS-refinement
-                    if np.isnan(cos_init) or np.isnan(cos_final):
-                        print("WARNING: NaN in cos_init/final at frame")
-                        print(f"{self.xdatcar} (step: {step})")
-                        continue
-                    
-                    elif cos_init <= cos_final: # valid hop
-                        continue
-                    
-                    else: # invalid hop                           
-                        self.occupation[index_atom][step] = self.occupation[index_atom][step-1]
-                        self.occupation_C[index_atom][step] = self.occupation_C[index_atom][step-1]
-                        counts += 1
+#     def _compute_interval_nsw(self, interval, potim):
+#         eps = 1e-9
+#         val = interval * 1000 / potim
+#         if math.isclose(val, round(val), abs_tol=eps):
+#             return int(round(val))
+#         print("ERROR: interval must be a multiple of potim.")
+#         sys.exit(0)
 
-            if loop > loop_max:
-                print(f"Exceeding the maximum number of iterations.")
-                break
+#     def _init_lattice_point(self):
+#         self.lattice_point = np.array(
+#             [p['coord'] for p in self.lattice.lattice_point], dtype=float
+#         )
+#         self.lattice_point_C = np.array(
+#             [p['coord_C'] for p in self.lattice.lattice_point], dtype=float
+#         )
+#         self.num_lattice_point = len(self.lattice_point)
+        
+#     def read_xdatcar(self):
+#         with open(self.xdatcar, 'r') as f:
+#             lines = np.array([line.strip() for line in f])
+        
+#         lattice_parameter = np.array(
+#             [line.split() for line in lines[2:5]], dtype=float
+#         ) * float(lines[1]) # lattice parameters
+
+#         species = np.array(lines[5].split()) # modified
+#         num_atoms = np.array(lines[6].split(), dtype=int)
+#         for i, spec in enumerate(species):
+#             if self.symbol == spec:
+#                 idx_traced_atom = i
+#                 num_traced_atom = num_atoms[i]
+        
+#         nsw = int((len(lines) - 7) / (1 + np.sum(num_atoms)))
+#         num_step = int(nsw / self.interval_nsw)
+#         nsw_cut = num_step * self.interval_nsw # cut last iterations.
+        
+#         traj = np.zeros((num_traced_atom, num_step, 3)) # averaged coordinates wrapped back into cell
+#         coords_C = np.zeros((num_traced_atom, nsw_cut, 3)) # unwrapped coordinates in Cartesian
+        
+#         for i in range(num_traced_atom):
+#             start = 8 + np.sum(num_atoms[:idx_traced_atom]) + i
+#             step = np.sum(num_atoms) + 1
+#             coords = np.array(
+#                 [lines[start + step * j].split() for j in range(nsw_cut)], dtype=float
+#             )
             
-            if self.verbose:
-                print(f"[{loop}] (invalid hops) / (total hops) : {counts} / {len(step_hop)}")
+#             displacement = np.zeros_like(coords)
+#             displacement[0,:] = 0
+#             displacement[1:,:] = np.diff(coords, axis=0)
+            
+#             # correction for periodic boundary condition
+#             displacement[displacement>0.5] -= 1.0
+#             displacement[displacement<-0.5] += 1.0
+#             displacement = np.cumsum(displacement, axis=0)
+#             coords = coords[0] + displacement
+            
+#             # covert to cartesian coordination
+#             coords_C[i] = np.dot(coords, lattice_parameter)
+            
+#             # averaged coordination
+#             coords = coords.reshape(num_step, self.interval_nsw, 3)
+#             coords = np.average(coords, axis=1)
+            
+#             # wrap back into cell
+#             coords = coords - np.floor(coords)
+#             traj[i] = coords
+        
+#         self.trajectory['coords_C'] = coords_C
+#         self.trajectory['traj'] = traj
+#         self.trajectory['traj_C'] = np.dot(traj, lattice_parameter)
+        
+#         self.lattice_parameter = lattice_parameter
+#         self.num_step = num_step
+#         self.nsw_cut = nsw_cut
+#         self.num_tot_atom = np.sum(num_atoms)
+#         self.num_pre_atom = np.sum(num_atoms[:idx_traced_atom])
+#         self.num_traced_atom = num_atoms[idx_traced_atom]
+    
+#     def distance_PBC(self, 
+#                      coord1: list, 
+#                      coord2: list):
+#         """
+#         Argument
+#         --------
+#         coord1 : list
+#             Initial coordinate in fraction (one point or multiple points)
+#         coord2 : list
+#             Final coordinate in fraction    
+#         """
+#         distance = coord1 - coord2
+#         distance[distance>0.5] -= 1.0
+#         distance[distance<-0.5] += 1.0
+
+#         if coord1.ndim == 1:
+#             return np.sqrt(np.sum(np.dot(distance, self.lattice_parameter)**2))
+#         else:
+#             return np.sqrt(np.sum(np.dot(distance, self.lattice_parameter)**2,axis=1))
+    
+#     def displacement_PBC(self, 
+#                          r1, 
+#                          r2):
+#         disp = r2 - r1
+#         disp[disp > 0.5] -= 1.0
+#         disp[disp < -0.5] += 1.0
+#         return np.dot(disp, self.lattice_parameter)
+    
+#     def plot_lattice(self, ax, label=False):
+#         coord_origin = np.zeros((1, 3))
+        
+#         def plot_edge(start, end):
+#             edge = np.concatenate((start.reshape(1, 3), end.reshape(1, 3)), axis=0).T
+#             ax.plot(edge[0], edge[1], edge[2], 'k-', marker='none')
+
+#         a, b, c = self.lattice_parameter
+#         edges = [
+#             (coord_origin, a), (coord_origin, b), (coord_origin, c),
+#             (a + b, a), (a + b, b),
+#             (b + c, b), (b + c, c),
+#             (c + a, c), (c + a, a),
+#             (a + b + c, a + b), 
+#             (a + b + c, b + c),
+#             (a + b + c, c + a)
+#         ]
+
+#         for start, end in edges:
+#             plot_edge(start, end)
+
+#         ax.scatter(*self.lattice_point_C.T, facecolor='none', edgecolors='k', alpha=0.8)
+        
+#         if label:
+#             for i, coord in enumerate(self.lattice_point_C):
+#                 ax.text(*coord.T, s=f"{i}", fontsize='xx-small')
+
+#         ax.set_xlabel('x (Å)')
+#         ax.set_ylabel('y (Å)')
+#         ax.set_zlabel('z (Å)')
+    
+#     def lattice_occupation(self):
+#         # distance from lattice points
+#         displacement = (
+#             self.lattice_point[np.newaxis, np.newaxis, :, :] 
+#             - self.trajectory['traj'][:, :, np.newaxis, :]
+#         )
+#         displacement[displacement > 0.5] -= 1.0
+#         displacement[displacement < -0.5] += 1.0
+#         distance = np.linalg.norm(np.dot(displacement, self.lattice_parameter), axis=3)
+        
+#         # save trajectory on lattice
+#         self.occupation = np.argmin(distance, axis=2)
+#         self.occupation_C = self.lattice_point_C[self.occupation]
+        
+#     def get_trace_arrows(self):
+#         change_in_occ = np.diff(self.occupation, axis=1)
+#         move_atom, move_step = np.where(change_in_occ != 0)
+#         move_step += 1
+        
+#         self.trace_arrows = {}
+#         for step, atom in zip(move_step, move_atom):
+#             arrow = {}
+#             arrow['p'] = np.vstack((
+#                 self.occupation_C[atom][step-1],
+#                 self.occupation_C[atom][step]
+#             ))
+#             # arrow['c'] = self.cmap[(atom+1)%len(self.cmap)]
+#             arrow['c'] = self.cmap[(atom)%len(self.cmap)]
+#             arrow['lattice_point'] = [
+#                 self.occupation[atom][step-1],
+#                 self.occupation[atom][step]
+#             ]
+            
+#             if step in self.trace_arrows.keys():
+#                 self.trace_arrows[step].append(arrow)
+#             else:
+#                 self.trace_arrows[step] = [arrow]
+        
+#         for step in range(self.num_step):
+#             if not step in self.trace_arrows.keys():
+#                 self.trace_arrows[step] = []
+        
+#     def get_vacancy_trajectory(self): 
+#         # initiallization
+#         self.hopping_sequence = {}
+#         self.vacancy_trajectory_index = {}
+#         self.vacancy_trajectory_coord_C = {}
+#         self.transient_vacancy = {0: np.array([], dtype=np.int32)}
+#         step_transient = {0: False}
+#         lattice_site = np.arange(self.num_lattice_point)
+        
+#         # helper method to find vacancy paths
+#         def trace_paths(site_init, site_final, paths):
+#             path_map = defaultdict(list)
+#             for to_site, from_site in paths:
+#                 path_map[from_site].append(to_site)
+
+#             site_final_set = set(site_final)
+#             candidate_routes = {s: [] for s in site_init}
+
+#             # Step 1: Collect all candidate paths for each site_init
+#             for s_init in site_init:
+#                 stack = [(s_init, [s_init])]
+#                 while stack:
+#                     current, route = stack.pop()
+#                     if current in site_final_set and not (len(route) == 1 and current == s_init):
+#                         candidate_routes[s_init].append(route)
+#                     for next_site in path_map.get(current, []):
+#                         if next_site not in route:
+#                             stack.append((next_site, route + [next_site]))
+
+#             # Step 2: Try all permutations of site_init to avoid final-site duplication
+#             for ordering in permutations(site_init):
+#                 used_finals = set()
+#                 results = []
+#                 used_paths = set()
+#                 for s in ordering:
+#                     found = False
+#                     for route in candidate_routes[s]:
+#                         if route[-1] not in used_finals:
+#                             results.append(route)
+#                             used_finals.add(route[-1])
+#                             # Track used path segments
+#                             for i in range(len(route) - 1):
+#                                 # match input path format [to, from]
+#                                 used_paths.add((route[i+1], route[i]))
+#                             found = True
+#                             break
+#                     if not found:
+#                         results.append(None)
+
+#                 if len(results) == len(site_init) and None not in results:
+#                     reordered = [None] * len(site_init)
+#                     for i, s in enumerate(ordering):
+#                         idx = site_init.index(s)
+#                         reordered[idx] = results[i]
+#                     # Identify unused paths
+#                     path_set = set(map(tuple, paths))
+#                     unused_paths = list(path_set - used_paths)
+#                     return reordered, unused_paths
+
+#             # Fallback
+#             fallback = []
+#             used_paths = set()
+#             used_finals = set()
+#             for s in site_init:
+#                 found = False
+#                 for route in candidate_routes[s]:
+#                     if route[-1] not in used_finals:
+#                         fallback.append(route)
+#                         used_finals.add(route[-1])
+#                         for i in range(len(route) - 1):
+#                             used_paths.add((route[i+1], route[i]))
+#                         found = True
+#                         break
+#                 if not found:
+#                     fallback.append(None)
+
+#             path_set = set(map(tuple, paths))
+#             unused_paths = list(path_set - used_paths)
+#             return fallback, unused_paths
+
+#         # vacancy trajectory at very first steps
+#         step_init = 0
+#         while True:
+#             site_vac = np.setdiff1d(lattice_site, self.occupation[:, step_init])
+#             if len(site_vac) == self.num_vac:
+#                 break
+#             step_init += 1
+        
+#         for step in range(step_init + 1):
+#             self.vacancy_trajectory_index[step] = copy.deepcopy(site_vac)
+#             self.vacancy_trajectory_coord_C[step] = self.lattice_point_C[site_vac]
+        
+#         # find vacancy trajectory
+#         for step in range(step_init+1, self.num_step):
+#             site_vac_new = np.setdiff1d(lattice_site, self.occupation[:, step])
+            
+#             # check presence of transient vacancy
+#             step_transient[step] = True if len(site_vac_new) > self.num_vac else False
+            
+#             # check hopping events
+#             site_init = np.setdiff1d(site_vac, site_vac_new)
+#             site_final = np.setdiff1d(site_vac_new, site_vac)
+            
+#             # no hop
+#             if len(site_init) == 0:
+#                 self.vacancy_trajectory_index[step] = copy.deepcopy(site_vac)
+#                 self.vacancy_trajectory_coord_C[step] = self.lattice_point_C[site_vac]
+            
+#             # hops occur
+#             else:
+#                 # check transient vacancies
+#                 loop = 1
+#                 site_transient = []
+#                 paths= [arrow['lattice_point'] for arrow in self.trace_arrows[step]]
+#                 while step_transient[step - loop]:
+#                     paths += [arrow['lattice_point'] for arrow in self.trace_arrows[step-loop]]
+#                     site_transient += list(self.transient_vacancy[step-loop])
+#                     loop += 1
                 
-            if counts == 0:
-                break
-    
-            self.get_trace_arrows()
+#                 # get hoppigg paths
+#                 site_final = np.array(list(set(list(site_final) + site_transient)))
+#                 path_connect, unused_path = trace_paths(list(site_init), site_final, paths)
+                
+#                 for i, site in enumerate(site_init):
+#                     # find path index
+#                     path_index = None
+#                     for j, p in enumerate(path_connect):
+#                         if p is not None and p[0] == site:
+#                             path_index = j
+#                             break
+                    
+#                     if path_index is None:
+#                         print(f"ERROR: Fail to find vacancy trajectory (step = {step}).")
+#                         print(f"site_init : {site_init}")
+#                         print(f"site_final : {site_final}")
+#                         print(f"paths : {paths}")
+#                         print(f"path_connect : {path_connect}")
+#                         sys.exit(0)
+                    
+#                     # update vacancy site
+#                     site_vac[list(site_vac).index(site)] = path_connect[path_index][-1]
+#                     site_final = site_final[site_final != path_connect[path_index][-1]]
+                        
+#                 # compare 'updated site_vac' and 'site_vac_new' (correction for transient vac)
+#                 site_remain = np.setdiff1d(site_vac, site_vac_new)
+#                 if len(site_remain) > 0:
+#                     site_unexpect = np.setdiff1d(site_vac_new, site_vac)
+#                     path_unexpect, _ = trace_paths(list(site_remain), site_unexpect, unused_path)
+                    
+#                     for i, site in enumerate(site_remain):
+#                         site_vac[list(site_vac).index(site)] = path_unexpect[i][-1]
+#                         site_final = site_final[site_final != path_unexpect[i][-1]]
+                        
+#                         for path in path_connect:
+#                             if path is not None and path[-1] == site:
+#                                 path.append(path_unexpect[i][-1])
+#                                 break
+                        
+#                 # update vacancy trajectory
+#                 self.hopping_sequence[step] = copy.deepcopy(path_connect)
+#                 self.vacancy_trajectory_index[step] = copy.deepcopy(site_vac)
+#                 self.vacancy_trajectory_coord_C[step] = self.lattice_point_C[site_vac]
+                
+#             # update trasient vacancy
+#             self.transient_vacancy[step] = site_final
 
-        # refined vacancy trajectory
-        self.get_vacancy_trajectory()
+#     def animation(self,
+#                   index: list = 'all',
+#                   step: list = 'all',
+#                   vac: bool = True,
+#                   gif: bool = True,
+#                   filename: str = 'traj.gif',
+#                   foldername: str = 'snapshot',
+#                   update_alpha: float = 0.75,
+#                   fps: int = 5,
+#                   loop = 0,
+#                   dpi: int = 100,
+#                   legend: bool = False,
+#                   label: bool = False):
+#         """
+#         Arguments
+#         ---------
+#         index : list or 'all', optional
+#             Index of atoms interested in (not index of lattice sites)
+#         step : list or 'all', optional
+#             Steps interested in.
+#         vac : bool, optional
+#             If true, vacancy is displayed.
+#         gif : bool, optional
+#             If true, gif file is generated.
+#         filename : list, optional
+#             Name of gif output file.
+#         foldername : list, optional
+#             Path of directory in which the snapshots save.
+#         update_alpha : float, optional
+#             Rate of increasing transparency of trace arrows.
+#         """
+#         if not os.path.isdir(foldername):
+#             os.mkdir(foldername)
+
+#         if index == 'all':
+#             index = np.arange(self.num_traced_atom)
+        
+#         if str(step) == 'all':
+#             step = np.arange(self.num_step)
+        
+#         files = []
+#         for step in tqdm(step,
+#                          bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
+#                          ascii=False,
+#                          desc=f'{RED}{BOLD}Progress{RESET}'):
+            
+#             fig = plt.figure()
+#             ax = fig.add_subplot(111, projection='3d')
+
+#             # plot lattice and lattice points
+#             self.plot_lattice(ax, label=label)
+
+#             # plot atoms
+#             for i, idx in enumerate(index):
+#                 ax.scatter(*self.occupation_C[idx][step].T,
+#                            facecolor=self.cmap[idx%len(self.cmap)],
+#                            edgecolor='none',
+#                            alpha=0.8,
+#                            label=f"{idx}")
+            
+#             # plot trace arrows
+#             alpha = 1
+#             for i in reversed(range(step+1)):
+#                 for arrow in self.trace_arrows[i]:
+#                     arrow_prop_dict = dict(mutation_scale=10,
+#                                            arrowstyle='->',
+#                                            color=arrow['c'],
+#                                            alpha=alpha,
+#                                            shrinkA=0, 
+#                                            shrinkB=0)
+#                     disp_arrow = Arrow3D(*arrow['p'].T, **arrow_prop_dict)
+#                     ax.add_artist(disp_arrow)
+#                 alpha *= update_alpha
+
+#             # plot vacancy
+#             if vac:
+#                 # true vacancy
+#                 ax.plot(*self.vacancy_trajectory_coord_C[step].T,
+#                         color='yellow', 
+#                         marker='o', 
+#                         linestyle='none', 
+#                         markersize=8, 
+#                         alpha=0.8, 
+#                         zorder=1)
+                
+#                 # trasient vacancy
+#                 ax.plot(*self.lattice_point_C[self.transient_vacancy[step]].T,
+#                         color='orange', 
+#                         marker='o', 
+#                         linestyle='none', 
+#                         markersize=8, 
+#                         alpha=0.8, 
+#                         zorder=1)
+
+#             # make snapshot
+#             time = step * self.interval_nsw * self.potim / 1000 # ps
+#             time_tot = self.nsw_cut * self.potim / 1000 # ps
+#             plt.title("(%.2f/%.2f) ps, (%d/%d) step"%(time, time_tot, step, self.num_step))
+
+#             if legend:
+#                 plt.legend()
+
+#             # save snapshot
+#             snapshot = os.path.join(foldername, f"snapshot_{step}.png")
+#             files.append(snapshot)
+#             plt.savefig(snapshot, dpi=dpi)
+#             plt.close()
+        
+#         # make gif file
+#         if gif:
+#             print(f"Merging snapshots...")
+#             imgs = [Image.open(file) for file in files]
+#             imgs[0].save(fp=filename, format='GIF', append_images=imgs[1:], 
+#                          save_all=True, duration=int(1000/fps), loop=loop)
+#             print(f"{filename} was created.")
+
+#     def read_force(self):
+#         with open(self.force, 'r') as f:
+#             lines = [line.strip() for line in f]
+            
+#         self.force_vector = np.zeros((self.nsw_cut, self.num_traced_atom, 3))
+#         for i in range(self.nsw_cut):
+#             start = (self.num_tot_atom + 1) * i + self.num_pre_atom + 1
+#             end = start + self.num_traced_atom
+#             self.force_vector[i] = np.array(
+#                 [line.split() for line in lines[start:end]], dtype=float
+#             )
+            
+#         self.force_vector = (
+#             self.force_vector
+#             .reshape(self.num_step, self.interval_nsw, self.num_traced_atom, 3)
+#             .mean(axis=1)
+#         )
+    
+#     def correct_transition_state(self): 
+#         loop, loop_max = 0, 100
+#         while True:
+#             counts, loop = 0, loop + 1
+            
+#             step_hop = [key for key in self.trace_arrows.keys() if self.trace_arrows[key]]
+#             step_hop.sort()
+            
+#             occupation = copy.deepcopy(self.occupation)
+#             for step in step_hop:
+#                 for arrow in self.trace_arrows[step]:
+#                     # index of moving atom
+#                     check_pre = np.where(occupation[:, step-1] == arrow['lattice_point'][0])[0]
+#                     check_now = np.where(occupation[:, step] == arrow['lattice_point'][1])[0]
+#                     index_atom = np.intersect1d(check_pre, check_now)
+
+#                     if len(index_atom) != 1:
+#                         print(f"ERROR: Cannot classify atom index (step={step}).")
+#                         sys.exit(0)
+                    
+#                     index_atom = index_atom[0]
+#                     force_atom = self.force_vector[step][index_atom]
+                    
+#                     # direction vectors
+#                     p_init = self.lattice_point[arrow['lattice_point'][0]]
+#                     p_final = self.lattice_point[arrow['lattice_point'][1]]
+#                     p_atom = self.trajectory['traj'][index_atom][step]
+                    
+#                     r_init = self.displacement_PBC(p_atom, p_init)
+#                     r_final = self.displacement_PBC(p_atom, p_final)
+                    
+#                     # cos theta
+#                     eps = 1e-9
+#                     norm_f = np.linalg.norm(force_atom)
+#                     norm_init = np.linalg.norm(r_init)
+#                     norm_final = np.linalg.norm(r_final)
+                    
+#                     if norm_f < eps or norm_init < eps:
+#                         cos_init = np.nan
+#                     else:
+#                         cos_init = np.dot(force_atom, r_init) / (norm_f * norm_init)
+
+#                     if norm_f < eps or norm_final < eps:
+#                         cos_final = np.nan
+#                     else:
+#                         cos_final = np.dot(force_atom, r_final) / (norm_f * norm_final)
+                    
+#                     # TS-refinement
+#                     if np.isnan(cos_init) or np.isnan(cos_final):
+#                         print("WARNING: NaN in cos_init/final at frame")
+#                         print(f"{self.xdatcar} (step: {step})")
+#                         continue
+                    
+#                     elif cos_init <= cos_final: # valid hop
+#                         continue
+                    
+#                     else: # invalid hop                           
+#                         self.occupation[index_atom][step] = self.occupation[index_atom][step-1]
+#                         self.occupation_C[index_atom][step] = self.occupation_C[index_atom][step-1]
+#                         counts += 1
+
+#             if loop > loop_max:
+#                 print(f"Exceeding the maximum number of iterations.")
+#                 break
+            
+#             if self.verbose:
+#                 print(f"[{loop}] (invalid hops) / (total hops) : {counts} / {len(step_hop)}")
+                
+#             if counts == 0:
+#                 break
+    
+#             self.get_trace_arrows()
+
+#         # refined vacancy trajectory
+#         self.get_vacancy_trajectory()
 
 
 class TrajectoryAnalyzer:

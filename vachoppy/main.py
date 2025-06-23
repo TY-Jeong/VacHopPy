@@ -44,12 +44,12 @@ group.add_argument(
 # utilities
 group.add_argument(
     '-u',
-    choices=['extract_force', 'concat_xdatcar', 'concat_force', 
+    choices=['extract_input', 'concat_xdatcar', 'concat_force', 
              'update_outcar', 'fingerprint', 'cosine_distance'],
     dest='util',
     help=(
         """Choose mode:
-        'extract_force'   - Extract FORCE from vasprun.xml
+        'extract_input'   - Extract input files from vasprun.xml
         'concat_xdatcar'  - Concatenate two XDATCAR files
         'concat_force'    - Concatenate two FORCE files
         'update_outcar'   - Update OUTCAR : nsw = nsw1 + nsw2
@@ -73,13 +73,13 @@ if check_util:
     if mode_index < len(sys.argv):
         mode_value = sys.argv[mode_index]
         
-        if mode_value == 'extract_force':
+        if mode_value == 'extract_input':
+            parser.add_argument('symbol',
+                                type=str,
+                                help='symbol of atom species')
             parser.add_argument('-in', '--file_in',
                                 default='vasprun.xml',
                                 help='input vasprun.xml file (default: vasprun.xml)')
-            parser.add_argument('-out', '--file_out',
-                                default='FORCE',
-                                help='output FORCE file (default: FORCE)')
             
         if mode_value == 'concat_xdatcar':
             parser.add_argument('-in1', '--xdatcar_in1',
@@ -148,15 +148,6 @@ if check_mode:
     if mode_index < len(sys.argv):
         mode_value = sys.argv[mode_index]
 
-        # Arguments for DataInfo
-        # if mode_value in ['p', 't', 'e']:
-        #     parser.add_argument('symbol',
-        #                         type=str,
-        #                         help='symbol of moving atom')
-        #     parser.add_argument('num_vac',
-        #                         type=int,
-        #                         help='number of vacancies')
-        
         if mode_value in ['p', 't', 'e']:
             parser.add_argument('-p1', '--prefix1', 
                                 default='traj', 
@@ -378,8 +369,8 @@ def main():
             )
             
     if check_util:
-        if mode_value == 'extract_force':
-            extract_force(args.file_in, args.file_out)
+        if mode_value == 'extract_input':
+            extract_from_vasp(args.symbol, vasprun=args.file_in)
             print(f'{args.file_out} is created')
             
         if mode_value == 'concat_xdatcar':
