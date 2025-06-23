@@ -24,64 +24,32 @@ class DataInfo:
     def __init__(self, 
                  prefix1: str ='traj',
                  prefix2: str ='traj',
-                 prefix_xdatcar: str = 'XDATCAR',
-                 prefix_force: str = 'FORCE',
-                 prefix_outcar: str = 'OUTCAR',
+                 prefix_pos: str = 'pos',
+                 prefix_force: str = 'force',
+                 prefix_cond: str = 'cond',
                  verbose: bool =False):
-        """
-        Arguments
-        ---------
-        prefix1 : str, optional
-            Name of outer directory
-        prefix2 : str, optional
-            Prefix for subdirectories
-        prefix_xdatcar : str, optional
-            Prefix for XDATCAR files
-        prefix_force : str, optional
-            Prefix for XDATCAR files
-        prefix_outcar : str, optional
-            Name of OUTCAR files
-        verbose : bool, optional
-            Verbosity flag
-        """
         
-        # directory information
-        if os.path.isdir(prefix1):
-            self.prefix1 = prefix1
-        else:
-            print(f'{prefix1} is not found.')
-            sys.exit(0)
-
+        self.prefix1 = prefix1
         self.prefix2 = prefix2
-        self.prefix_xdatcar = prefix_xdatcar
+        self.prefix_pos = prefix_pos
         self.prefix_force = prefix_force
-        self.prefix_outcar = prefix_outcar
+        self.prefix_cond = prefix_cond
         self.verbose = verbose
-            
+        
         # subdirectories
         self.sub_directory = []
         self.get_sub_directory()
         
-        # read outcar
-        self.temp = []
-        self.potim = []
-        self.outcar = []
-        self.read_outcar()
-        
-        # labels
         self.label = []
-        self.xdatcar = []
-        self.read_label()
-        
-        # force
-        self.force = None
-        self.read_force()
+        self.temp = []
+        self.get_label()
+        self.check_files()
+        self.get_temperautre()
         
         self.datainfo = [
             [temp, label] for i, temp in enumerate(self.temp)
             for label in self.label[i]
         ]
-        
         if verbose:
             with open('data.txt', 'w') as f:
                 original_stdout = sys.stdout
@@ -90,42 +58,50 @@ class DataInfo:
                     self.summary()
                 finally:
                     sys.stdout = original_stdout
+    
+    def get_temperautre(self):
+        self.temp = []
+        for i, dir in enumerate(self.sub_directory):
+            cond_file = os.path.join(
+                self.prefix1, dir, f"cond_{self.label[i][0]}.json"
+            )
+            with open(cond_file, "r") as f:
+                condition = json.load(f)
+            self.temp.append(condition['temperature'])
+            
+    def check_files(self):
+        check = False
+        for i, dir in enumerate(self.sub_directory):
+            for label in self.label[i]:
+                # check cond.json
+                cond_file = os.path.join(
+                    self.prefix1, dir, f"cond_{label}.json"
+                )
+                pos_file = os.path.join(
+                    self.prefix1, dir, f"pos_{label}.npy"
+                )
+                force_file = os.path.join(
+                    self.prefix1, dir, f"force_{label}.npy"
+                )
+                if not os.path.isfile(cond_file):
+                    print(f"Error: {cond_file} is not found.")
+                    check = True
+                if not os.path.isfile(pos_file):
+                    print(f"Error: {pos_file} is not found.")
+                    check = True
+                if not os.path.isfile(force_file):
+                    print(f"Error: {force_file} is not found.")
+                    check = True
+        if check:
+            sys.exit(0)
         
     def get_sub_directory(self):
         list_dir = os.listdir(os.path.join(os.getcwd(), self.prefix1))
         self.sub_directory = [d for d in list_dir if self.prefix2 in d]
-        self.sub_directory.sort()
-        
-    def read_outcar(self):
+        self.sub_directory.sort()   
+    
+    def get_label(self):
         for dir in self.sub_directory:
-            outcar = os.path.join(self.prefix1, dir, self.prefix_outcar)
-            
-            if not os.path.isfile(outcar):
-                print(f"{outcar} is not found.")
-                sys.exit(0)
-            else:
-                self.outcar.append(outcar)
-            
-            check_temp, check_potim = False, False
-            with open(outcar, 'r') as f:
-                for line in f:
-                    if "TEBEG " in line:
-                        token = line.split()[2]
-                        temp = float(''.join(c for c in token if c.isdigit() or c == '.'))
-                        self.temp.append(temp)
-                        check_temp = True
-                        
-                    if "POTIM " in line:
-                        potim = float(line.split()[2])
-                        self.potim.append(potim)
-                        check_potim = True
-                    
-                    if check_temp and check_potim:
-                        break
-                    
-    def read_label(self):
-        for dir in self.sub_directory:
-            list_xdatcar = []
             list_file = os.listdir(
                 os.path.join(self.prefix1, dir)
             )
@@ -133,70 +109,209 @@ class DataInfo:
             
             label = []
             for file in list_file:
-                _file = file.split('_')
-                if _file[0] == self.prefix_xdatcar and len(_file) > 1:
-                    label.append(file.split('_')[1])
-                    list_xdatcar.append(os.path.join(
-                        os.path.join(self.prefix1, dir, file)
-                    ))
-                    
-            self.xdatcar.append(list_xdatcar)
+                extension = file.split(".")[-1]
+                if extension == "npy":
+                    _file = "".join(file.split(".")[:-1]).split('_')
+                    if _file[0] == self.prefix_pos and len(_file) > 1:
+                        label.append(_file[1])
             self.label.append(label)
-            
-    def read_force(self):
-        self.force = []
-        for i, dir in enumerate(self.sub_directory):
-            list_force = []
-            path_dir = os.path.join(self.prefix1, dir)
-            for label in self.label[i]:
-                if f"FORCE_{label}" not in os.listdir(path_dir):
-                    list_force.append(None)
-                else:
-                    list_force.append(
-                        os.path.join(path_dir, f"FORCE_{label}")
-                    )
-            self.force.append(list_force)
-            
+    
     def summary(self):
         label_all = list(
             {element for sublabel in self.label for element in sublabel}
         )
         label_all.sort()
         
-        print("# List of temperature (K) :")
-        for temp in self.temp:
-            print(str(temp), end=' ')
-        print('\n')
-        
-        print("# List of POTIM (fs) : ")
-        header = [f"{temp}K" for temp in self.temp]
-        data = [self.potim]
-        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
-        print('')
-        
-        print("# List of XDATCAR :")
+        print("# List of data :")
         header = ['label'] + [f"{temp}K" for temp in self.temp]
         data = [
             [label] + ['O' if label in self.label[j] else 'X' for j in range(len(self.temp))]
             for label in label_all
         ]
+        data.append(
+            ['Total'] + [len(label) for label in self.label]
+        )
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
         
-        print("# List of FORCE :")
-        header = ['label'] + [f"{temp}K" for temp in self.temp]
-        data = [
-            [label] +
-            [
-                'O' if os.path.join(
-                    self.prefix1, self.sub_directory[j], f"{self.prefix_force}_{label}"
-                ) in self.force[j] else 'X'
-                for j in range(len(self.temp))
-            ]
-            for label in label_all
-        ]
-        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
-        print('')
+        
+# class DataInfo:
+#     def __init__(self, 
+#                  prefix1: str ='traj',
+#                  prefix2: str ='traj',
+#                  prefix_xdatcar: str = 'XDATCAR',
+#                  prefix_force: str = 'FORCE',
+#                  prefix_outcar: str = 'OUTCAR',
+#                  verbose: bool =False):
+#         """
+#         Arguments
+#         ---------
+#         prefix1 : str, optional
+#             Name of outer directory
+#         prefix2 : str, optional
+#             Prefix for subdirectories
+#         prefix_xdatcar : str, optional
+#             Prefix for XDATCAR files
+#         prefix_force : str, optional
+#             Prefix for XDATCAR files
+#         prefix_outcar : str, optional
+#             Name of OUTCAR files
+#         verbose : bool, optional
+#             Verbosity flag
+#         """
+        
+#         # directory information
+#         if os.path.isdir(prefix1):
+#             self.prefix1 = prefix1
+#         else:
+#             print(f'{prefix1} is not found.')
+#             sys.exit(0)
+
+#         self.prefix2 = prefix2
+#         self.prefix_xdatcar = prefix_xdatcar
+#         self.prefix_force = prefix_force
+#         self.prefix_outcar = prefix_outcar
+#         self.verbose = verbose
+            
+#         # subdirectories
+#         self.sub_directory = []
+#         self.get_sub_directory()
+        
+#         # read outcar
+#         self.temp = []
+#         self.potim = []
+#         self.outcar = []
+#         self.read_outcar()
+        
+#         # labels
+#         self.label = []
+#         self.xdatcar = []
+#         self.read_label()
+        
+#         # force
+#         self.force = None
+#         self.read_force()
+        
+#         self.datainfo = [
+#             [temp, label] for i, temp in enumerate(self.temp)
+#             for label in self.label[i]
+#         ]
+        
+#         if verbose:
+#             with open('data.txt', 'w') as f:
+#                 original_stdout = sys.stdout
+#                 sys.stdout = f
+#                 try:
+#                     self.summary()
+#                 finally:
+#                     sys.stdout = original_stdout
+        
+#     def get_sub_directory(self):
+#         list_dir = os.listdir(os.path.join(os.getcwd(), self.prefix1))
+#         self.sub_directory = [d for d in list_dir if self.prefix2 in d]
+#         self.sub_directory.sort()
+        
+#     def read_outcar(self):
+#         for dir in self.sub_directory:
+#             outcar = os.path.join(self.prefix1, dir, self.prefix_outcar)
+            
+#             if not os.path.isfile(outcar):
+#                 print(f"{outcar} is not found.")
+#                 sys.exit(0)
+#             else:
+#                 self.outcar.append(outcar)
+            
+#             check_temp, check_potim = False, False
+#             with open(outcar, 'r') as f:
+#                 for line in f:
+#                     if "TEBEG " in line:
+#                         token = line.split()[2]
+#                         temp = float(''.join(c for c in token if c.isdigit() or c == '.'))
+#                         self.temp.append(temp)
+#                         check_temp = True
+                        
+#                     if "POTIM " in line:
+#                         potim = float(line.split()[2])
+#                         self.potim.append(potim)
+#                         check_potim = True
+                    
+#                     if check_temp and check_potim:
+#                         break
+                    
+#     def read_label(self):
+#         for dir in self.sub_directory:
+#             list_xdatcar = []
+#             list_file = os.listdir(
+#                 os.path.join(self.prefix1, dir)
+#             )
+#             list_file.sort()
+            
+#             label = []
+#             for file in list_file:
+#                 _file = file.split('_')
+#                 if _file[0] == self.prefix_xdatcar and len(_file) > 1:
+#                     label.append(file.split('_')[1])
+#                     list_xdatcar.append(os.path.join(
+#                         os.path.join(self.prefix1, dir, file)
+#                     ))
+                    
+#             self.xdatcar.append(list_xdatcar)
+#             self.label.append(label)
+            
+#     def read_force(self):
+#         self.force = []
+#         for i, dir in enumerate(self.sub_directory):
+#             list_force = []
+#             path_dir = os.path.join(self.prefix1, dir)
+#             for label in self.label[i]:
+#                 if f"FORCE_{label}" not in os.listdir(path_dir):
+#                     list_force.append(None)
+#                 else:
+#                     list_force.append(
+#                         os.path.join(path_dir, f"FORCE_{label}")
+#                     )
+#             self.force.append(list_force)
+            
+#     def summary(self):
+#         label_all = list(
+#             {element for sublabel in self.label for element in sublabel}
+#         )
+#         label_all.sort()
+        
+#         print("# List of temperature (K) :")
+#         for temp in self.temp:
+#             print(str(temp), end=' ')
+#         print('\n')
+        
+#         print("# List of POTIM (fs) : ")
+#         header = [f"{temp}K" for temp in self.temp]
+#         data = [self.potim]
+#         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+#         print('')
+        
+#         print("# List of XDATCAR :")
+#         header = ['label'] + [f"{temp}K" for temp in self.temp]
+#         data = [
+#             [label] + ['O' if label in self.label[j] else 'X' for j in range(len(self.temp))]
+#             for label in label_all
+#         ]
+#         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+#         print('')
+        
+#         print("# List of FORCE :")
+#         header = ['label'] + [f"{temp}K" for temp in self.temp]
+#         data = [
+#             [label] +
+#             [
+#                 'O' if os.path.join(
+#                     self.prefix1, self.sub_directory[j], f"{self.prefix_force}_{label}"
+#                 ) in self.force[j] else 'X'
+#                 for j in range(len(self.temp))
+#             ]
+#             for label in label_all
+#         ]
+#         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+#         print('')
              
 
 class VacancyInfo:
