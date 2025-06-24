@@ -124,9 +124,11 @@ class DataInfo:
                 integrity = True
                 if not os.path.isfile(pos_file):
                     print(f"Warning: file absent ({pos_file})")
+                    integrity = False
                     
                 if not os.path.isfile(force_file):
                     print(f"Warning: file absent ({force_file})")
+                    integrity = False
                 
                 if integrity:
                     with open(cond_file, "r") as f:

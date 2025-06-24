@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import json
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -203,7 +204,8 @@ class FingerPrint:
             plt.savefig(outfig, dpi=dpi)
         if disp:
             plt.show()
-            
+
+
 class Snapshots:
     def __init__(self,
                  xdatcar: str,
@@ -222,7 +224,6 @@ class Snapshots:
         prefix : str, optional
             Prefix for output files
         """
-
         self._validate_file(xdatcar, "XDATCAR")
         self._validate_file(outcar, "OUTCAR")
 
@@ -231,7 +232,6 @@ class Snapshots:
         self.prefix = prefix
         self.interval = interval
         
-            
         if not os.path.isdir(self.prefix):
             os.makedirs(self.prefix)
             print(f'{self.prefix} directory is created.')
@@ -347,8 +347,6 @@ class Snapshots:
         self.num_step = num_step
         self.atom_species = atom_species
         self.lattice_parameter = lattice_parameter
-        
-            
             
     def save_poscar(self, 
                     step, 

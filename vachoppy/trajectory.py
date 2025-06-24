@@ -564,7 +564,7 @@ class Trajectory:
         if math.isclose(val, round(val), abs_tol=eps):
              self.interval_nsw = int(round(val))
         else:
-            print("ERROR: interval must be a multiple of potim.")
+            print("ERROR: interval must be a multiple of 'potim * nblock'.")
             sys.exit(0)
             
         self.num_step = int(self.nsw / self.interval_nsw)
