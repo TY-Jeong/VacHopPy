@@ -207,9 +207,9 @@ class Trajectory:
         self.cmap = self._custrom_cmap()
         
         # md conditions
-        self.nsw = None
+        self.nsw = None  # nsw <- int(nsw / nblock)
         self.temp = None
-        self.potim = None
+        self.potim = None  # potim <- potim * nblock
         self.nblock = None
         self.symbol = None
         self.nsw_cut = None
@@ -555,6 +555,10 @@ class Trajectory:
         self.temp = condition["temperature"]
         self.num_atom = condition["atom_counts"][self.symbol]
         
+        # effective nsw and potim
+        self.nsw = int(self.nsw / self.nblock)
+        self.potim *= self.nblock
+        
         eps = 1e-9
         val = self.interval * 1000 / self.potim
         if math.isclose(val, round(val), abs_tol=eps):
@@ -720,8 +724,8 @@ class Trajectory:
                         zorder=1)
 
             # make snapshot
-            time = step * self.interval_nsw * self.potim * self.nblock / 1000 # ps
-            time_tot = self.nsw_cut * self.potim * self.nblock / 1000 # ps
+            time = step * self.interval_nsw * self.potim / 1000 # ps
+            time_tot = self.nsw_cut * self.potim / 1000 # ps
             plt.title("(%.2f/%.2f) ps, (%d/%d) step"%(time, time_tot, step, self.num_step))
 
             if legend:

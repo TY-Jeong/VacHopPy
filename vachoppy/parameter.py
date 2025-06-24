@@ -52,7 +52,8 @@ class Calculator:
         
         self.index_temp = None
         self.index_label = None
-        self.xdatcar = None
+        self.pos = None
+        self.cond = None
         self.force = None
         self.get_address()
         
@@ -99,19 +100,20 @@ class Calculator:
             print(f"No data exists (T : {self.temp} K, Label : {self.label})")
             sys.exit(0)
             
-        self.xdatcar = self.data.xdatcar[self.index_temp][self.index_label]
+        self.pos = self.data.pos[self.index_temp][self.index_label]
+        self.cond = self.data.cond[self.index_temp][self.index_label]
         self.force = self.data.force[self.index_temp][self.index_label]
          
     def extract_AIMD_quantities(self):
         # trajectory
         try:
             trajectory = Trajectory(
-                xdatcar=self.xdatcar,
-                lattice=self.lattice,
                 interval=self.interval,
-                potim=self.data.potim[self.index_temp],
                 num_vac=self.num_vac,
-                force=self.force,
+                lattice=self.lattice,
+                pos_file=self.pos,
+                force_file=self.force,
+                cond_file=self.cond,
                 verbose=False
             )
         

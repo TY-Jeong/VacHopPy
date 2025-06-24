@@ -67,10 +67,11 @@ class MakeAnimation:
         
         index_label = data.label[index_temp].index(self.label)
         
-        self.xdatcar = data.xdatcar[index_temp][index_label]
-        self.outcar = data.outcar[index_temp]
+        self.pos = data.pos[index_temp][index_label]
+        self.cond = data.cond[index_temp][index_label]
         self.force = data.force[index_temp][index_label]
-        self.potim = data.potim[index_temp]
+        
+        # self.potim = data.potim[index_temp]
         self.interval = interval
         self.poscar_lattice = poscar_lattice
         self.update_alpha = update_alpha
@@ -101,12 +102,12 @@ class MakeAnimation:
         )
         
         self.traj = Trajectory(
-            xdatcar=self.xdatcar,
-            lattice=self.lattice,
             interval=interval,
-            potim=self.potim,
             num_vac=self.num_vac,
-            force=self.force,
+            lattice=self.lattice,
+            pos_file=self.pos,
+            force_file=self.force,
+            cond_file=self.cond,
             verbose=self.verbose
         )
             
