@@ -36,7 +36,7 @@ group.add_argument(
         'p'  - Determine vacancy trajectory and calculate effectie hopping parameters (excluding z and nu)
         'pp' - Calculate effective z and nu (postprocess of p option)
         'f'  - Fingerpring analysis : assess lattice stability or phase transition
-        'e'  - Calculate diffusion coefficient using Einstein relation (test)
+        'e'  - Calculate diffusion coefficient using Einstein relation (under test)
         """
         )
     )
@@ -44,15 +44,12 @@ group.add_argument(
 # utilities
 group.add_argument(
     '-u',
-    choices=['extract_input', 'concat_xdatcar', 'concat_force', 
-             'update_outcar', 'fingerprint', 'cosine_distance'],
+    choices=['extract_input', 'combine_vasprun', 'fingerprint', 'cosine_distance'],
     dest='util',
     help=(
         """Choose mode:
         'extract_input'   - Extract input files from vasprun.xml
-        'concat_xdatcar'  - Concatenate two XDATCAR files
-        'concat_force'    - Concatenate two FORCE files
-        'update_outcar'   - Update OUTCAR : nsw = nsw1 + nsw2
+        'combine_vasprun' - Combine two successive vasprun.xml
         'fingerprint'     - Extract fingerprint
         'cosine_distance' - Calculate cosine distance
         """
@@ -77,48 +74,26 @@ if check_util:
             parser.add_argument('symbol',
                                 type=str,
                                 help='symbol of atom species')
-            parser.add_argument('-in', '--file_in',
+            parser.add_argument('-v', '--vasprun',
                                 default='vasprun.xml',
                                 help='input vasprun.xml file (default: vasprun.xml)')
             
-        if mode_value == 'concat_xdatcar':
-            parser.add_argument('-in1', '--xdatcar_in1',
+        if mode_value == 'combine_vasprun':
+            parser.add_argument('-v1', '--vasprun_in1',
                                 required=True,
-                                help='first XDATCAR file')
-            parser.add_argument('-in2', '--xdatcar_in2',
+                                help='first vasprun.xml file')
+            parser.add_argument('-v2', '--vasprun_in2',
                                 required=True,
-                                help='second XDATCAR file')
-            parser.add_argument('-out', '--xdatcar_out',
-                                default='XDATCAR_NEW',
-                                help='new XDATCAR file (default: XDATCAR_NEW)')
-        
-        if mode_value == 'concat_force':
-            parser.add_argument('-in1', '--force_in1',
-                                required=True,
-                                help='first FORCE file')
-            parser.add_argument('-in2', '--force_in2',
-                                required=True,
-                                help='second FORCE file')
-            parser.add_argument('-out', '--force_out',
-                                default='FORCE_NEW',
-                                help='new Force file (default: FORCE_NEW)')
-        
-        if mode_value == 'update_outcar':
-            parser.add_argument('-in1', '--outcar_in1',
-                                required=True,
-                                help='first OUTCAR file')
-            parser.add_argument('-in2', '--outcar_in2',
-                                required=True,
-                                help='second OUTCAR file')
-            parser.add_argument('-out', '--outcar_out',
-                                default='OUTCAR_NEW',
-                                help='new OUTCAR file (default: OUTCAR_NEW)')
+                                help='second vasprun.xml file')
+            parser.add_argument('-out', '--vasprun_out',
+                                default='vasprun_combined.xml',
+                                help='combined vasprun.xml file (default: vasprun_combined.xml)')
             
         if mode_value == 'cosine_distance':
-            parser.add_argument('-in1', '--fingerprint_in1',
+            parser.add_argument('-f1', '--fingerprint_in1',
                                 required=True,
                                 help='first fingerprint file')
-            parser.add_argument('-in2', '--fingerprint_in2',
+            parser.add_argument('-f2', '--fingerprint_in2',
                                 required=True,
                                 help='second fingerprint file')
             
@@ -238,14 +213,10 @@ if check_mode:
             parser.add_argument('sigma',
                                 type=float,
                                 help='sigma for Gaussian-smeared delta function')
-            parser.add_argument('-x','--xdatcar',
+            parser.add_argument('-v','--vasprun',
                                 type=str,
-                                default='XDATCAR',
-                                help='path to XDATCAR file (default: XDATCAR)')
-            parser.add_argument('-o','--outcar',
-                                type=str,
-                                default='OUTCAR',
-                                help='path to OUTCAR file (default: OUTCAR)')
+                                default='vasprun.xml',
+                                help='path to vaprun.xml file (default: vasprun.xml)')
             parser.add_argument('-p','--poscar_ref',
                                 default='POSCAR_REF',
                                 type=str,
@@ -346,8 +317,7 @@ def main():
             
         if mode_value == 'f':
             phase = PhaseTransition(
-                xdatcar=args.xdatcar,
-                outcar=args.outcar,
+                vasprun=args.vasprun,
                 interval=args.interval,
                 Rmax=args.Rmax,
                 delta=args.delta,
@@ -370,19 +340,11 @@ def main():
             
     if check_util:
         if mode_value == 'extract_input':
-            extract_from_vasp(args.symbol, vasprun=args.file_in)
+            extract_from_vasp(args.symbol, vasprun=args.vasprun)
             
-        if mode_value == 'concat_xdatcar':
-            concat_xdatcar(args.xdatcar_in1, args.xdatcar_in2, args.xdatcar_out)
+        if mode_value == 'combine_vasprun':
+            concat_xdatcar(args.vasprun_in1, args.vasprun_in2, args.vasprun_out)
             print(f'{args.xdatcar_out} is created')
-        
-        if mode_value == 'concat_force':
-            concat_force(args.force_in1, args.force_in2, args.force_out)
-            print(f'{args.force_out} is created')
-        
-        if mode_value == 'update_outcar':
-            update_outcar(args.outcar_in1, args.outcar_in2, args.outcar_out)
-            print(f'{args.outcar_out} is created')
         
         if mode_value == 'cosine_distance':
             GetCosineDistance(args.fingerprint_in1, args.fingerprint_in2)

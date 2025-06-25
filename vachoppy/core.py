@@ -377,8 +377,7 @@ class PostEffectiveHoppingParameter:
 # -m f option
 class PhaseTransition:
     def __init__(self,
-                 xdatcar,
-                 outcar,
+                 vasprun,
                  interval,
                  Rmax,
                  delta,
@@ -388,8 +387,7 @@ class PhaseTransition:
                  prefix1='snapshots',
                  prefix2='fingerprints'):
         
-        self.xdatcar = xdatcar
-        self.outcar = outcar
+        self.vasprun = vasprun
         self.interval = interval
         self.Rmax = Rmax
         self.delta = delta
@@ -414,9 +412,8 @@ class PhaseTransition:
                     MPI.COMM_WORLD.Abort(1)
                 try:
                     snapshots = Snapshots(
-                        xdatcar=self.xdatcar, 
-                        outcar=self.outcar, 
                         interval=self.interval,
+                        vasprun=self.vasprun,
                         prefix=self.prefix1
                     )
                     
@@ -450,9 +447,8 @@ class PhaseTransition:
         else:
             print('VacHopPy is running...\n')
             snapshots = Snapshots(
-                xdatcar=self.xdatcar, 
-                outcar=self.outcar, 
                 interval=self.interval,
+                vasprun=self.vasprun,
                 prefix=self.prefix1
             )
             phase_transition_serial(
@@ -493,16 +489,6 @@ class GetFingerPrint:
         
         self.pair = []
         self.pair.extend(combinations_with_replacement(self.atom, 2))
-        
-        # input parameters
-        # self.pair = []
-        # self.get_pair()
-        
-        # params for fingerprint
-        # self.Rmax = None
-        # self.delta = None
-        # self.sigma = None
-        # self.get_params()
         
         # fingerprint
         self.fingerprint = []
