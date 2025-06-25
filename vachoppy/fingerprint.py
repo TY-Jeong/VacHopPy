@@ -11,7 +11,7 @@ from lxml import etree
 from colorama import Fore
 from collections import Counter
 from itertools import combinations_with_replacement
-from vachoppy.utils import find_last_direct_line, CosineDistance
+from vachoppy.utils import CosineDistance
 
 try:
     from mpi4py import MPI
