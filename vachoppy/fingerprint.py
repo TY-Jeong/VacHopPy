@@ -209,7 +209,7 @@ class FingerPrint:
             plt.show()
 
 
-class Snapshot:
+class Snapshots:
     def __init__(self, 
                  interval: float,
                  vasprun: str = 'vasprun.xml',
