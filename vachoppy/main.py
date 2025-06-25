@@ -343,7 +343,7 @@ def main():
             extract_from_vasp(args.symbol, vasprun=args.vasprun)
             
         if mode_value == 'combine_vasprun':
-            concat_xdatcar(args.vasprun_in1, args.vasprun_in2, args.vasprun_out)
+            combine_vasprun(args.vasprun_in1, args.vasprun_in2, args.vasprun_out)
             print(f'{args.xdatcar_out} is created')
         
         if mode_value == 'cosine_distance':
