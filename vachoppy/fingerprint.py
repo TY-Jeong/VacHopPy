@@ -10,7 +10,9 @@ from tqdm import tqdm
 from lxml import etree
 from colorama import Fore
 from collections import Counter
+from pymatgen.io.vasp.outputs import Vasprun
 from itertools import combinations_with_replacement
+
 from vachoppy.utils import CosineDistance
 
 try:
