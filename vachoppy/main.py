@@ -344,7 +344,7 @@ def main():
             
         if mode_value == 'combine_vasprun':
             combine_vasprun(args.vasprun_in1, args.vasprun_in2, args.vasprun_out)
-            print(f'{args.xdatcar_out} is created')
+            print(f'{args.vasprun_out} is created')
         
         if mode_value == 'cosine_distance':
             GetCosineDistance(args.fingerprint_in1, args.fingerprint_in2)
