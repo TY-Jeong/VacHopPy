@@ -102,31 +102,21 @@ pip install mpipy
         <td>Perform fingerprint analyses</td>
     <tr>
         <td rowspan="6">-u<br>(utility)</td>
-        <td>extract_force</td>
-        <td>Extract FORCE file from vasprun.xml</td>
+        <td>extract_input</td>
+        <td>Extract input data (cond.json, pos.npy, force.npy) from vasprun.xml</td>
     </tr>
     <tr>
         <!-- <td>2</td> -->
-        <td>concat_xdatcar</td>
-        <td>Concatenate two XDATCAR files</td>
+        <td>combine_vasprun</td>
+        <td>Combine two successive vasprun.xml</td>
     </tr>
     <tr>
         <!-- <td>3</td> -->
-        <td>concat_force</td>
-        <td>Concatenate two FORCE files</td>
-    </tr>
-    <tr>
-        <!-- <td>4</td> -->
-        <td>update_outcar</td>
-        <td>Combine two OUTCAR files</td>
-    </tr>
-    <tr>
-        <!-- <td>5</td> -->
         <td>fingerprint</td>
         <td>Extract fingerprint</td>
     </tr>
     <tr>
-        <!-- <td>6</td> -->
+        <!-- <td>4</td> -->
         <td>cosine_distance</td>
         <td>Calculate cosine distance</td>
     </tr>
@@ -143,8 +133,8 @@ vachoppy -m p -h # explanation for '-m p' option
 For time-consuming commaands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. For parallelization, please specify `--parallel` option:
 
 ```bash
-vachoppy -m p O 0.1 # serial computation
-mpirun -np 10 vachoppy -m p O 0.1 --parallel # parallel computation with 10 cpu nodes.
+vachoppy -m p 0.1 # serial computation
+mpirun -np 10 vachoppy -m p 0.1 --parallel # parallel computation with 10 cpu nodes.
 ```
 
 
