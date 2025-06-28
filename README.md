@@ -105,7 +105,7 @@ pip install mpipy
     <tr>
         <!-- <td>4</td> -->
         <td>pp</td>
-        <td>Calculate z and ν (post-processing for -m p option)</td>
+        <td>Calculate z and ν (post-processing for -m p mode)</td>
     </tr>
     <tr>
         <!-- <td>5</td> -->
@@ -146,7 +146,7 @@ vachoppy -h # list of available commands
 vachoppy -m p -h # explanation for '-m p' mode
 ```
 
-For time-consuming commaands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. For parallelization, please specify `--parallel` option:
+For time-consuming commaands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. For parallelization, please specify `--parallel` flag:
 
 ```bash
 vachoppy -m p 0.1 # serial
@@ -176,7 +176,7 @@ To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **
 #### (1) AIMD data
 AIMD data can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
 ```bash
-vachoppy -u extract_int -v vasprun.xml 
+vachoppy -u extract_input -v vasprun.xml 
 # -v flag is optional (default: vaspun.xml)
 ```
 This command generates three files: *cond.json*, *pos.npy*, and *force.npy*. Descriptions of each file are provided below:
@@ -274,7 +274,7 @@ Here, the arguments are:
 * temperature = 2100 K
 * label = 07
 
-The `-v` flag (verbosity flag) enables the generation of the **trajectory.txt** file, which contains the identified vacancy hopping paths and hopping history. You can adjust the resolution of the animation using the `--dpi` option (default: 300). The number and type of vacancies are automatically determined by comparing the POSCAR_LATTICE file with the AIMD datasets.
+The `-v` flag (verbosity flag) enables the generation of the **trajectory.txt** file, which contains the identified vacancy hopping paths and hopping history. You can adjust the resolution of the animation using the `--dpi` flag (default: 300). The number and type of vacancies are automatically determined by comparing the POSCAR_LATTICE file with the AIMD datasets.
 
 
 **Output:**
