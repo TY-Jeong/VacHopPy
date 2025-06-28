@@ -22,10 +22,20 @@
 
 The list of effective hopping parameters, which can be obtained using **VacHopPy** is summarized below:
 
+
+
+
 <div align="center">
-<p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/hopping_parameters.png" width="300"/>
-</p>
+
+| Symbol | Description                     |
+|--------|---------------------------------|
+| D      | Diffusion coefficient (m²/s)    |
+| f      | Correlation factor              |
+| τ      | Residence time (ps)             |
+| a      | Hopping distance (Å)            |
+| Eₐ     | Hopping barrier (eV)            |
+| z      | Number of equivalent paths      |
+| ν      | Attempt frequency (THz)         |
 </div>
 
 
@@ -112,6 +122,11 @@ pip install mpipy
         <td>Combine two successive vasprun.xml</td>
     </tr>
     <tr>
+        <!-- <td>2</td> -->
+        <td>crop_vasprun</td>
+        <td>Crop vasprun.xml</td>
+    </tr>
+    <tr>
         <!-- <td>3</td> -->
         <td>fingerprint</td>
         <td>Extract fingerprint</td>
@@ -152,7 +167,7 @@ Belows is summary of the main commands (only main modules are shown for clarity)
 Example files can be downloaded from:
 
 * **Example1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (30 GB)](https://drive.google.com/drive/folders/1ETkIISJef8KsYD0n-oJwU9G5ID24yAHB?usp=sharing)
-* **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (420 MB)](https://drive.google.com/drive/folders/1EUMEBL7BuHhi7lK35P3_hpXO8ifLyGda?usp=sharing)
+* **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (1.3 GB)](https://drive.google.com/drive/folders/1EUMEBL7BuHhi7lK35P3_hpXO8ifLyGda?usp=sharing)
 
 ## 1. Preparation
 ### Input data
