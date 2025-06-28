@@ -24,7 +24,7 @@ The list of effective hopping parameters, which can be obtained using **VacHopPy
 
 <div align="center">
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/7e738e5a38a6dc253d41b8e47bb0f6b429ceb232/imgs/hopping_parameters.svg" width="250"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/hopping_parameters.png" width="300"/>
 </p>
 </div>
 
