@@ -1,7 +1,7 @@
 # VacHopPy 
 
 ---
-**VacHopPy** is a Python package for analyzing vacancy hopping mechanisms based on *Ab initio* molecular dynamics (AIMD) simulations. A detailed explanation on **VacHopPy** framwork is available in [**here**](https://arxiv.org/abs/2503.23467).
+**VacHopPy** is a Python package for analyzing vacancy hopping mechanisms based on *Ab initio* molecular dynamics (AIMD) simulations. A detailed explanation on **VacHopPy** framwork is available [**here**](https://arxiv.org/abs/2503.23467).
 
 <div align="center">
 <p>
@@ -62,14 +62,14 @@ Within the **VacHopPy** framework, the temperature dependencies of overall diffu
 This package can be easily installed via pip. The current version of  **VacHopPy** was developed based on VASP 5.4.4.
 
 ```bash
-pip intall vachoppy
+pip install vachoppy
 ```
 
 If you need parallelized calculations, use:
 ```bash
 pip install vachoppy[parallel]
 ```
-This command automatically download the `mpi4py` package.
+This command automatically downloads the `mpi4py` package.
 
 
 You can download the `mpi4py` manually:
@@ -146,7 +146,7 @@ vachoppy -h # list of available commands
 vachoppy -m p -h # explanation for '-m p' mode
 ```
 
-For time-consuming commaands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. For parallelization, please specify `--parallel` flag:
+For time-consuming commands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. For parallelization, please specify `--parallel` flag:
 
 ```bash
 vachoppy -m p 0.1 # serial
@@ -154,7 +154,7 @@ mpirun -np {num_nodes} vachoppy -m p 0.1 --parallel # parallel
 ```
 
 
-Belows is summary of the main commands (only main modules are shown for clarity):
+Below is a summary of the main commands (only main modules are shown for clarity):
 
 
 <p align="center">
@@ -177,7 +177,7 @@ To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **
 AIMD data can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
 ```bash
 vachoppy -u extract_input -v vasprun.xml 
-# -v flag is optional (default: vaspun.xml)
+# -v flag is optional (default: vasprun.xml)
 ```
 This command generates three files: *cond.json*, *pos.npy*, and *force.npy*. Descriptions of each file are provided below:
 
@@ -201,7 +201,7 @@ A1,0.8698
 A2,1.058
 A3,1.766
 ```
-Here, the **first column** corresponds to the **path names**, and the **second column** contains the **Eₐ values**. The user can obtain a list of possible vacancy hopping paths by running the `vachoppy -m t` or `vachoppy -m p` command. For the `vachoppy -m t` command (used with the `-v` flag), hopping path information is saved to the **trajectory.txt** file. For the `vachoppy -m p` command, the information is saved to the **parameter.txt file**.
+Here, the **first column** corresponds to the **path names**, and the **second column** contains the **Eₐ values**. The user can obtain a list of possible vacancy hopping paths by running the `vachoppy -m t` or `vachoppy -m p` command. For the `vachoppy -m t` command (when used with the `-v` flag), hopping path information is saved to the **trajectory.txt** file. For the `vachoppy -m p` command, the information is saved to the **parameter.txt file**.
 
 >**Note1**: the **neb.csv** file is only required to extract the effective values for **coordination number (z)** and **attempt frequency (ν)** (by running the `vachoppy -m pp` command).
 
@@ -209,7 +209,7 @@ Here, the **first column** corresponds to the **path names**, and the **second c
 
 
 #### (4) File organization
-Since AIMD simulations commonly cover timescales shorter than nanoseconds, a single AIMD simulation may contain a few hopping events. However, since **VacHopPy** computes the effective hopping parameters in static manner, sufficient sampling of hopping events is necessary to ensure reliablilty. To address this, **VacHopPy** processes multiple AIMD datasets simultaneously. Each AIMD dataset is distinguished by a label appended after an underscore in the file names (e.g., cond_{label}.json, pos_{label}.npy, force_{label}.npy). Below is an example of the recommended file structure:
+Since AIMD simulations typically cover timescales shorter than a nanosecond, a single AIMD simulation may contain a few hopping events. However, since **VacHopPy** computes the effective hopping parameters in static manner, sufficient sampling of hopping events is necessary to ensure reliablilty. To address this, **VacHopPy** processes multiple AIMD datasets simultaneously. Each AIMD dataset is distinguished by a label appended after an underscore in the file names (e.g., cond_{label}.json, pos_{label}.npy, force_{label}.npy). Below is an example of the recommended file structure:
 
 ```bash
 Example1
@@ -235,7 +235,7 @@ The name of the outer directory is specified by the `-p1` flag (default: traj), 
 
 
 ### Hyperparameter: t<SUB>interval</SUB>
-To run **VacHopPy**, the user needs to determine one hyperparameter, **t<SUB>interval</SUB>**, in advance. This parameter defines the time interval for averaging atomic positions and forces. Thermal fluctuations in AIMD simulations can obscure precise atomic occupancy determination. However, since these fluctuations are random, they can be effectively averaged out over time. **VacHopPy** processes AIMD data by dividing it into segments of length of t<SUB>interval</SUB>. Each segment represents a single step in the analysis. The total number of steps is given by t<SUB>simulation</SUB>/t<SUB>interval</SUB>, where t<SUB>simulation</SUB> is the total AIMD simulation time.
+To run **VacHopPy**, the user needs to determine one hyperparameter, **t<SUB>interval</SUB>**, in advance. This parameter defines the time interval for averaging atomic positions and forces. Thermal fluctuations in AIMD simulations can make it difficult to precisely determine atomic occupancies. However, since these fluctuations are random, they can be effectively averaged out over time. **VacHopPy** processes AIMD data by dividing it into segments of length of t<SUB>interval</SUB>. Each segment corresponds to one analysis step, representing the averaged structure over that time interval. The total number of steps is given by t<SUB>simulation</SUB>/t<SUB>interval</SUB>, where t<SUB>simulation</SUB> is the total AIMD simulation time.
 
 
 
@@ -255,7 +255,7 @@ One recommended approach for determining the optimal t<SUB>interval</SUB> is thr
 </p>
 </div>
 
-The left and rigut figures show the convergences of f with respect to the number of AIMD datasets (N<SUB>cell</SUB>) and t<SUB>interval</SUB>, respectively, at each temperature. The results confirm that convergence is achieved at **N<SUB>cell</SUB>=20** and **t<SUB>interval</SUB>=0.07 ps**. 
+The left and right figures show the convergences of f with respect to the number of AIMD datasets (N<SUB>cell</SUB>) and t<SUB>interval</SUB>, respectively, at each temperature. The results confirm that convergence is achieved at **N<SUB>cell</SUB>=20** and **t<SUB>interval</SUB>=0.07 ps**. 
 
 
 ## 2. Vacancy trajectory visualization
@@ -289,7 +289,8 @@ The trajectory animation is saved as **traj.gif**, with individual snapshots sto
 
 In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB> 2×2×3 supercell), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The **yellow-colored circles** mark the vacancy positions, while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms.
 
-Occasionally, spurious vacancies may appear; hence, the detected number of vacancies exceeds the initial count in the system. This scenario arise when two or more atoms are assigned to the same lattice site and are commonly associated with non-vacancy-hopping mechanism (e.g., kick-out mechanism). Since such spurious vacancies commonly disappear within a few hundred femtoseconds, they are termed **transient vacancies**.
+Occasionally, spurious vacancies may appear; hence, the detected number of vacancies exceeds the initial count in the system. This scenario arise when two or more atoms are assigned to the same lattice site and are commonly associated with non-vacancy-hopping mechanism (e.g., kick-out mechanism). Because such spurious vacancies typically vanish within a few hundred femtoseconds, they are referred to as **transient vacancies**.
+
 
 In this animation, the transient vacancies are represented as **orange-colored circles**. Below three successive snapshots shows the kick-out mechanism:
 
@@ -314,17 +315,20 @@ mpirun -np {num_nodes} vachoppy -m p 0.07 --parallel
 ```
 Here, the arguments are:
 
-* t<SUB>interval</SUB> = 0.1 ps
+* t<SUB>interval</SUB> = 0.07 ps
 
 For serial computation, the process is displayed via a progress bar. For parallel computation, process is recorded in the **VACHOPPY_PROGRESS** file in real time. The number and type of vacancies are automatically determined by comparing the POSCAR_LATTICE file with the AIMD datasets.
 
 **Output:**
 
-All results are stored in `parameter.txt` file, which includes: 
+All results are stored in the parameter.txt file, which includes:
 
-1. A list of vacancy hopping paths in the system
-2. Effective hopping parameters (except for z and ν)
-3. Vacancy hopping history for each AIMD dataset.
+	1.	A list of vacancy hopping paths in the system
+
+	2.	Effective hopping parameters (excluding z and ν)
+
+	3.	Vacancy hopping history for each AIMD dataset
+
 
 To print the **vacancy hopping paths**, use:
 
@@ -332,7 +336,7 @@ To print the **vacancy hopping paths**, use:
 awk '/Vacancy hopping paths :/ {f=1} f; /^$/ {f=0}' parameter.txt
 ```
 
-To pring the **effective hopping parameters**, use:
+To print the **effective hopping parameters**, use:
 ```bash
 awk '/Effective/ {f=1} f; /^$/ {f=0}' parameter.txt
 ```
@@ -346,7 +350,7 @@ Below is the expected output:
 
 The names of hopping paths are automatically assigned in ascending order of hopping distance. Symmetrically distinct sites are labeled with different alphabets (e.g., A1, A2, … for site 1 and B1, B2, … for site 2, where site 1 and site 2 are symmetrically distinct).
 
-The correlation factor (f) is inherently temperature-dependent, but an averaged value across all simulated temperatures is displayed. To print the f values with respect to temperature, use:
+The correlation factor (f) is inherently temperature-dependent, but an average value across all simulated temperatures is displayed. To print f values for each temperature, use:
 
 ```bash
 awk '/Cumulative/ {f=1} f; /^$/ {f=0}' parameter.txt
@@ -466,7 +470,7 @@ Here, the arguments are:
 
 The `-v` flag specifies **vasprun.xml** file (default: vasprun.xml), where **vasprun_1600K.xml** contains the AIMD trajectory at 1600 K. The `-p` flag specifies the **reference phase** (default: POSCAR_REF), where **POSCAR_MONO** contains monoclinic HfO<SUB>2</SUB> lattice.
 
-Results are stored in **cosine_distance.txt** and **cosine_distance.png**. To prevent overwriting, rename **cosine_distance.txt** to **dcos_1600K_mono.txt**.
+Results are stored in **cosine_distance.txt** and **cosine_distance.png**. To avoid overwriting, rename **cosine_distance.txt** to **dcos_1600K_mono.txt**.
 
 ----
 Next, run:
@@ -525,15 +529,15 @@ In this figure, the d<SUB>cos</SUB> data at each temperature is arranged vertica
 * At 1600 K, d<SUB>cos</SUB> remains nearly constant, indicating structural stability.
 * At 2200 K, d<SUB>cos</SUB> exhibits substantial fluctuations near 20 ps, suggesting that the monoclinic lattice becomes unstable at high temperatures.
 
-It is important to note that the lattice parameters were contrained to those of monoclinic lattice since the AIMD simulations were performed under **NVT ensmeble**. As a result, any lattice distortion is not sustained but instead revert to the original lattice, producing peaks in the d<SUB>cos</SUB> trace.
+It is important to note that the lattice parameters were constrained to those of monoclinic lattice since the AIMD simulations were performed under **NVT ensemble**. As a result, any lattice distortion is not sustained but instead revert to the original lattice, producing peaks in the d<SUB>cos</SUB> trace.
 
-In unstable lattices, such as monoclinic HfO<SUB>2</SUB> at 2200 K, vacancies are poorly defined since atomic vibrtaion centers may shift away from the original lattice point. Consequently, vacancy trajectory determination (`vachoppy -m t`) and effective hopping parameter extraction (`vachoppy -m p`) may lack accuracy.
+In unstable lattices, such as monoclinic HfO<SUB>2</SUB> at 2200 K, vacancies are poorly defined since atomic vibration centers may shift away from the original lattice point. Consequently, vacancy trajectory determination (`vachoppy -m t`) and effective hopping parameter extraction (`vachoppy -m p`) may lack accuracy.
 
 ---
 
 #### (2) Exploring phase transition
 
-By varying the reference phase, users can explore phase transitions occuring in AIMD simulatoins.
+By varying the reference phase, users can explore phase transitions occuring in AIMD simulations.
 
 Navigate to the `Example2` directory and run:
 ```bash
@@ -543,7 +547,7 @@ vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_TET
 # For parallel computation
 mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_TET --parallel 
 ```
-Here, **POSCAR_TET** contains the atomic structure of **tetragonal HfO<SUB>2</SUB>**. To prevent overwriting, rename **cosine_distance.txt** to **dcos_2200K_tet.txt**.
+Here, **POSCAR_TET** contains the atomic structure of **tetragonal HfO<SUB>2</SUB>**. To avoid overwriting, rename **cosine_distance.txt** to **dcos_2200K_tet.txt**.
 
 ---
 
@@ -577,10 +581,10 @@ As before, the d<SUB>cos</SUB> data is arranged vertically, so the absolute y-va
 * d<SUB>cos</SUB>(*tet*) decreases, 
 * while d<SUB>cos</SUB>(*ao*) remain nearly constant. 
 
-This result clearly suggets that the phase transition is directed toward the **tetragonal phase**.
+This result clearly suggests that the phase transition is directed toward the **tetragonal phase**.
 
 
-## Reference
+## References
 If you used **VacHopPy** package, please cite [**this paper**](https://arxiv.org/abs/2503.23467)
 
 If you used `vachoppy -m f` or `vachoppy -u fingerprint` commands, also cite [**this paper**](https://www.sciencedirect.com/science/article/pii/S0010465510001840).
