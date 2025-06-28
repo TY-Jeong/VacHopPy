@@ -336,17 +336,11 @@ To pring the **effective hopping parameters**, use:
 ```bash
 awk '/Effective/ {f=1} f; /^$/ {f=0}' parameter.txt
 ```
-To find the **effective hopping parameters**, search for **Effective hopping parameters** in `parameter.txt` file:
 
+## 3-1. Extract effective values for z and ν (*optional*)
 
+To obtain the effective values of z and ν, users must first perform NEB calculations for all vacancy hopping paths. The results of the NEB calculations should be stored in a file named **neb.csv** (see above).
 
-
-
----
-
-The `vachoppy -m p` command extracts effective hopping parameters except for z and ν. 
-
----
 
 Navigate to the `Example1` directory and run:
 
@@ -354,27 +348,20 @@ Navigate to the `Example1` directory and run:
 vachoppy -m pp
 ```
 
-This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.txt` which contains the complete set of the effective hopping parameters. To find the final values, search for **Effective hopping parameters** in the `postprocess.txt`:
+This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.txt` which contains the complete set of the effective hopping parameters.
 
-<!-- <div align=center>
-<p>
-    <img src="https://github.com/TY-Jeong/VacHopPy/blob/main/imgs/postprocess.png?raw=true" width="650"/>
-</p>
-</div> -->
+To print the **effective hopping parameters**, use:
 
-<div align=center>
-<p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/postprocess_v2.png" width="650"/>
-</p>
-</div>
+```bash
+awk '/hopping parameter/ {f=1} f; /^$/ {f=0}' postprocess.txt
+```
 
-Additionally, **VacHopPy** provides **individual jump atempt frequencies** for each hopping paths. Find **Jump attempt frequency (THz)** in `postprocess.txt`:
 
-<div align=center>
-<p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/nu.png" width="650"/>
-</p>
-</div>
+Additionally, **VacHopPy** provides **individual attempt frequencies** for each hopping paths. To print these, use:
+```bash
+awk '/Jump attempt frequency/ {f=1} f; /^$/ {f=0}' postprocess.txt
+```
+
 
 
 ## 4. Assessment of lattice stability
