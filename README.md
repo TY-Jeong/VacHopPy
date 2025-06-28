@@ -141,14 +141,14 @@ pip install mpipy
 
 For detailed descriptions, please use `-h` flag:
 
-```ruby
+```bash
 vachoppy -h # list of available commands
 vachoppy -m p -h # explanation for '-m p' mode
 ```
 
 For time-consuming commaands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. For parallelization, please specify `--parallel` option:
 
-```ruby
+```bash
 vachoppy -m p 0.1 # serial
 mpirun -np {num_nodes} vachoppy -m p 0.1 --parallel # parallel
 ```
@@ -175,7 +175,7 @@ To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **
 
 #### (1) AIMD data
 AIMD data can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
-```ruby
+```bash
 vachoppy -u extract_int -v vasprun.xml 
 # -v flag is optional (default: vaspun.xml)
 ```
@@ -263,7 +263,7 @@ The left and rigut figures show the convergences of *f* with respect to the numb
 >Download **Example1** directory linked above.
 
 Navigate to the `Example1` directory and run:
-```ruby
+```bash
  vachoppy -m t 0.07 2100 07 -v 
  # t_interval, temperature, label
  ```
@@ -305,7 +305,7 @@ In this animation, the transient vacancies are represented as **orange-colored c
 
 Navigate to the `Example1` directory and run:
 
-```ruby
+```bash
 # For serial computation
 vachoppy -m p 0.07 # t_interval
 
@@ -344,7 +344,7 @@ To obtain the effective values of z and ν, users must first perform NEB calcula
 
 Navigate to the `Example1` directory and run:
 
-```ruby
+```bash
 vachoppy -m pp
 ```
 
@@ -352,7 +352,7 @@ This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.
 
 To print the **effective hopping parameters**, use:
 
-```ruby
+```bash
 awk '/hopping parameter/ {f=1} f; /^$/ {f=0}' postprocess.txt
 ```
 Below is the expected output:
@@ -367,7 +367,7 @@ In the upper table, the effective hopping parameters averaged over all simulated
 <br>
 
 Additionally, **VacHopPy** provides **individual attempt frequencies** for each hopping path. To print them, use
-```ruby
+```bash
 awk '/Jump attempt frequency/ {f=1} f; /^$/ {f=0}' postprocess.txt
 ```
 Attempt frequencies are estimated based on statistical approach. Therefore, only the values for hopping paths with a sufficient number of hopping events can be considered reliable.
@@ -391,7 +391,7 @@ A well-defined *ψ* satisfies *ψ*(r=0) = -1 and converges to 0 as r → ∞. Th
 
 
 Navigate to the `Example2` directory and run:
-```ruby
+```bash
 vachoppy -u fingerprint POSCAR_MONO 20.0 0.04 0.04 -d 
 # POSCAR_REF, R_max, Δ, σ
 ```
@@ -425,7 +425,7 @@ Cosine distance (**d<SUB>cos</SUB>(x)**) quantifies structural similarity to a r
 
 Navigate to the `Example2` directory and run:
 
-```ruby
+```bash
 # For serial computation
 vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_1600K.xml -p POSCAR_MONO
 
@@ -447,7 +447,7 @@ Results are stored in **cosine_distance.txt** and **cosine_distance.png**. To pr
 ----
 Next, run:
 
-```ruby
+```bash
 # For serial computation
 vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_MONO
 
@@ -486,7 +486,7 @@ plt.legend(loc='center right')
 plt.show()
 ```
 
-```ruby
+```bash
 python plot.py dcos_1600K_mono.txt dcos_2200K_mono.txt
 ```
 
@@ -512,7 +512,7 @@ In unstable lattices, such as monoclinic HfO<SUB>2</SUB> at 2200 K, vacancies ar
 By varying the reference phase, users can explore phase transitions occuring in AIMD simulatoins.
 
 Navigate to the `Example2` directory and run:
-```ruby
+```bash
 # For serial computation
 vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_TET
 
@@ -524,7 +524,7 @@ Here, **POSCAR_TET** contains the atomic structure of **tetragonal HfO<SUB>2</SU
 ---
 
 Next, run:
-```ruby
+```bash
 # For serial computation
 vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_AO
 
@@ -537,7 +537,7 @@ Here, **POSCAR_AO** contains the atomic structure of **antipolar orthorhombic Hf
 
 To compare the results, run `plot.py`:
 
-```ruby
+```bash
 python plot.py dcos_2200K_mono.txt dcos_2200K_tet.txt dcos_2200K_ao.txt
 ```
 
