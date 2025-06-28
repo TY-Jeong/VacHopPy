@@ -176,7 +176,8 @@ To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **
 #### (1) AIMD data
 AIMD data can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
 ```bash
-vachoppy -u extract_int -v vasprun.xml # -v tag is optional (Default: vaspun.xml)
+vachoppy -u extract_int -v vasprun.xml 
+# -v flag is optional (default: vaspun.xml)
 ```
 This command generates three files: *cond.json*, *pos.npy*, and *force.npy*. Descriptions of each file are provided below:
 
@@ -202,7 +203,9 @@ A3,1.766
 ```
 Here, the **first column** corresponds to the **path names**, and the **second column** contains the **Eₐ values**. The user can obtain a list of possible vacancy hopping paths by running the `vachoppy -m t` or `vachoppy -m p` command. For the `vachoppy -m t` command (used with the `-v` flag), hopping path information is saved to the **trajectory.txt** file. For the `vachoppy -m p` command, the information is saved to the **parameter.txt file**.
 
->Note: the **neb.csv** file is only required to extract the effective values for **coordination number (z)** and **attempt frequency (ν)** (by running the `vachoppy -m pp` command).
+>**Note1**: the **neb.csv** file is only required to extract the effective values for **coordination number (z)** and **attempt frequency (ν)** (by running the `vachoppy -m pp` command).
+
+>**Note2**: It is highly recommended to **perform NEB calculations using a larger supercell** than that used in AIMD simulations. In AIMD, thermal fluctuations attenuate interactions with periodic images and provide a broader sampling of atomic configurations, which helps approximate the effects of a larger supercell.
 
 
 #### (4) File organization
@@ -235,6 +238,7 @@ The name of the outer directory is specified by the `-p1` flag (default: traj), 
 To run **VacHopPy**, the user needs to determine one hyperparameter, **t<SUB>interval</SUB>**, in advance. This parameter defines the time interval for averaging atomic positions and forces. Thermal fluctuations in AIMD simulations can obscure precise atomic occupancy determination. However, since these fluctuations are random, they can be effectively averaged out over time. **VacHopPy** processes AIMD data by dividing it into segments of length of t<SUB>interval</SUB>. Each segment represents a single step in the analysis. The total number of steps is given by t<SUB>simulation</SUB>/t<SUB>interval</SUB>, where t<SUB>simulation</SUB> is the total AIMD simulation time.
 
 
+
 <div align=center>
 <p>
     <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/t_interval.jpg" width="800"/>
@@ -243,15 +247,15 @@ To run **VacHopPy**, the user needs to determine one hyperparameter, **t<SUB>int
 
 Choosing an appropriate t<SUB>interval</SUB> is crucial for reliable analysis. The t<SUB>interval</SUB> should be large enough to mitigate thermal fluctuations but short enough to prevent multiple hopping events from being included in a single step. A typical value is around 0.05-0.1 ps, through it may vary depending on the system. 
 
-One recommended approach for determining the optimal t<SUB>interval</SUB> is through convergence tests using the correlation factor ($f$). Below is an example of a convergence test (example system: rutile TiO<SUB>2</SUB>):
+One recommended approach for determining the optimal t<SUB>interval</SUB> is through convergence tests using the correlation factor (*f*). Below is an example of a convergence test (example system: rutile TiO<SUB>2</SUB>):
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/convergence_test.jpg" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/converge.png" width="550"/>
 </p>
 </div>
 
-The left and rigut figures show the convergences of $f$ with respect to the number of AIMD datasets (N<SUB>AIMD</SUB>) and t<SUB>interval</SUB>, respectively, at each temperature. The results confirm that convergence is achieved at **N<SUB>AIMD</SUB>=20** and **t<SUB>interval</SUB>=0.1 ps**. (You can obtain the same reulsts using the data in **Example** 1 above)
+The left and rigut figures show the convergences of *f* with respect to the number of AIMD datasets (N<SUB>cell</SUB>) and t<SUB>interval</SUB>, respectively, at each temperature. The results confirm that convergence is achieved at **N<SUB>cell</SUB>=20** and **t<SUB>interval</SUB>=0.07 ps**. 
 
 
 ## 2. Vacancy trajectory visualization
@@ -260,22 +264,22 @@ The left and rigut figures show the convergences of $f$ with respect to the numb
 
 Navigate to the `Example1` directory and run:
 ```bash
- vachoppy -m t O 0.1 2100 03 -v # vacancy type, t_interval, temperature, label
+ vachoppy -m t 0.07 2100 07 -v 
+ # vacancy type, t_interval, temperature, label
  ```
 
 Here, the arguments are:
 
-* vacancy type : O (oxygen vacancy)
-* t<SUB>interval</SUB> = 0.1 ps
+* t<SUB>interval</SUB> = 0.07 ps
 * temperature = 2100 K
-* label = 03
+* label = 07
 
-Therefore, this command visualizes the oxygen vacancy trajectory of **XDATCAR_03** in **traj.2100K** directory. Using the `-v` option (verbosity tag) prints the computational details, including vacancy hopping paths and vacancy hopping histories.
+The the `-v` flag (verbosity flag) generates the **trajectory.txt** file, containing vacancy hopping paths and vacancy hopping histories. The user can adjust the resolution of the animation using the `--dpi` tag (**default: 300**).
 
 
 **Output:**
 
-The result is saved as `traj.gif`, with individual snapshots stored in the `snapshot` directory. Below is an example of traj.gif:
+The trajectory animation is saved as **traj.gif**, with individual snapshots stored in the **snapshot** directory. Below is an example of traj.gif:
 
 <div align=center>
 <p>
