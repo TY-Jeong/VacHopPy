@@ -519,7 +519,7 @@ vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_TET
 # For parallel computation
 mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_TET --parallel 
 ```
-Here, `POSCAR_TET` contains the atomic structure of **tetragonal HfO<SUB>2</SUB>**. To prevent overwriting, rename `cosine_distance.txt` to `dcos_2200K_tet.txt`.
+Here, **POSCAR_TET** contains the atomic structure of **tetragonal HfO<SUB>2</SUB>**. To prevent overwriting, rename **cosine_distance.txt** to **dcos_2200K_tet.txt**.
 
 ---
 
@@ -531,7 +531,7 @@ vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_AO
 # For parallel computation
 mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_AO --parallel 
 ```
-Here, `POSCAR_AO` contains the atomic structure of **antipolar orthorhombic HfO<SUB>2</SUB>**. Rename `cosine_distance.txt` to `dcos_2200K_ao.txt`.
+Here, **POSCAR_AO** contains the atomic structure of **antipolar orthorhombic HfO<SUB>2</SUB>**. Rename **cosine_distance.txt** to **dcos_2200K_ao.txt**.
 
 ---
 
@@ -543,7 +543,7 @@ python plot.py dcos_2200K_mono.txt dcos_2200K_tet.txt dcos_2200K_ao.txt
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/dcos_2.png" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/dcos_2.png" width="550"/>
 </p>
 </div>
 
