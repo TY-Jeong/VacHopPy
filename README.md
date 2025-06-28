@@ -291,17 +291,11 @@ In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2<
 
 Occasionally, spurious vacancies may appear; hence, the detected number of vacancies exceeds the initial count in the system. This scenario arise when two or more atoms are assigned to the same lattice site and are commonly associated with non-vacancy-hopping mechanism (e.g., kick-out mechanism). Since such spurious vacancies commonly disappear within a few hundred femtoseconds, they are termed **transient vacancies**.
 
-In this animation, the transient vacancies are represented as orange-colored circles. Below three successive snapshots shows the kick-out mechanism:
+In this animation, the transient vacancies are represented as **orange-colored circles**. Below three successive snapshots shows the kick-out mechanism:
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/snapshot_1426.png" width="400"/>
-</p>
-<p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/snapshot_1427.png" width="400"/>
-</p>
-<p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/snapshot_1428.png" width="400"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/kick-out.png" width="800"/>
 </p>
 </div>
 
