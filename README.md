@@ -187,41 +187,48 @@ This command generates three files: *cond.json*, *pos.npy*, and *force.npy*. Des
 * **force.npy** (numpy binary) <br> force.npy contains force vectors acting on atoms.
 
 
-#### (2) FORCE (*optinal*)
-FORCE file contains force vectors acting on atoms and can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
-```bash
-vachoppy -u extract_force -in vasprun.xml -out FORCE
-```
-The FORCE file helps assign atoms to corresponding lattice points based on their relatice positions to transition states. If the FORCE file is not provided, atomic occupancies will be determined solely based on proximity. Once atoms are assigned, the vacancy position is identified as an unoccupied lattice point.
+#### (2) POSCAR_LATTICE
+This file contains the perfect crystal structure without vacnacies. Its lattice parameters must match those of input structure (POSCAR) of the AIMD simulations. This file is used to define the lattice points for vacancy identification.
 
-#### (3) POSCAR_LATTICE
-POSCAR_LATTICE contains the perfect crystal structure without a vacancy. Its lattice parameters must match those of input structure (POSCAR) of the AIMD simulations. This file is used to define the lattice points for vacancy identification.
+
+#### (3) neb.csv (*optional*)
+This file contains **hopping barriers (Eₐ)** for all vacancy hopping paths in the system. Below is an example of `neb.csv` (example system: rutile TiO<SUB>2</SUB>):
+
+```ruby
+# neb.csv
+A1,0.8698
+A2,1.058
+A3,1.766
+```
+Here, the **first column** corresponds to the **path names**, and the **second column** contains the **Eₐ values**. The user can obtain a list of possible vacancy hopping paths by running the `vachoppy -m t` or `vachoppy -m p` command. For the `vachoppy -m t` command (used with the `-v` flag), hopping path information is saved to the **trajectory.txt** file. For the `vachoppy -m p` command, the information is saved to the **parameter.txt file**.
+
+>Note: the **neb.csv** file is only required to extract the effective values for **coordination number (z)** and **attempt frequency (ν)** (by running the `vachoppy -m pp` command).
+
 
 #### (4) File organization
-Since AIMD simulations commonly cover timescales shorter than nanoseconds, a single AIMD simulation may contain a few hopping events. However, since **VacHopPy** computes the effective hopping parameters in static manner, sufficient sampling of hopping events is necessary to ensure reliablilty. To address this, **VacHopPy** processes multiple AIMD datasets simultaneously. Each AIMD dataset is distinguished by a number appended after an underscore in the XDATCAR and FORCE file names (e.g., XDATCAR_01, FORCE_01). Below is an example of the recommended file structure:
+Since AIMD simulations commonly cover timescales shorter than nanoseconds, a single AIMD simulation may contain a few hopping events. However, since **VacHopPy** computes the effective hopping parameters in static manner, sufficient sampling of hopping events is necessary to ensure reliablilty. To address this, **VacHopPy** processes multiple AIMD datasets simultaneously. Each AIMD dataset is distinguished by a label appended after an underscore in the file names (e.g., cond_{label}.json, pos_{label}.npy, force_{label}.npy). Below is an example of the recommended file structure:
 
 ```bash
 Example1
- ┣ traj
- ┃ ┣ traj.1900K # AIMD simulations conducted at 1900 K
- ┃ ┃ ┣ XDATCAR_01, FORCE_01 # Simiulations in the same directory should be 
- ┃ ┃ ┣ XDATCAR_02, FORCE_02 # conducted under the same conditions
- ┃ ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┃ ┗ OUTCAR
+ ┣ traj # name (traj) is specified by -p1 flag
+ ┃ ┣ traj.1900K # prefix (traj) is specifed by -p2 flag
+ ┃ ┃ ┣ cond_01.json, pos_01.npy, force_03.npy  
+ ┃ ┃ ┣ cond_02.json, pos_02.npy, force_03.npy  
+ ┃ ┃ ┗ cond_02.json, pos_02.npy, force_04.npy  
  ┃ ┣ traj.2000K
- ┃ ┃ ┣ XDATCAR_01, FORCE_01
- ┃ ┃ ┣ XDATCAR_02, FORCE_02
- ┃ ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┃ ┗ OUTCAR
+ ┃ ┃ ┣ cond_01.json, pos_01.npy, force_03.npy  
+ ┃ ┃ ┣ cond_02.json, pos_02.npy, force_03.npy  
+ ┃ ┃ ┗ cond_02.json, pos_02.npy, force_04.npy  
  ┃ ┗ traj.2100K
- ┃ ┃ ┣ XDATCAR_01, FORCE_01
- ┃ ┃ ┣ XDATCAR_02, FORCE_02
- ┃ ┃ ┣ XDATCAR_03, FORCE_03
- ┃ ┃ ┗ OUTCAR
- ┗ POSCAR_LATTICE # POSCAR of the perfect crystal
+ ┃   ┣ cond_01.json, pos_01.npy, force_03.npy  
+ ┃   ┣ cond_02.json, pos_02.npy, force_03.npy  
+ ┃   ┗ cond_02.json, pos_02.npy, force_04.npy  
+ ┃
+ ┣ POSCAR_LATTICE
+ ┗ neb.csv
 ```
 
-Simulations at the same temperature should be conducted under identical conditions. In other words, **NSW** and **POTIM** tags in INCAR should be the same. Therefore, only one OUTCAR file is needed per temperature directory.
+The name of the outer directory is specified by the `-p1` flag (default: traj), and the prefix of the inner directories is specified by the `-p2` flag (default: traj). Each inner directory must contain AIMD datasets generated at the same temperature.
 
 
 ### Hyperparameter: t<SUB>interval</SUB>
@@ -234,7 +241,7 @@ To run **VacHopPy**, the user needs to determine one hyperparameter, **t<SUB>int
 </p>
 </div>
 
-Choosing an appropriate t<SUB>interval</SUB> is crucial for reliable analysis. The t<SUB>interval</SUB> should be large enough to mitigate thermal fluctuations but short enough to prevent multiple hopping events from being included in a single step. A typical value is around 0.1 ps, through it may vary depending on the system. 
+Choosing an appropriate t<SUB>interval</SUB> is crucial for reliable analysis. The t<SUB>interval</SUB> should be large enough to mitigate thermal fluctuations but short enough to prevent multiple hopping events from being included in a single step. A typical value is around 0.05-0.1 ps, through it may vary depending on the system. 
 
 One recommended approach for determining the optimal t<SUB>interval</SUB> is through convergence tests using the correlation factor ($f$). Below is an example of a convergence test (example system: rutile TiO<SUB>2</SUB>):
 
