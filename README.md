@@ -24,9 +24,10 @@ The list of effective hopping parameters, which can be obtained using **VacHopPy
 
 <div align="center">
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/notation.png" width="400"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/7e738e5a38a6dc253d41b8e47bb0f6b429ceb232/imgs/hopping_parameters.svg" width="400"/>
 </p>
 </div>
+
 
 Within the **VacHopPy** framework, the temperature dependencies of overall diffusion behavior, represented by *D* and *τ*, are simplified to an Arrehnius equation composed of the effective hopping parameters. Please see the original paper for a detailed description.
 
@@ -139,26 +140,37 @@ mpirun -np 10 vachoppy -m p 0.1 --parallel # parallel computation with 10 cpu no
 
 
 Belows is summary of the main commands (only main modules are shown for clarity):
-<div align=center>
-<p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/flowchart2.svg" width="800"/>
+
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/Ver2/imgs/Flowchart.JPG" width="800"/>
 </p>
-</div>
 
 
 ## How to implement
 
 Example files can be downloaded from:
 
-* **Example1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (29 GB)](https://drive.google.com/file/d/1SudMlQk40cJnVgrkklK6b4nhiF3YWPOY/view?usp=sharing)
-* **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (102 MB)](https://drive.google.com/file/d/1SuxEHmGdVNkk-mogdWWDOOUPZqX74QG5/view?usp=sharing)
+* **Example1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (30 GB)](https://drive.google.com/drive/folders/1ETkIISJef8KsYD0n-oJwU9G5ID24yAHB?usp=sharing)
+* **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (420 MB)](https://drive.google.com/drive/folders/1EUMEBL7BuHhi7lK35P3_hpXO8ifLyGda?usp=sharing)
 
 ## 1. Preparation
 ### Input data
-To run **VacHopPy**, the user needs four types of input data: **XDATCAR**, **OUTCAR**, **FORCE**, and **POSCAR_LATTICE**. In current version, **VacHopPy** supports only single-vacancy simulation, with multi-vacancy support planned for a future update.
+To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **POSCAR_LATTICE**, and **neb.csv** (*optional*). The current version of **VacHopPy** supports AIMD simulations performed under the NVT ensemble using **VASP** only (set **MDALGO = 2**). Integration with **LAMMPS** will be supported in the next release.
 
-#### (1) XDATCAR and OUTCAR 
-XDATCAR and OUTCAR are standard VASP output files containing atomic trajectory from AIMD simulation and simulation conditions, respectively. The input atomic structure (*i.e.*, POSCAR) must include a **single vacancy**, and the AIMD simulation should be performed under the **NVT ensemble** (set **MDALGO = 2**, **NBLOCK = 1**).
+#### (1) AIMD data
+AIMD data can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
+```bash
+vachoppy -u extract_int -v vasprun.xml # -v tag is optional (Default: vaspun.xml)
+```
+This command generates three files: *cond.json*, *pos.npy*, and *force.npy*. Descriptions of each file are provided below:
+
+* **cond.json** <br> cond.json contains simulation conditions, such as temperature, time, atom numbers, and lattice parameters.
+
+* **pos.npy** (numpy binary) <br> pos.npy contains evolution in atomic positions during the simulation. The raw trajectories are refined with consideration of periodic boundary condition (PBC).
+
+* **force.npy** (numpy binary) <br> force.npy contains force vectors acting on atoms.
+
 
 #### (2) FORCE (*optinal*)
 FORCE file contains force vectors acting on atoms and can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
