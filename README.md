@@ -352,13 +352,13 @@ This command reads `parameter.txt` and `neb.csv` files and outputs `postprocess.
 
 To print the **effective hopping parameters**, use:
 
-```bash
+```ruby
 awk '/hopping parameter/ {f=1} f; /^$/ {f=0}' postprocess.txt
 ```
 Below is the expected output:
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/postprocess.png" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/postprocess.png" width="650"/>
 </p>
 </div>
 In the upper table, the effective hopping parameters averaged over all simulated temperatures are shown, while the temperature-dependent parameters are presented in the lower table.
@@ -367,7 +367,7 @@ In the upper table, the effective hopping parameters averaged over all simulated
 <br>
 
 Additionally, **VacHopPy** provides **individual attempt frequencies** for each hopping path. To print them, use
-```bash
+```ruby
 awk '/Jump attempt frequency/ {f=1} f; /^$/ {f=0}' postprocess.txt
 ```
 Attempt frequencies are estimated based on statistical approach. Therefore, only the values for hopping paths with a sufficient number of hopping events can be considered reliable.
@@ -393,7 +393,7 @@ A well-defined *ψ* satisfies *ψ*(r=0) = -1 and converges to 0 as r → ∞. Th
 Navigate to the `Example2` directory and run:
 ```ruby
 vachoppy -u fingerprint POSCAR_MONO 20.0 0.04 0.04 -d 
-# POSCAR, R_max, Δ, σ
+# POSCAR_REF, R_max, Δ, σ
 ```
 
 Here, the arguments are:
