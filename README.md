@@ -260,12 +260,12 @@ The left and rigut figures show the convergences of *f* with respect to the numb
 
 ## 2. Vacancy trajectory visualization
 
->Download and unzip the **Example1** file linked above.
+>Download **Example1** directory linked above.
 
 Navigate to the `Example1` directory and run:
 ```bash
  vachoppy -m t 0.07 2100 07 -v 
- # vacancy type, t_interval, temperature, label
+ # t_interval, temperature, label
  ```
 
 Here, the arguments are:
@@ -274,7 +274,7 @@ Here, the arguments are:
 * temperature = 2100 K
 * label = 07
 
-The the `-v` flag (verbosity flag) generates the **trajectory.txt** file, containing vacancy hopping paths and vacancy hopping histories. The user can adjust the resolution of the animation using the `--dpi` tag (**default: 300**).
+The `-v` flag (verbosity flag) enables the generation of the **trajectory.txt** file, which contains the identified vacancy hopping paths and hopping history. You can adjust the resolution of the animation using the `--dpi` option (default: 300). The number and type of vacancies are automatically determined by comparing the POSCAR_LATTICE file with the AIMD datasets.
 
 
 **Output:**
@@ -283,11 +283,28 @@ The trajectory animation is saved as **traj.gif**, with individual snapshots sto
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/traj.gif" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/Ver2/imgs/traj.gif" width="550"/>
 </p>
 </div>
 
-In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB>), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The **yellow-colored circle** marks the vacancy position (*i.e.*, the unoccupied lattice point), while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms. The user can adjust the resolution of the animation using the ``--dpi`` option (**default: 300**).
+In this animation, the solid box represents the lattice (here, rutile TiO<SUB>2</SUB> 2×2×3 supercell), and the color-coded circles indicate the lattice points corresponding to the selected atom type (here, oxygen). The **yellow-colored circles** mark the vacancy positions, while other colors denote occupied lattice points. Atomic movements are depicted with arrows matching the color of the moving atoms.
+
+Occasionally, spurious vacancies may appear; hence, the detected number of vacancies exceeds the initial count in the system. This scenario arise when two or more atoms are assigned to the same lattice site and are commonly associated with non-vacancy-hopping mechanism (e.g., kick-out mechanism). Since such spurious vacancies commonly disappear within a few hundred femtoseconds, they are termed **transient vacancies**.
+
+In this animation, the transient vacancies are represented as orange-colored circles. Below three successive snapshots shows the kick-out mechanism:
+
+<div align=center>
+<p>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/snapshot_1426.png" width="400"/>
+</p>
+<p>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/snapshot_1427.png" width="400"/>
+</p>
+<p>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/snapshot_1428.png" width="400"/>
+</p>
+</div>
+
 
 
 ## 3. Extraction of effective hopping parameters
@@ -324,6 +341,8 @@ To find the **effective hopping parameters**, search for **Effective hopping par
     <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/parameters_v2.png" width="650"/>
 </p>
 </div>
+
+
 
 ---
 
