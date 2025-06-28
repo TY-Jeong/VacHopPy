@@ -321,13 +321,13 @@ For serial computation, the process is displayed via a progress bar. For paralle
 
 **Output:**
 
-All results are stored in the parameter.txt file, which includes:
+All results are stored in the **parameter.txt** file, which includes:
 
-	1.	A list of vacancy hopping paths in the system
+1.	A list of vacancy hopping paths in the system
 
-	2.	Effective hopping parameters (excluding z and ν)
+2.	Effective hopping parameters (excluding z and ν)
 
-	3.	Vacancy hopping history for each AIMD dataset
+3.	Vacancy hopping history for each AIMD dataset
 
 
 To print the **vacancy hopping paths**, use:
