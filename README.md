@@ -247,7 +247,7 @@ To run **VacHopPy**, the user needs to determine one hyperparameter, **t<SUB>int
 
 Choosing an appropriate t<SUB>interval</SUB> is crucial for reliable analysis. The t<SUB>interval</SUB> should be large enough to mitigate thermal fluctuations but short enough to prevent multiple hopping events from being included in a single step. A typical value is around 0.05-0.1 ps, through it may vary depending on the system. 
 
-One recommended approach for determining the optimal t<SUB>interval</SUB> is through convergence tests using the correlation factor (*f*). Below is an example of a convergence test (example system: rutile TiO<SUB>2</SUB>):
+One recommended approach for determining the optimal t<SUB>interval</SUB> is through convergence tests using the correlation factor (f). Below is an example of a convergence test (example system: rutile TiO<SUB>2</SUB>):
 
 <div align=center>
 <p>
@@ -255,7 +255,7 @@ One recommended approach for determining the optimal t<SUB>interval</SUB> is thr
 </p>
 </div>
 
-The left and rigut figures show the convergences of *f* with respect to the number of AIMD datasets (N<SUB>cell</SUB>) and t<SUB>interval</SUB>, respectively, at each temperature. The results confirm that convergence is achieved at **N<SUB>cell</SUB>=20** and **t<SUB>interval</SUB>=0.07 ps**. 
+The left and rigut figures show the convergences of f with respect to the number of AIMD datasets (N<SUB>cell</SUB>) and t<SUB>interval</SUB>, respectively, at each temperature. The results confirm that convergence is achieved at **N<SUB>cell</SUB>=20** and **t<SUB>interval</SUB>=0.07 ps**. 
 
 
 ## 2. Vacancy trajectory visualization
@@ -336,6 +336,30 @@ To pring the **effective hopping parameters**, use:
 ```bash
 awk '/Effective/ {f=1} f; /^$/ {f=0}' parameter.txt
 ```
+
+Below is the expected output:
+<div align=center>
+<p>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/main/imgs/parameter.png" width="650"/>
+</p>
+</div>
+
+The names of hopping paths are automatically assigned in ascending order of hopping distance. Symmetrically distinct sites are labeled with different alphabets (e.g., A1, A2, … for site 1 and B1, B2, … for site 2, where site 1 and site 2 are symmetrically distinct).
+
+The correlation factor (f) is inherently temperature-dependent, but an averaged value across all simulated temperatures is displayed. To print the f values with respect to temperature, use:
+
+```bash
+awk '/Cumulative/ {f=1} f; /^$/ {f=0}' parameter.txt
+```
+Below is the expected output:
+<div align=center>
+<p>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/main/imgs/correlation_factor.png" width="650"/>
+</p>
+</div>
+
+
+
 
 ## 3-1. Extract effective values for z and ν (*optional*)
 
