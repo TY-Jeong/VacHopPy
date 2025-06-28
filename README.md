@@ -486,13 +486,13 @@ plt.legend(loc='center right')
 plt.show()
 ```
 
-```bash
+```ruby
 python plot.py dcos_1600K_mono.txt dcos_2200K_mono.txt
 ```
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/dcos_1.png" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/dcos_1.png" width="550"/>
 </p>
 </div>
 
@@ -512,24 +512,24 @@ In unstable lattices, such as monoclinic HfO<SUB>2</SUB> at 2200 K, vacancies ar
 By varying the reference phase, users can explore phase transitions occuring in AIMD simulatoins.
 
 Navigate to the `Example2` directory and run:
-```bash
+```ruby
 # For serial computation
-vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_TET -o OUTCAR_2200K
+vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_TET
 
 # For parallel computation
-mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_TET -o OUTCAR_2200K --parallel 
+mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_TET --parallel 
 ```
 Here, `POSCAR_TET` contains the atomic structure of **tetragonal HfO<SUB>2</SUB>**. To prevent overwriting, rename `cosine_distance.txt` to `dcos_2200K_tet.txt`.
 
 ---
 
 Next, run:
-```bash
+```ruby
 # For serial computation
-vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_AO -o OUTCAR_2200K
+vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_AO
 
 # For parallel computation
-mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_AO -o OUTCAR_2200K --parallel 
+mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_AO --parallel 
 ```
 Here, `POSCAR_AO` contains the atomic structure of **antipolar orthorhombic HfO<SUB>2</SUB>**. Rename `cosine_distance.txt` to `dcos_2200K_ao.txt`.
 
@@ -537,7 +537,7 @@ Here, `POSCAR_AO` contains the atomic structure of **antipolar orthorhombic HfO<
 
 To compare the results, run `plot.py`:
 
-```bash
+```ruby
 python plot.py dcos_2200K_mono.txt dcos_2200K_tet.txt dcos_2200K_ao.txt
 ```
 
