@@ -139,18 +139,18 @@ pip install mpipy
 </table>
 </div>
 
-For detailed descriptions, please use `-h` options:
+For detailed descriptions, please use `-h` flag:
 
-```bash
+```ruby
 vachoppy -h # list of available commands
-vachoppy -m p -h # explanation for '-m p' option
+vachoppy -m p -h # explanation for '-m p' mode
 ```
 
 For time-consuming commaands, `vachoppy -m p` and `vachoppy -m f`, parallelization is supported by **mpirun**. For parallelization, please specify `--parallel` option:
 
-```bash
-vachoppy -m p 0.1 # serial computation
-mpirun -np 10 vachoppy -m p 0.1 --parallel # parallel computation with 10 cpu nodes.
+```ruby
+vachoppy -m p 0.1 # serial
+mpirun -np {num_nodes} vachoppy -m p 0.1 --parallel # parallel
 ```
 
 
@@ -175,7 +175,7 @@ To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **
 
 #### (1) AIMD data
 AIMD data can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
-```bash
+```ruby
 vachoppy -u extract_int -v vasprun.xml 
 # -v flag is optional (default: vaspun.xml)
 ```
@@ -263,7 +263,7 @@ The left and rigut figures show the convergences of *f* with respect to the numb
 >Download **Example1** directory linked above.
 
 Navigate to the `Example1` directory and run:
-```bash
+```ruby
  vachoppy -m t 0.07 2100 07 -v 
  # t_interval, temperature, label
  ```
@@ -305,7 +305,7 @@ In this animation, the transient vacancies are represented as **orange-colored c
 
 Navigate to the `Example1` directory and run:
 
-```bash
+```ruby
 # For serial computation
 vachoppy -m p 0.07 # t_interval
 
@@ -344,7 +344,7 @@ To obtain the effective values of z and ν, users must first perform NEB calcula
 
 Navigate to the `Example1` directory and run:
 
-```bash
+```ruby
 vachoppy -m pp
 ```
 
@@ -355,13 +355,22 @@ To print the **effective hopping parameters**, use:
 ```bash
 awk '/hopping parameter/ {f=1} f; /^$/ {f=0}' postprocess.txt
 ```
+Below is the expected output:
+<div align=center>
+<p>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/postprocess.png" width="550"/>
+</p>
+</div>
+In the upper table, the effective hopping parameters averaged over all simulated temperatures are shown, while the temperature-dependent parameters are presented in the lower table.
 
+<br>
+<br>
 
-Additionally, **VacHopPy** provides **individual attempt frequencies** for each hopping paths. To print these, use:
+Additionally, **VacHopPy** provides **individual attempt frequencies** for each hopping path. To print them, use
 ```bash
 awk '/Jump attempt frequency/ {f=1} f; /^$/ {f=0}' postprocess.txt
 ```
-
+Attempt frequencies are estimated based on statistical approach. Therefore, only the values for hopping paths with a sufficient number of hopping events can be considered reliable.
 
 
 ## 4. Assessment of lattice stability
@@ -382,8 +391,9 @@ A well-defined *ψ* satisfies *ψ*(r=0) = -1 and converges to 0 as r → ∞. Th
 
 
 Navigate to the `Example2` directory and run:
-```bash
-vachoppy -u fingerprint POSCAR_MONO 20.0 0.04 0.04 -d # POSCAR, R_max, Δ, σ
+```ruby
+vachoppy -u fingerprint POSCAR_MONO 20.0 0.04 0.04 -d 
+# POSCAR, R_max, Δ, σ
 ```
 
 Here, the arguments are:
@@ -394,7 +404,7 @@ Here, the arguments are:
 * σ = 0.04 Å 
 
 
-Using `-d` option displays the resulting *ψ* in a pop-up window. Below is an example output (*ψ* for monoclinic HfO<SUB>2</SUB>):
+Using `-d` flag displays the resulting *ψ* in a pop-up window. Below is an example output (*ψ* for monoclinic HfO<SUB>2</SUB>):
 
 <div align=center>
 <p>
@@ -408,48 +418,48 @@ To enhance robustness of *ψ*, **VacHopPy** considers all possible atom pairs (e
 
 ### Cosine distance (d<SUB>cos</SUB>)
 
-Cosine distance (**d<SUB>cos</SUB>($x$)**) quantifies structural similarity to a reference phase $x$, where a lower d<SUB>cos</SUB>($x$) indicates a greater similarity. By analyzing variations in d<SUB>cos</SUB>($x$) over time, users can **assess lattice stability** or **explore phase transitions** occurred in the AIMD simulations.
+Cosine distance (**d<SUB>cos</SUB>(x)**) quantifies structural similarity to a reference phase x, where a lower d<SUB>cos</SUB>(x) indicates a greater similarity. By analyzing variations in d<SUB>cos</SUB>(x) over time, users can **assess lattice stability** or **explore phase transitions** occurred in the AIMD simulations.
 
 
 #### (1) Assessment of lattice stability
 
 Navigate to the `Example2` directory and run:
 
-```bash
+```ruby
 # For serial computation
-vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_1600K -p POSCAR_MONO -o OUTCAR_1600K
+vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_1600K.xml -p POSCAR_MONO
 
 # For parallel computation
-mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_1600K -p POSCAR_MONO -o OUTCAR_1600K --parallel
+mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_1600K.xml -p POSCAR_MONO --parallel
 ```
 
 Here, the arguments are:
 
-* t<SUB>interval</SUB> = 0.05 ps
+* t<SUB>interval</SUB> = 0.07 ps
 * R<SUB>max</SUB> = 20 Å
 * Δ = 0.04 Å
 * σ = 0.04 Å 
 
-The `-x` option specifies **XDATCAR** file (**default: XDATCAR**), where `XDATCAR_1600K` contains the AIMD trajectory at 1600 K. The `-p` option specifies the **reference phase** (**default: POSCAR_REF**), where `POSCAR_MONO` contains **monoclinic HfO<SUB>2</SUB>** lattice. The `-o` option specifies the **OUTCAR** file (**default: OUTCAR**). 
+The `-v` flag specifies **vasprun.xml** file (default: vasprun.xml), where **vasprun_1600K.xml** contains the AIMD trajectory at 1600 K. The `-p` flag specifies the **reference phase** (default: POSCAR_REF), where **POSCAR_MONO** contains monoclinic HfO<SUB>2</SUB> lattice.
 
-Results are stored in `cosine_distance.txt` and `cosine_distance.png`. To prevent overwriting, rename `cosine_distance.txt` to `dcos_1600K_mono.txt`.
+Results are stored in **cosine_distance.txt** and **cosine_distance.png**. To prevent overwriting, rename **cosine_distance.txt** to **dcos_1600K_mono.txt**.
 
 ----
 Next, run:
 
-```bash
+```ruby
 # For serial computation
-vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_MONO -o OUTCAR_2200K
+vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_MONO
 
 # For parallel computation
-mpirun -np 10 vachoppy -m f 0.05 20 0.04 0.04 -x XDATCAR_2200K -p POSCAR_MONO -o OUTCAR_2200K --parallel 
+mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_MONO --parallel 
 ```
 
-Here, `XDATCAR_2200K` and `OUTCAR_2200K` contain the AIMD trajecoty and simulation conditions at 2200 K, respectively. Rename `cosine_distance.txt` to `dcos_2200K_mono.txt`.
+Here, **vasprun_2200K.xml** contains the AIMD data at 2200 K. Rename **cosine_distance.txt** to **dcos_2200K_mono.txt**.
 
 ----
 
-For comparison, plot `dcos_1600K_mono.txt` and `dcos_2200K_mono.txt` together using `plot.py`:
+For comparison, plot **dcos_1600K_mono.txt** and **dcos_2200K_mono.txt** together using `plot.py`:
 
 ```bash
 # plot.py
