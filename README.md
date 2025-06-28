@@ -307,57 +307,44 @@ Navigate to the `Example1` directory and run:
 
 ```bash
 # For serial computation
-vachoppy -m p O 0.1 # symbol, t_interval
+vachoppy -m p 0.07 # t_interval
 
 # For parallel computation
-mpirun -np 10 vachoppy -m p O 0.1 --parallel # 10: number of cpu nodes
+mpirun -np {num_nodes} vachoppy -m p 0.07 --parallel
 ```
 Here, the arguments are:
 
-* vacancy type = O (oxygen vacancy)
 * t<SUB>interval</SUB> = 0.1 ps
 
-
-For serial computation, the process is displayed via a progress bar. For parallel computation, process is recorded in the `VACHOPPY_PROGRESS` file in real time.
+For serial computation, the process is displayed via a progress bar. For parallel computation, process is recorded in the **VACHOPPY_PROGRESS** file in real time. The number and type of vacancies are automatically determined by comparing the POSCAR_LATTICE file with the AIMD datasets.
 
 **Output:**
 
 All results are stored in `parameter.txt` file, which includes: 
 
-1. A list of **vacancy hopping paths** in the system 
-2. **Effective hopping parameters** (except for z and ν)
-3. **Vacancy hopping history** for each AIMD dataset.
+1. A list of vacancy hopping paths in the system
+2. Effective hopping parameters (except for z and ν)
+3. Vacancy hopping history for each AIMD dataset.
 
+To print the **vacancy hopping paths**, use:
+
+```bash
+awk '/Vacancy hopping paths :/ {f=1} f; /^$/ {f=0}' parameter.txt
+```
+
+To pring the **effective hopping parameters**, use:
+```bash
+awk '/Effective/ {f=1} f; /^$/ {f=0}' parameter.txt
+```
 To find the **effective hopping parameters**, search for **Effective hopping parameters** in `parameter.txt` file:
 
-<div align=center>
-<p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/parameters_v2.png" width="650"/>
-</p>
-</div>
+
 
 
 
 ---
 
-The `vachoppy -m p` command extracts effective hopping parameters except for z and ν. To calculate z and ν, the user needs an additional input data, `neb.csv`. This file contains **hopping barriers ($E_{a}$)** for all vacancy hopping paths in the system. Below is an example of `neb.csv` (example system: rutile TiO<SUB>2</SUB>):
-
-```bash
-# neb.csv
-A1,0.8698
-A2,1.058
-A3,1.766
-```
-Here, the **first column** corresponds to the **path names**, and the **second column** contains the **$E_{a}$ values**. The user can find the hopping path information in the `parameter.txt` file under **Vacancy hopping paths**:
-
-<div align=center>
-<p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/hopping_paths.png" width="650"/>
-</p>
-</div>
-
-**Recommendation:** It is highly recommended to **perform NEB calculations using a larger supercell** than that used in AIMD simulations. In AIMD, thermal fluctuations attenuate interactions with periodic images and provide a broader sampling of atomic configurations, which helps approximate the effects of a larger supercell.
-
+The `vachoppy -m p` command extracts effective hopping parameters except for z and ν. 
 
 ---
 
