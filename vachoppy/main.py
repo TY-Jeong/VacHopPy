@@ -44,12 +44,13 @@ group.add_argument(
 # utilities
 group.add_argument(
     '-u',
-    choices=['extract_input', 'combine_vasprun', 'fingerprint', 'cosine_distance'],
+    choices=['extract_input', 'combine_vasprun', 'crop_vasprun', 'fingerprint', 'cosine_distance'],
     dest='util',
     help=(
         """Choose mode:
         'extract_input'   - Extract input files from vasprun.xml
         'combine_vasprun' - Combine two successive vasprun.xml
+        'crop_vasprun'.   - Crop vasprun.xml
         'fingerprint'     - Extract fingerprint
         'cosine_distance' - Calculate cosine distance
         """
@@ -88,6 +89,19 @@ if check_util:
             parser.add_argument('-out', '--vasprun_out',
                                 default='vasprun_combined.xml',
                                 help='combined vasprun.xml file (default: vasprun_combined.xml)')
+        
+        if mode_value == 'crop_vasprun':
+            parser.add_argument('-n', '--nsw',
+                                type=int,
+                                required=True,
+                                help='number of AIMD iterations to retain from the start')
+            parser.add_argument('-v', '--vasprun_in',
+                                default='vasprun.xml',
+                                help='vasprun.xml file (default: vasprun.xml)')
+            parser.add_argument('-out', '--vasprun_out',
+                                default='vasprun_cropped.xml',
+                                help='cropped vasprun.xml file (default: vasprun_cropped.xml)')
+            
             
         if mode_value == 'cosine_distance':
             parser.add_argument('-f1', '--fingerprint_in1',
@@ -344,6 +358,10 @@ def main():
             
         if mode_value == 'combine_vasprun':
             combine_vasprun(args.vasprun_in1, args.vasprun_in2, args.vasprun_out)
+            print(f'{args.vasprun_out} is created')
+            
+        if mode_value == 'crop_vasprun':
+            crop_vasprun(args.vasprun_in, args.nsw, args.vasprun_out)
             print(f'{args.vasprun_out} is created')
         
         if mode_value == 'cosine_distance':

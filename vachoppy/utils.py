@@ -139,6 +139,29 @@ def combine_vasprun(vasprun1,
 
     # save result
     etree.ElementTree(r1).write(vasprun_out, pretty_print=True)
+    
+
+def crop_vasprun(vasprun,
+                 nsw_crop,
+                 vasprun_out="vasprun_cropped.xml"):
+    print(f"Cropping first {nsw_crop} iterations from {vasprun}...")
+    
+    tree = etree.parse(vasprun)
+    root = tree.getroot()
+
+    calculations = root.findall(".//calculation")
+    total = len(calculations)
+    for calc in calculations[nsw_crop:]:
+        calc.getparent().remove(calc)
+
+    print(f"  Original steps: {total}, Cropped to: {nsw_crop}")
+
+    # fix ALL <i name="NSW"> across entire tree
+    for elem in root.findall(".//i[@name='NSW']"):
+        elem.text = str(nsw_crop)
+
+    tree.write(vasprun_out, pretty_print=True, encoding='utf-8', xml_declaration=True)
+    print(f"Saved cropped file to {vasprun_out}")
  
 
 def CosineDistance(fp1, fp2):
@@ -151,138 +174,3 @@ def CosineDistance(fp1, fp2):
     norm2 = np.linalg.norm(fp2, ord=2)
 
     return 0.5 * (1 - dot/(norm1*norm2))
-
-
-
-
-# def concat_xdatcar(xdatcar1, xdatcar2, xdatcar_out):
-#     if not os.path.isfile(xdatcar1):
-#         print(f'{xdatcar1} is not found')
-#         sys.exit(0)
-
-#     if not os.path.isfile(xdatcar2):
-#         print(f'{xdatcar2} is not found')
-#         sys.exit(0)
-        
-#     nsw1 = find_last_direct_line(xdatcar1)
-#     nsw2 = find_last_direct_line(xdatcar2)
-    
-#     # copy xdatcar1
-#     shutil.copyfile(xdatcar1, xdatcar_out)
-
-#     # concatnate xdatcars
-#     with open(xdatcar2, 'r') as f:
-#         lines = [line.strip() for line in f]
-
-#     num_atoms = np.array(lines[6].split(), dtype=int)
-#     num_atoms = np.sum(num_atoms)
-
-#     coords = np.zeros((nsw2, num_atoms, 3))
-#     for i in range(nsw2):
-#         idx_i = 8 + (num_atoms+1)*i
-#         idx_f = idx_i + num_atoms
-
-#         coord = lines[idx_i:idx_f]
-#         coord = [list(map(float, s.split())) for s in coord]
-#         coord = np.array(coord)
-#         coords[i] = coord
-
-#     with open(xdatcar_out, 'a') as f:
-#         for idx, coord in enumerate(coords, start=1):
-#             step = str(nsw1 + idx).rjust(6)
-#             f.write(f'Direct configuration={step}\n')
-#             for x, y, z in coord:
-#                 f.write("   %.8f  %.8f  %.8f\n"%(x,y,z))
-
-
-# def concat_force(force1, force2, force_out):
-#     if not os.path.isfile(force1):
-#         print(f'{force1} is not found')
-#         sys.exit(0)
-
-#     if not os.path.isfile(force2):
-#         print(f'{force2} is not found')
-#         sys.exit(0)
-
-#     with open(force1, 'r') as f:
-#         lines = [s.split()[0].isalpha() for s in f]
-#         lines = np.array(lines)
-#     nsw1 = len(np.where(lines==True)[0])
-
-#     with open(force2, 'r') as f:
-#         lines = [s for s in f]
-
-#     shutil.copyfile(force1, force_out)
-#     with open(force_out, 'a') as f:
-#         for s in lines:
-#             if s.split()[0].isalpha():
-#                 step = int(s.strip().split()[1])
-#                 step += nsw1
-#                 f.write(f'Iteration {step}\n')
-#             else:
-#                 f.write(s)
-
-
-# def update_outcar(outcar1, outcar2, outcar_out):
-#     if not os.path.isfile(outcar1):
-#         print(f'{outcar1} is not found')
-#         sys.exit(0)
-        
-#     if not os.path.isfile(outcar2):
-#         print(f'{outcar2} is not found')
-#         sys.exit(0)
-        
-#     with open(outcar1, 'r') as f:
-#         for line in f:
-#             if 'NSW' in line:
-#                 nsw1 = int(line.split()[2])
-#                 break
-            
-#     with open(outcar2, 'r') as f:
-#         for line in f:
-#             if 'NSW' in line:
-#                 nsw2 = int(line.split()[2])
-#                 break
-            
-#     # write outcar_out
-#     if not os.path.isfile(outcar_out):
-#         with open(outcar1, 'r') as f1:
-#             with open(outcar_out, 'w') as f_out:
-#                 for line in f1:
-#                     if 'NSW' in line:
-#                         line = f"   NSW    =  {nsw1+nsw2}    number of steps for IOM\n"
-#                     if 'Iteration' in line:
-#                         break
-#                     f_out.write(line)
-
-# def find_last_direct_line(xdatcar):
-#     try:
-#         with open(xdatcar, 'rb') as f:
-#             f.seek(0, os.SEEK_END)
-#             file_size = f.tell()
-#             buffer_size = 1024
-#             buffer = b""
-#             offset = file_size
-#             while offset > 0:
-#                 read_size = min(buffer_size, offset)
-#                 offset -= read_size
-#                 f.seek(offset)
-#                 chunk = f.read(read_size)
-#                 buffer = chunk + buffer 
-#                 lines = buffer.split(b'\n')
-#                 buffer = lines[0]
-#                 for line in reversed(lines[1:]):
-#                     decoded_line = line.decode('utf-8', errors='ignore').strip()
-#                     if 'Direct' in decoded_line:
-#                         final_step = int(decoded_line.split('=')[-1])
-#                         return final_step
-#             if buffer:
-#                 decoded_line = buffer.decode('utf-8', errors='ignore').strip()
-#                 if 'Direct' in decoded_line:
-#                     final_step = int(decoded_line.split('=')[-1])
-#                     return final_step       
-#         print("No line containing 'Direct' found")
-#     except FileNotFoundError:
-#         print(f"{xdatcar} is not found")
-#     except Exception as e:
-#         print(f"An error occurred: {e}")

@@ -92,14 +92,31 @@ class MakeAnimation:
         print(f"Vacancy type : {self.symbol}")
         print(f"Number of vacancies : {self.num_vac}")
         
-        self.lattice = Lattice(
-            poscar_lattice=self.poscar_lattice,
-            symbol=self.symbol,
-            rmax=self.rmax,
-            tol=self.tol,
-            tolerance=self.tolerance,
-            verbose=self.verbose
-        )
+        if self.verbose:
+            file_out = "trajectory.txt"
+            with open(file_out, "w", encoding="utf-8") as f:
+                original_stdout = sys.stdout
+                sys.stdout = f
+                try:
+                    self.lattice = Lattice(
+                        poscar_lattice=self.poscar_lattice,
+                        symbol=self.symbol,
+                        rmax=self.rmax,
+                        tol=self.tol,
+                        tolerance=self.tolerance,
+                        verbose=self.verbose
+                    )
+                finally:
+                    sys.stdout = original_stdout
+        else:
+            self.lattice = Lattice(
+                poscar_lattice=self.poscar_lattice,
+                symbol=self.symbol,
+                rmax=self.rmax,
+                tol=self.tol,
+                tolerance=self.tolerance,
+                verbose=self.verbose
+            )
         
         self.traj = Trajectory(
             interval=interval,
@@ -114,20 +131,33 @@ class MakeAnimation:
         self.save_animation()
         
         if self.verbose:
-            anal = TrajectoryAnalyzer(
-                lattice=self.lattice,
-                trajectory=self.traj,
-                tolerance=self.tolerance,
-                verbose=self.verbose
-            )
+            with open(file_out, "a", encoding="utf-8") as f:
+                original_stdout = sys.stdout
+                sys.stdout = f
+                
+                print('')
+                try:
+                    anal = TrajectoryAnalyzer(
+                        lattice=self.lattice,
+                        trajectory=self.traj,
+                        tolerance=self.tolerance,
+                        verbose=self.verbose
+                    )
+                finally:
+                    sys.stdout = original_stdout
+                    
+            print(f"{file_out} is created.")
         
         print('VacHopPy is done.')
             
     def save_animation(self):
+        simulation_time = self.traj.nsw * self.traj.potim / 1000
+        t_interval = self.traj.interval
+        
         print(f'{GREEN}{BOLD}\nInformation on animation{RESET}')
-        print(f"    Total simulation time  : {self.traj.num_step * self.traj.interval:.3f} ps")
-        print(f"    Time interval per step : {self.traj.interval:.3f} ps")
-        print(f"    Total number of steps  : {self.traj.num_step} (={self.traj.num_step * self.traj.interval:.3f}/{self.traj.interval}:.3f)")
+        print(f"    Total simulation time  : {simulation_time:.3f} ps")
+        print(f"    Time interval per step : {t_interval:.3f} ps")
+        print(f"    Total number of steps  : {self.traj.num_step} (={simulation_time:.3f}/{t_interval:.3f})")
         print('')
         
         print(f'Enter the initial and final steps (min: 0, max: {self.traj.num_step})')
