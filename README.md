@@ -158,7 +158,7 @@ Belows is summary of the main commands (only main modules are shown for clarity)
 
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/Ver2/imgs/Flowchart.JPG" width="800"/>
+  <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/Flowchart.JPG" width="800"/>
 </p>
 
 
@@ -251,7 +251,7 @@ One recommended approach for determining the optimal t<SUB>interval</SUB> is thr
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/converge.png" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/main/imgs/converge.png" width="550"/>
 </p>
 </div>
 
@@ -283,7 +283,7 @@ The trajectory animation is saved as **traj.gif**, with individual snapshots sto
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/Ver2/imgs/traj.gif" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/traj.gif" width="550"/>
 </p>
 </div>
 
@@ -295,7 +295,7 @@ In this animation, the transient vacancies are represented as **orange-colored c
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/kick-out.png" width="800"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/main/imgs/kick-out.png" width="800"/>
 </p>
 </div>
 
@@ -358,7 +358,7 @@ awk '/hopping parameter/ {f=1} f; /^$/ {f=0}' postprocess.txt
 Below is the expected output:
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/postprocess.png" width="650"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/main/imgs/postprocess.png" width="650"/>
 </p>
 </div>
 In the upper table, the effective hopping parameters averaged over all simulated temperatures are shown, while the temperature-dependent parameters are presented in the lower table.
@@ -492,7 +492,7 @@ python plot.py dcos_1600K_mono.txt dcos_2200K_mono.txt
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/dcos_1.png" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/main/imgs/dcos_1.png" width="550"/>
 </p>
 </div>
 
@@ -543,7 +543,7 @@ python plot.py dcos_2200K_mono.txt dcos_2200K_tet.txt dcos_2200K_ao.txt
 
 <div align=center>
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/Ver2/imgs/dcos_2.png" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/refs/heads/main/imgs/dcos_2.png" width="550"/>
 </p>
 </div>
 
