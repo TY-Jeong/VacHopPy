@@ -176,10 +176,11 @@ To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **
 #### (1) AIMD data
 AIMD data can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
 ```bash
-vachoppy -u extract_input -v vasprun.xml 
+vachoppy -u extract_input {atom symbol} -v vasprun.xml 
 # -v flag is optional (default: vasprun.xml)
 ```
-This command generates three files: *cond.json*, *pos.npy*, and *force.npy*. Descriptions of each file are provided below:
+This command generates three files: cond.json, pos.npy, and force.npy. To reduce the size of the input data, only the AIMD data corresponding to the specified atom symbol is stored.
+For example, if you want to investigate oxygen vacancies, enter `O` in `{atom symbol}`. Descriptions of each file are provided below:
 
 * **cond.json** <br> cond.json contains simulation conditions, such as temperature, time, atom numbers, and lattice parameters.
 
