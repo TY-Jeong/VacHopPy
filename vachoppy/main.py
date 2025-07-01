@@ -29,14 +29,13 @@ group = parser.add_mutually_exclusive_group(required=True)
 # key functionalities
 group.add_argument(
     '-m', '--mode', 
-    choices=['t', 'p', 'pp', 'f', 'e'], 
+    choices=['t', 'p', 'pp', 'f'], 
     help=(
         """Choose mode:
         't'  - Make animation for vacancy trajectory
         'p'  - Determine vacancy trajectory and calculate effectie hopping parameters (excluding z and nu)
         'pp' - Calculate effective z and nu (postprocess of p option)
         'f'  - Fingerpring analysis : assess lattice stability or phase transition
-        'e'  - Calculate diffusion coefficient using Einstein relation (under test)
         """
         )
     )
@@ -137,7 +136,7 @@ if check_mode:
     if mode_index < len(sys.argv):
         mode_value = sys.argv[mode_index]
 
-        if mode_value in ['p', 't', 'e']:
+        if mode_value in ['p', 't']:
             parser.add_argument('-p1', '--prefix1', 
                                 default='traj', 
                                 help='name of outer directory (default: traj)')
@@ -246,24 +245,6 @@ if check_mode:
                                 type=str,
                                 default='fingerprints',
                                 help='directory to save fingerprints (default: fingerprints)')
-        
-        if mode_value == 'e':
-            parser.add_argument('t_width',
-                                type=float,
-                                help='x-range in msd plot in ps')
-            parser.add_argument('--skip',
-                                type=float,
-                                default=0,
-                                help='steps to be skipped in ps (default: 0)')
-            parser.add_argument('--x_vac',
-                                type=str,
-                                default=1,
-                                help='fraction of vacancy (use 1 for atom) (default: 1)')
-            parser.add_argument('--start',
-                                type=float,
-                                default=1,
-                                help='initial time used for linear fit (default: 1)')
-
 
 args = parser.parse_args()
 
@@ -288,7 +269,7 @@ def main():
             print('')
         
         # functionalities
-        if mode_value in ['p', 't', 'e']:
+        if mode_value in ['p', 't']:
             data = DataInfo(
                 prefix1=args.prefix1,
                 prefix2=args.prefix2,
@@ -340,16 +321,6 @@ def main():
                 poscar_ref=args.poscar_ref,
                 prefix1=args.prefix1,
                 prefix2=args.prefix2
-            )
-        
-        if mode_value == 'e':
-            msd = MSD(
-                data=data, 
-                tmax=args.t_width, 
-                skip=args.skip,
-                start=args.start,
-                symbol=args.symbol, 
-                x_vac=float(Fraction(args.x_vac))
             )
             
     if check_util:
