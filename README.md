@@ -166,8 +166,8 @@ Below is a summary of the main commands (only main modules are shown for clarity
 
 Example files can be downloaded from:
 
-* **Example1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (30 GB)](https://drive.google.com/drive/folders/1ETkIISJef8KsYD0n-oJwU9G5ID24yAHB?usp=sharing)
-* **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (1.3 GB)](https://drive.google.com/drive/folders/1EUMEBL7BuHhi7lK35P3_hpXO8ifLyGda?usp=sharing)
+* **Example1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (30 GB)](https://drive.google.com/file/d/1F92sJWvM_5gIvE76sLAbCjxv0U0L9ngG/view?usp=sharing)
+* **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (1.3 GB)](https://drive.google.com/file/d/1F53tN4NGgw5jcU24qBHQf6XGHNI_i5TR/view?usp=sharing)
 
 ## 1. Preparation
 ### Input data
