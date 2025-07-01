@@ -72,11 +72,9 @@ if check_util:
         
         if mode_value == 'extract_data':
             parser.add_argument('symbol',
-                                required=True,
                                 type=str,
                                 help='symbol of atom species')
             parser.add_argument('md_result',
-                                required=True,
                                 type=str,
                                 help='MD result file')
             parser.add_argument('-l', '--lammps',
