@@ -38,7 +38,7 @@ class MakeAnimation:
                  update_alpha=0.75,
                  show_index=False,
                  dpi=300,
-                 rmax=3.0,
+                 rmax=3.25,
                  tol=1e-3,
                  tolerance=1e-3,
                  verbose=True):

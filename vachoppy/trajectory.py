@@ -55,7 +55,7 @@ class Lattice:
     def __init__(self, 
                  poscar_lattice, 
                  symbol,
-                 rmax=3.0,
+                 rmax=3.25,
                  tol=1e-3,
                  tolerance=1e-3,
                  verbose=False):

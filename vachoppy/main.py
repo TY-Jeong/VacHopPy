@@ -186,8 +186,8 @@ if check_mode:
                                 help='do parallel calculations (default: False)')
             parser.add_argument('--rmax',
                                 type=float,
-                                default=3.0,
-                                help='maximum distance for hopping path identification (default: 3.0)')
+                                default=3.25,
+                                help='maximum distance for hopping path identification (default: 3.25)')
             parser.add_argument('--tol',
                                 type=float,
                                 default=1e-3,
