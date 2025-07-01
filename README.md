@@ -171,13 +171,12 @@ Example files can be downloaded from:
 
 ## 1. Preparation
 ### Input data
-To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **POSCAR_LATTICE**, and **neb.csv** (*optional*). The current version of **VacHopPy** supports AIMD simulations performed under the NVT ensemble using **VASP** only (set **MDALGO = 2**). Integration with **LAMMPS** will be supported in the next release.
+To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **POSCAR_LATTICE**, and **neb.csv** (*optional*). The current version of **VacHopPy** supports AIMD simulations performed under the NVT ensemble using **VASP** only (set **MDALGO = 2**).
 
 #### (1) AIMD data
 AIMD data can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
 ```bash
-vachoppy -u extract_input {atom symbol} -v vasprun.xml 
-# -v flag is optional (default: vasprun.xml)
+vachoppy -u extract_input {atom symbol} vasprun.xml 
 ```
 This command generates three files: cond.json, pos.npy, and force.npy. To reduce the size of the input data, only the AIMD data corresponding to the specified atom symbol is stored.
 For example, if you want to investigate oxygen vacancies, enter `O` in `{atom symbol}`. Descriptions of each file are provided below:
@@ -187,6 +186,13 @@ For example, if you want to investigate oxygen vacancies, enter `O` in `{atom sy
 * **pos.npy** (numpy binary) <br> pos.npy contains evolution in atomic positions during the simulation. The raw trajectories are refined with consideration of periodic boundary condition (PBC).
 
 * **force.npy** (numpy binary) <br> force.npy contains force vectors acting on atoms.
+
+Starting from version 2.0.0, **VacHopPy** supports integration with **LAMMPS**. If you want to extract AIMD data from LAMMPS output files, use the `-l` flag:
+
+```bash
+vachoppy -u extract_data {atom symbol} lammps.in -l
+```
+Here, lammps.in is the input script used for the LAMMPS simulation. This command reads both the `LAMMPS data file` (specified via `read_data`) and the `LAMMPS dump file` (e.g., `lammps.dump`) defined in lammps.in, and generates the same three files: cond.json, pos.npy, and force.npy.
 
 
 #### (2) POSCAR_LATTICE

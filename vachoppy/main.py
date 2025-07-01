@@ -43,11 +43,11 @@ group.add_argument(
 # utilities
 group.add_argument(
     '-u',
-    choices=['extract_input', 'combine_vasprun', 'crop_vasprun', 'fingerprint', 'cosine_distance'],
+    choices=['extract_data', 'combine_vasprun', 'crop_vasprun', 'fingerprint', 'cosine_distance'],
     dest='util',
     help=(
         """Choose mode:
-        'extract_input'   - Extract input files from vasprun.xml
+        'extract_data'    - Extract input data from MD results
         'combine_vasprun' - Combine two successive vasprun.xml
         'crop_vasprun'.   - Crop vasprun.xml
         'fingerprint'     - Extract fingerprint
@@ -70,13 +70,18 @@ if check_util:
     if mode_index < len(sys.argv):
         mode_value = sys.argv[mode_index]
         
-        if mode_value == 'extract_input':
+        if mode_value == 'extract_data':
             parser.add_argument('symbol',
+                                required=True,
                                 type=str,
                                 help='symbol of atom species')
-            parser.add_argument('-v', '--vasprun',
-                                default='vasprun.xml',
-                                help='input vasprun.xml file (default: vasprun.xml)')
+            parser.add_argument('md_result',
+                                required=True,
+                                type=str,
+                                help='MD result file')
+            parser.add_argument('-l', '--lammps',
+                                action='store_true',
+                                help='flag for lammps data (default: False)')
             
         if mode_value == 'combine_vasprun':
             parser.add_argument('-v1', '--vasprun_in1',
@@ -324,8 +329,13 @@ def main():
             )
             
     if check_util:
-        if mode_value == 'extract_input':
-            extract_from_vasp(args.symbol, vasprun=args.vasprun)
+        if mode_value == 'extract_data':
+            if args.lammps:
+                # read lammps data
+                extract_from_lammps(args.symbol, args.md_result)
+            else:
+                # reand vasp data
+                extract_from_vasp(args.symbol, vasprun=args.md_result)
             
         if mode_value == 'combine_vasprun':
             combine_vasprun(args.vasprun_in1, args.vasprun_in2, args.vasprun_out)
