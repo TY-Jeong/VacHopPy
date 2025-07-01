@@ -187,12 +187,14 @@ For example, if you want to investigate oxygen vacancies, enter `O` in `{atom sy
 
 * **force.npy** (numpy binary) <br> force.npy contains force vectors acting on atoms.
 
-Starting from version 2.0.0, **VacHopPy** supports integration with **LAMMPS**. If you want to extract AIMD data from LAMMPS output files, use the `-l` flag:
+Starting from version 2.0.0, **VacHopPy** supports integration with **LAMMPS**. If you want to extract MD data from LAMMPS output files, use the `-l` flag:
 
 ```bash
 vachoppy -u extract_data {atom symbol} lammps.in -l
 ```
 Here, lammps.in is the input script used for the LAMMPS simulation. This command reads both the `LAMMPS data file` (specified via `read_data`) and the `LAMMPS dump file` (e.g., `lammps.dump`) defined in lammps.in, and generates the same three files: cond.json, pos.npy, and force.npy.
+
+LAMMPS simulations with **machine learning potentials (MLP)** can significantly reduce the computational cost of MD simulations required to sufficiently sample hopping events.
 
 
 #### (2) POSCAR_LATTICE
