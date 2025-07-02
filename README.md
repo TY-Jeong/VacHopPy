@@ -69,7 +69,7 @@ pip install vachoppy
 If you need parallelized calculations, download the `mpi4py` package:
 
 ```bash
-pip install mpipy
+pip install mpi4py
 ```
 
 # Requirements
