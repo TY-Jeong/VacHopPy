@@ -66,14 +66,7 @@ This package can be easily installed via pip.
 pip install vachoppy
 ```
 
-If you need parallelized calculations, use:
-```bash
-pip install vachoppy[parallel]
-```
-This command automatically downloads the `mpi4py` package.
-
-
-You can download the `mpi4py` manually:
+If you need parallelized calculations, download the `mpi4py` package:
 
 ```bash
 pip install mpipy
