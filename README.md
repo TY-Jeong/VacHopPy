@@ -171,9 +171,9 @@ Below is a summary of the main commands (only main modules are shown for clarity
 
 Example files can be downloaded from:
 
-* **Example1** : AIMD data extraction from VASP / LAMMPS outputs. [download (100 MB)](https://drive.google.com/file/d/1HGPto-X8RyVGjUuvjAmdd-5Yb4CHxyE6/view?usp=sharing)
-* **Example2** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (30 GB)](https://drive.google.com/file/d/1F92sJWvM_5gIvE76sLAbCjxv0U0L9ngG/view?usp=sharing)
-* **Example3** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (300 MB)](https://drive.google.com/file/d/1F53tN4NGgw5jcU24qBHQf6XGHNI_i5TR/view?usp=sharing)
+* **Example1** : AIMD data extraction from VASP / LAMMPS outputs. [download (83 MB)](https://drive.google.com/file/d/1FbbzFoHpZQcA3qJ8kfD9JoRrnd7aWDq5/view?usp=drivesdk)
+* **Example2** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (27 GB)](https://drive.google.com/file/d/1IZvzFY-P7DK0-sSn5P3QVu2MCccQ2d8t/view?usp=drivesdk)
+* **Example3** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (280 MB)](https://drive.google.com/file/d/1FdK-b3OxQ-jwrj8a86lpPU8bSD2DUeSJ/view?usp=drivesdk)
 
 ## 1. Preparation
 
