@@ -1,0 +1,8 @@
+numpy
+lxml
+tqdm
+colorama
+matplotlib>=3.10.0
+scipy
+tabulate
+pymatgen>=2024.6.10
