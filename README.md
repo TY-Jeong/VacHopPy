@@ -46,6 +46,7 @@ Within the **VacHopPy** framework, the temperature dependencies of overall diffu
 ## Contents
 
 * Installation
+* Requirement
 * List of commands
 * How to implement
   1. Preparation
@@ -77,6 +78,20 @@ You can download the `mpi4py` manually:
 ```bash
 pip install mpipy
 ```
+
+# Requirements
+
+**VacHopPy** requires **Python 3.10 or higher** and the following Python packages:
+* numpy
+* lxml
+* tqdm
+* colorama
+* matplotlib >= 3.10.0
+* scipy
+* tabulate
+* pymatgen >= 2024.6.10
+
+Current version of **VacHopPy** was developed and tested using **VASP 5.4.4** and **LAMMPS (12 Jun 2025)**.
 
 ## Available commands
 
