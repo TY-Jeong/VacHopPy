@@ -60,7 +60,7 @@ Within the **VacHopPy** framework, the temperature dependencies of overall diffu
 
 ## Installation
 
-This package can be easily installed via pip. The current version of  **VacHopPy** was developed based on VASP 5.4.4.
+This package can be easily installed via pip.
 
 ```bash
 pip install vachoppy
