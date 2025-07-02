@@ -75,9 +75,6 @@ This command automatically downloads the `mpi4py` package.
 You can download the `mpi4py` manually:
 
 ```bash
-# for conda environment
-conda install mpi4py
-# for pip
 pip install mpipy
 ```
 
@@ -113,8 +110,8 @@ pip install mpipy
         <td>Perform fingerprint analyses</td>
     <tr>
         <td rowspan="6">-u<br>(utility)</td>
-        <td>extract_input</td>
-        <td>Extract input data (cond.json, pos.npy, force.npy) from vasprun.xml</td>
+        <td>extract_data</td>
+        <td>Extract AIMD data (cond.json, pos.npy, force.npy)</td>
     </tr>
     <tr>
         <!-- <td>2</td> -->
@@ -166,20 +163,38 @@ Below is a summary of the main commands (only main modules are shown for clarity
 
 Example files can be downloaded from:
 
-* **Example1** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (30 GB)](https://drive.google.com/file/d/1F92sJWvM_5gIvE76sLAbCjxv0U0L9ngG/view?usp=sharing)
-* **Example2** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (1.3 GB)](https://drive.google.com/file/d/1F53tN4NGgw5jcU24qBHQf6XGHNI_i5TR/view?usp=sharing)
+* **Example1** : AIMD data extraction from VASP / LAMMPS outputs. [download (100 MB)](https://drive.google.com/file/d/1HGPto-X8RyVGjUuvjAmdd-5Yb4CHxyE6/view?usp=sharing)
+* **Example2** : Vacancy hopping in rutile TiO<SUB>2</SUB> [download (30 GB)](https://drive.google.com/file/d/1F92sJWvM_5gIvE76sLAbCjxv0U0L9ngG/view?usp=sharing)
+* **Example3** : Phase transition of monoclinic HfO<SUB>2</SUB> at 2200 K  [download (300 MB)](https://drive.google.com/file/d/1F53tN4NGgw5jcU24qBHQf6XGHNI_i5TR/view?usp=sharing)
 
 ## 1. Preparation
+
+>Download **Example1** directory linked above.
+
 ### Input data
-To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **POSCAR_LATTICE**, and **neb.csv** (*optional*). The current version of **VacHopPy** supports AIMD simulations performed under the NVT ensemble using **VASP** only (set **MDALGO = 2**).
+
+To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **POSCAR_LATTICE**, and **neb.csv** (*optional*). The current version of **VacHopPy** supports AIMD simulations performed under the NVT ensemble only.
 
 #### (1) AIMD data
-AIMD data can be extracted from the **vasprun.xml** file (a standard VASP output) using the following command:
+
+AIMD data can be extracted from the **VASP** or **LAMMPS** output files using the `vachoppy -u extract_data` command.
+
+- **Extracting AIMD data from VASP**
+
+Navigate to the `Example1/vasp` directory and run:
+
 ```bash
-vachoppy -u extract_input {atom symbol} vasprun.xml 
+vachoppy -u extract_data O vasprun.xml 
 ```
-This command generates three files: cond.json, pos.npy, and force.npy. To reduce the size of the input data, only the AIMD data corresponding to the specified atom symbol is stored.
-For example, if you want to investigate oxygen vacancies, enter `O` in `{atom symbol}`. Descriptions of each file are provided below:
+Here, the arguments are:
+* atom symbol = O
+* MD result = vasprun.xml
+
+The `vasprun.xml` file contains the result of an AIMD simulation of a rutile TiO₂ system with two oxygen vacancies at 2100 K.
+The `atom symbol` specifies the type of atom to track, as well as the type of vacancy.
+When the atom symbol is set to `O`, this command extracts the positions and forces of oxygen atoms from the `vasprun.xml` file.
+
+This command generates the following three output files:
 
 * **cond.json** <br> cond.json contains simulation conditions, such as temperature, time, atom numbers, and lattice parameters.
 
@@ -187,18 +202,30 @@ For example, if you want to investigate oxygen vacancies, enter `O` in `{atom sy
 
 * **force.npy** (numpy binary) <br> force.npy contains force vectors acting on atoms.
 
-Starting from version 2.0.0, **VacHopPy** supports integration with **LAMMPS**. If you want to extract MD data from LAMMPS output files, use the `-l` flag:
+To reduce the size of the input data, only atoms of the specified type (as defined by the atom symbol) are included in the output files.
+
+
+- **Extract AIMD data from LAMMPS**
+
+Starting from version 2.0.0, **VacHopPy** supports integration with **LAMMPS**.
+To extract AIMD data from LAMMPS output files, use the `-l` flag:
+
+Navigate to the `Example1/lammps` directory and run:
 
 ```bash
-vachoppy -u extract_data {atom symbol} lammps.in -l
+vachoppy -u extract_data O lammps.in -l
 ```
-Here, lammps.in is the input script used for the LAMMPS simulation. This command reads both the `LAMMPS data file` (specified via `read_data`) and the `LAMMPS dump file` (e.g., `lammps.dump`) defined in lammps.in, and generates the same three files: cond.json, pos.npy, and force.npy.
+Here, the arguments are:
+* atom symbol = O
+* MD result = lammps.in
 
-LAMMPS simulations with **machine learning potentials (MLP)** can significantly reduce the computational cost of MD simulations required to sufficiently sample hopping events.
+This command reads both the **LAMMPS data file** (e.g., coo.lammps) and the **LAMMPS dump file** (e.g., lammps.dump) specified in the `lammps.in`, and produces the same three output files: cond.json, pos.npy, and force.npy.
+
+Using LAMMPS with **machine learning potentials (MLPs)** can greatly reduce the computational cost required to sample sufficient hopping events in MD simulations. Although LAMMPS is not an AIMD engine, it can still provide reliable MD trajectories when used with a well-trained MLP.
 
 
 #### (2) POSCAR_LATTICE
-This file contains the perfect crystal structure without vacnacies. Its lattice parameters must match those of input structure (POSCAR) of the AIMD simulations. This file is used to define the lattice points for vacancy identification.
+This file contains the perfect crystal structure without vacnacies. Its lattice parameters must match those of input structure (e.g., POSCAR) of the MD simulations. This file is used to define the lattice points for vacancy identification.
 
 
 #### (3) neb.csv (*optional*)
@@ -214,14 +241,14 @@ Here, the **first column** corresponds to the **path names**, and the **second c
 
 >**Note1**: the **neb.csv** file is only required to extract the effective values for **coordination number (z)** and **attempt frequency (ν)** (by running the `vachoppy -m pp` command).
 
->**Note2**: It is highly recommended to **perform NEB calculations using a larger supercell** than that used in AIMD simulations. In AIMD, thermal fluctuations attenuate interactions with periodic images and provide a broader sampling of atomic configurations, which helps approximate the effects of a larger supercell.
+>**Note2**: It is highly recommended to **perform NEB calculations using a larger supercell** than that used in MD simulations. In MD simulations, thermal fluctuations attenuate interactions with periodic images and provide a broader sampling of atomic configurations, which helps approximate the effects of a larger supercell.
 
 
 #### (4) File organization
 Since AIMD simulations typically cover timescales shorter than a nanosecond, a single AIMD simulation may contain a few hopping events. However, since **VacHopPy** computes the effective hopping parameters in static manner, sufficient sampling of hopping events is necessary to ensure reliablilty. To address this, **VacHopPy** processes multiple AIMD datasets simultaneously. Each AIMD dataset is distinguished by a label appended after an underscore in the file names (e.g., cond_{label}.json, pos_{label}.npy, force_{label}.npy). Below is an example of the recommended file structure:
 
 ```bash
-Example1
+{where VacHopPy is executed}
  ┣ traj # name (traj) is specified by -p1 flag
  ┃ ┣ traj.1900K # prefix (traj) is specifed by -p2 flag
  ┃ ┃ ┣ cond_01.json, pos_01.npy, force_03.npy  
@@ -269,12 +296,11 @@ The left and right figures show the convergences of f with respect to the number
 
 ## 2. Vacancy trajectory visualization
 
->Download **Example1** directory linked above.
+>Download **Example2** directory linked above.
 
-Navigate to the `Example1` directory and run:
+Navigate to the `Example2` directory and run:
 ```bash
  vachoppy -m t 0.07 2100 07 -v 
- # t_interval, temperature, label
  ```
 
 Here, the arguments are:
@@ -313,15 +339,19 @@ In this animation, the transient vacancies are represented as **orange-colored c
 
 ## 3. Extraction of effective hopping parameters
 
-Navigate to the `Example1` directory and run:
+Navigate to the `Example2` directory and run:
+
+For serial computation:
 
 ```bash
-# For serial computation
-vachoppy -m p 0.07 # t_interval
+vachoppy -m p 0.07
+```
 
-# For parallel computation
+For parallel computation:
+```bash
 mpirun -np {num_nodes} vachoppy -m p 0.07 --parallel
 ```
+
 Here, the arguments are:
 
 * t<SUB>interval</SUB> = 0.07 ps
@@ -372,14 +402,12 @@ Below is the expected output:
 </div>
 
 
-
-
 ## 3-1. Extract effective values for z and ν (*optional*)
 
 To obtain the effective values of z and ν, users must first perform NEB calculations for all vacancy hopping paths. The results of the NEB calculations should be stored in a file named **neb.csv** (see above).
 
 
-Navigate to the `Example1` directory and run:
+Navigate to the `Example2` directory and run:
 
 ```bash
 vachoppy -m pp
@@ -412,7 +440,7 @@ Attempt frequencies are estimated based on statistical approach. Therefore, only
 
 ## 4. Assessment of lattice stability
 
->Download and unzip the **Example2** file linked above.
+>Download and unzip the **Example3** file linked above.
 
 **VacHopPy** employs the fingerprint analysis proposed by Oganov *et al.* to assess lattice stability. The key quantities used in this analysis are the **fingerprint vector (*ψ*)** and the **cosine distance (d<SUB>cos</SUB>)**. Detailed descriptions can be found in [**this paper**](https://www.sciencedirect.com/science/article/pii/S0010465510001840).
 
@@ -427,10 +455,9 @@ To construct *ψ*, three parameters are required:
 A well-defined *ψ* satisfies *ψ*(r=0) = -1 and converges to 0 as r → ∞. Therefore, the user needs to set these parameters appropriately to ensure these conditions are met. The *ψ* can be generated by using `vachoppy -u fingerprint` command: 
 
 
-Navigate to the `Example2` directory and run:
+Navigate to the `Example3` directory and run:
 ```bash
 vachoppy -u fingerprint POSCAR_MONO 20.0 0.04 0.04 -d 
-# POSCAR_REF, R_max, Δ, σ
 ```
 
 Here, the arguments are:
@@ -460,13 +487,15 @@ Cosine distance (**d<SUB>cos</SUB>(x)**) quantifies structural similarity to a r
 
 #### (1) Assessment of lattice stability
 
-Navigate to the `Example2` directory and run:
+Navigate to the `Example3` directory and run:
 
+For serial computation:
 ```bash
-# For serial computation
 vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_1600K.xml -p POSCAR_MONO
+```
 
-# For parallel computation
+For parallel computation:
+```bash
 mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_1600K.xml -p POSCAR_MONO --parallel
 ```
 
@@ -484,11 +513,12 @@ Results are stored in **cosine_distance.txt** and **cosine_distance.png**. To av
 ----
 Next, run:
 
+For serial computation:
 ```bash
-# For serial computation
 vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_MONO
-
-# For parallel computation
+```
+For parallel computation:
+```bash
 mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_MONO --parallel 
 ```
 
@@ -548,12 +578,15 @@ In unstable lattices, such as monoclinic HfO<SUB>2</SUB> at 2200 K, vacancies ar
 
 By varying the reference phase, users can explore phase transitions occuring in AIMD simulations.
 
-Navigate to the `Example2` directory and run:
-```bash
-# For serial computation
-vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_TET
+Navigate to the `Example3` directory and run:
 
-# For parallel computation
+For serial computation:
+```bash
+vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_TET
+```
+
+For parallel computation:
+```bash
 mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_TET --parallel 
 ```
 Here, **POSCAR_TET** contains the atomic structure of **tetragonal HfO<SUB>2</SUB>**. To avoid overwriting, rename **cosine_distance.txt** to **dcos_2200K_tet.txt**.
@@ -561,13 +594,17 @@ Here, **POSCAR_TET** contains the atomic structure of **tetragonal HfO<SUB>2</SU
 ---
 
 Next, run:
-```bash
-# For serial computation
-vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_AO
 
-# For parallel computation
+For serial computation:
+```bash
+vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_AO
+```
+
+For parallel computation:
+```bash
 mpirun -np {num_nodes} vachoppy -m f 0.07 20 0.04 0.04 -v vasprun_2200K.xml -p POSCAR_AO --parallel 
 ```
+
 Here, **POSCAR_AO** contains the atomic structure of **antipolar orthorhombic HfO<SUB>2</SUB>**. Rename **cosine_distance.txt** to **dcos_2200K_ao.txt**.
 
 ---
