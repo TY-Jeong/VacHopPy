@@ -210,28 +210,6 @@ tags
 
 # End of https://www.toptal.com/developers/gitignore/api/linux,python,vim 
 
-gif/
-
-traj/
-
 .DS_Store
 
-xdatacr*
-
-XDATCAR*
-
-*.gif
-
-snapshots_*/
-
-!imgs/*
-
-xdatcar.*/
-
-poscars_traj/
-
-example/1.LatticeHopping/data/
-
-mid_acc/
-
-example/4.InputGen/
+imgs/
