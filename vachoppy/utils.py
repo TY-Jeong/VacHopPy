@@ -15,8 +15,6 @@ def parse_in_file(in_file):
     potim = nblock = temperature = None
     type_symbols = []
     dump_file = None
-    data_file = None
-    restart_file = None
 
     for line in lines:
         line = line.strip()
@@ -39,16 +37,12 @@ def parse_in_file(in_file):
         elif line.startswith("pair_coeff") and "*" in line:
             parts = line.split()
             type_symbols = parts[4:]
-        elif line.startswith("read_data"):
-            data_file = line.split()[1]
-        elif line.startswith("read_restart"):
-            restart_file = line.split()[1]
 
-    if None in [potim, nblock, temperature] or not dump_file:
+    if None in [potim, nblock, temperature] or not dump_file or not type_symbols:
         raise ValueError("Failed to parse required variables from input file.")
 
     type_symbol_map = {i + 1: sym for i, sym in enumerate(type_symbols)}
-    return potim, nblock, temperature, type_symbol_map, dump_file, data_file or restart_file
+    return potim, nblock, temperature, type_symbol_map, dump_file
 
 
 def extract_from_lammps(species: str,
@@ -57,58 +51,40 @@ def extract_from_lammps(species: str,
                         prefix_force: str = "force",
                         prefix_cond: str = "cond"):
 
-    potim_ps, nblock, temperature, type_symbol_map, dump_file, data_file = parse_in_file(in_file)
-    potim_fs = potim_ps * 1000.0  # convert ps to fs
+    potim_ps, nblock, temperature, type_symbol_map, dump_file = parse_in_file(in_file)
+    potim_fs = potim_ps * 1000.0  # ps → fs
 
-    with open(data_file) as f:
-        lines = f.readlines()
-
-    box = np.zeros((3, 2))
-    tilt = [0.0, 0.0, 0.0]
-    num_atoms = 0
-    atom_data = []
-    for i, line in enumerate(lines):
-        if "atoms" in line:
-            num_atoms = int(line.strip().split()[0])
-        elif "xlo xhi" in line:
-            box[0] = list(map(float, line.strip().split()[0:2]))
-        elif "ylo yhi" in line:
-            box[1] = list(map(float, line.strip().split()[0:2]))
-        elif "zlo zhi" in line:
-            box[2] = list(map(float, line.strip().split()[0:2]))
-        elif "xy xz yz" in line:
-            tilt = list(map(float, line.strip().split()[0:3]))
-        elif "Atoms" in line:
-            atom_data = lines[i + 2:i + 2 + num_atoms]
-            break
-
-    species_list = []
-    for line in atom_data:
-        parts = line.strip().split()
-        atom_type = int(parts[1])
-        species_list.append(atom_type)
-
-    atom_symbols = [type_symbol_map[t] for t in species_list]
-    atom_counts = dict(Counter(atom_symbols))
-    target_indices = [i for i, s in enumerate(atom_symbols) if s == species]
-    if not target_indices:
-        raise ValueError(f"No atoms with symbol '{species}' found.")
-
+    # Read dump file
     with open(dump_file) as f:
         lines = f.readlines()
 
+    # Parse frames
     frames = []
+    num_atoms = None
+    box = np.zeros((3, 2))
+    tilt = [0.0, 0.0, 0.0]
+    atom_types = {}
+
     i = 0
     while i < len(lines):
         if "ITEM: TIMESTEP" in lines[i]:
             i += 2
         elif "ITEM: NUMBER OF ATOMS" in lines[i]:
+            num_atoms = int(lines[i + 1].strip())
             i += 2
         elif "ITEM: BOX BOUNDS" in lines[i]:
-            i += 4
+            for j in range(3):
+                box[j] = list(map(float, lines[i + 1 + j].strip().split()[0:2]))
+            if "xy xz yz" in lines[i]:
+                tilt = list(map(float, lines[i + 4].strip().split()[0:3]))
+                i += 4
+            else:
+                i += 3
+            i += 1
         elif "ITEM: ATOMS" in lines[i]:
             headers = lines[i].strip().split()[2:]
             id_index = headers.index("id")
+            type_index = headers.index("type")
             x_index = headers.index("x")
             y_index = headers.index("y")
             z_index = headers.index("z")
@@ -117,23 +93,39 @@ def extract_from_lammps(species: str,
             fz_index = headers.index("fz")
 
             atoms = np.zeros((num_atoms, 6))
+            ids = np.zeros(num_atoms, dtype=int)
+            types = np.zeros(num_atoms, dtype=int)
+
             for j in range(num_atoms):
                 parts = lines[i + 1 + j].strip().split()
-                idx = int(parts[id_index]) - 1
-                atoms[idx, 0] = float(parts[x_index])
-                atoms[idx, 1] = float(parts[y_index])
-                atoms[idx, 2] = float(parts[z_index])
-                atoms[idx, 3] = float(parts[fx_index])
-                atoms[idx, 4] = float(parts[fy_index])
-                atoms[idx, 5] = float(parts[fz_index])
+                aid = int(parts[id_index]) - 1
+                typ = int(parts[type_index])
+                ids[aid] = aid
+                types[aid] = typ
+                atoms[aid, 0] = float(parts[x_index])
+                atoms[aid, 1] = float(parts[y_index])
+                atoms[aid, 2] = float(parts[z_index])
+                atoms[aid, 3] = float(parts[fx_index])
+                atoms[aid, 4] = float(parts[fy_index])
+                atoms[aid, 5] = float(parts[fz_index])
             frames.append(atoms)
+            if not atom_types:
+                atom_types = types
             i += num_atoms + 1
         else:
             i += 1
 
-    n_frames = len(frames)
-    n_target = len(target_indices)
+    if not frames:
+        raise ValueError("No frames parsed from dump file.")
 
+    n_frames = len(frames)
+    atom_symbols = [type_symbol_map[t] for t in atom_types]
+    atom_counts = dict(Counter(atom_symbols))
+    target_indices = [i for i, s in enumerate(atom_symbols) if s == species]
+    if not target_indices:
+        raise ValueError(f"No atoms with symbol '{species}' found.")
+
+    n_target = len(target_indices)
     pos = np.zeros((n_frames, n_target, 3))
     force = np.zeros((n_frames, n_target, 3))
 
@@ -143,20 +135,18 @@ def extract_from_lammps(species: str,
             pos[t, j, :] = atoms[idx, 0:3]
             force[t, j, :] = atoms[idx, 3:6]
 
-    # Box lengths and triclinic matrix
     lx = box[0, 1] - box[0, 0]
     ly = box[1, 1] - box[1, 0]
     lz = box[2, 1] - box[2, 0]
     xy, xz, yz = tilt
     box_lengths = np.array([lx, ly, lz])
-
     lattice_matrix = [
-        [lx,  0.0, 0.0],
-        [xy,  ly,  0.0],
-        [xz,  yz,  lz]
+        [lx, 0.0, 0.0],
+        [xy, ly,  0.0],
+        [xz, yz,  lz]
     ]
 
-    # Unwrap position using fractional coordinates
+    # Unwrap
     pos_frac = pos / box_lengths[np.newaxis, np.newaxis, :]
     disp = np.zeros_like(pos_frac)
     disp[1:] = np.diff(pos_frac, axis=0)
@@ -165,18 +155,14 @@ def extract_from_lammps(species: str,
     disp = np.cumsum(disp, axis=0)
     pos_frac_unwrapped = pos_frac[0] + disp
 
-    # Save fractional coordinates (unwrapped)
     np.save(f"{prefix_pos}.npy", pos_frac_unwrapped)
     np.save(f"{prefix_force}.npy", force)
     print(f"{prefix_pos}.npy is created.")
     print(f"{prefix_force}.npy is created.")
 
-    # nsw: 실제 저장된 frame 개수 (position 수)로 갱신
-    nsw = n_frames
-
     cond = {
         "symbol": species,
-        "nsw": nsw,
+        "nsw": n_frames,
         "potim": potim_fs,
         "nblock": nblock,
         "temperature": temperature,
