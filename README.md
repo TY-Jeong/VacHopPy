@@ -1,4 +1,4 @@
-# VacHopPy 
+# VacHopPy 2.0.1
 
 ---
 **VacHopPy** is a Python package for analyzing vacancy hopping mechanisms based on *Ab initio* molecular dynamics (AIMD) simulations. A detailed explanation on **VacHopPy** framwork is available [**here**](https://arxiv.org/abs/2503.23467).
