@@ -229,6 +229,13 @@ Here, the arguments are:
 
 This command reads both the **LAMMPS data file** (e.g., coo.lammps) and the **LAMMPS dump file** (e.g., lammps.dump) specified in the `lammps.in`, and produces the same three output files: cond.json, pos.npy, and force.npy.
 
+To specify a custom LAMMPS data file (used when the `read_restart` command is present in the `lammps.in` file), use the `-d` flag:
+
+```bash
+vachoppy -u extract_data O lammps.in -l -d restart.lammps
+```
+Here, the `-d` option overrides the default data file path detected from the input script and explicitly provides the path to the LAMMPS data file (e.g., `restart.lammps`). This is required when continuing a simulation from a restart file using `read_restart`.
+
 Using LAMMPS with **machine learning potentials (MLPs)** can greatly reduce the computational cost required to sample sufficient hopping events in MD simulations. Although LAMMPS is not an AIMD engine, it can still provide reliable MD trajectories when used with a well-trained MLP.
 
 
