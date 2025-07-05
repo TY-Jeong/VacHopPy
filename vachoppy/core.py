@@ -316,15 +316,8 @@ class EffectiveHoppingParameter:
                 lattice_merged = copy.deepcopy(result.lattice)
                 continue
             
-            # 250705: For bug fix
-            try:
-                if int(np.sum(result.counts_unknown)) == 0:
-                    # no unknown path detected
-                    continue
-            except:
-                print("Error in int(np.sum(result.counts_unknown)):")
-                print(f"{result.temp}K, Label: {result.label}")
-                print(result.counts_unknown)
+            if int(np.sum(result.counts_unknown)) == 0:
+                # no unknown path detected
                 continue
             
             name_unknown_before = []
