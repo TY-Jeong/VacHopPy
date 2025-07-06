@@ -183,11 +183,14 @@ Example files can be downloaded from:
 
 To run **VacHopPy**, the user needs three types of input data: **AIMD data**, **POSCAR_LATTICE**, and **neb.csv** (*optional*). The current version of **VacHopPy** supports AIMD simulations performed under the NVT ensemble only.
 
+
 #### (1) AIMD data
 
 AIMD data can be extracted from the **VASP** or **LAMMPS** output files using the `vachoppy -u extract_data` command.
 
-- **Extracting AIMD data from VASP**
+---
+
+#### **Extracting AIMD data from VASP**
 
 Navigate to the `Example1/vasp` directory and run:
 
@@ -212,10 +215,12 @@ This command generates the following three output files:
 
 To reduce the size of the input data, only atoms of the specified type (as defined by the atom symbol) are included in the output files.
 
+---
 
-- **Extract AIMD data from LAMMPS**
+#### **Extract AIMD data from LAMMPS**
 
-Starting from version 2.0.0, **VacHopPy** supports integration with **LAMMPS**.
+Starting from version 2.0.0, **VacHopPy** supports integration with **LAMMPS**. Using LAMMPS with **machine learning potentials (MLPs)** can greatly reduce the computational cost required to sample sufficient hopping events in MD simulations. Although LAMMPS is not an AIMD engine, it can still provide reliable MD trajectories when used with a well-trained MLP.
+
 To extract AIMD data from LAMMPS output files, use the `-l` flag:
 
 Navigate to the `Example1/lammps` directory and run:
@@ -225,18 +230,58 @@ vachoppy -u extract_data O lammps.in -l
 ```
 Here, the arguments are:
 * atom symbol = O
-* MD result = lammps.in
+* LAMMPS input script = lammps.in
 
 This command reads both the **LAMMPS data file** (e.g., coo.lammps) and the **LAMMPS dump file** (e.g., lammps.dump) specified in the `lammps.in`, and produces the same three output files: cond.json, pos.npy, and force.npy.
 
 To specify a custom LAMMPS data file (used when the `read_restart` command is present in the `lammps.in` file), use the `-d` flag:
 
 ```bash
-vachoppy -u extract_data O lammps.in -l -d restart.lammps
+vachoppy -u extract_data O lammps.in -l -d coo.lammps
 ```
-Here, the `-d` option overrides the default data file path detected from the input script and explicitly provides the path to the LAMMPS data file (e.g., `restart.lammps`). This is required when continuing a simulation from a restart file using `read_restart`.
+Here, the `-d` option overrides the default data file path detected from the input script and explicitly provides the path to the LAMMPS data file (e.g., `coo.lammps` or `restart.lammps`). This is required when continuing a simulation from a restart file using `read_restart`.
 
-Using LAMMPS with **machine learning potentials (MLPs)** can greatly reduce the computational cost required to sample sufficient hopping events in MD simulations. Although LAMMPS is not an AIMD engine, it can still provide reliable MD trajectories when used with a well-trained MLP.
+To ensure compatibility with **VacHopPy**, your `lammps.in` (LAMMPS input script) must be configured as follows:
+
+```bash
+pair_coeff      * * {potential_file}   {atom_symbols}
+dump            all custom {dump_interval} lammps.dump id x y z fx fy fz
+dump_modify     sort id
+```
+
+* pair_coeff
+
+Must follow the format:
+```bash
+pair_coeff * * {potential_file} {atom_symbols}
+```
+where `{potential_file}` is the path to the interatomic potential (e.g., a machine learning potential), and `{atom_symbols}` lists the element symbols in the order corresponding to atom types.
+
+* dump
+
+The dump command must use the all group and custom style to output at least:
+
+```bash
+id x y z fx fy fz
+```
+The argument `{dump_interval}` specifies how many timesteps between consecutive dump outputs:
+
+```bash
+dump all custom {dump_interval} lammps.dump id x y z fx fy fz
+```
+VacHopPy records this `{dump_interval}` value as `nblock` in the `cond.json` file.
+
+> Note: Smaller `{dump_interval}` values (e.g., 1 or 2) are strongly recommended because **VacHopPy** uses a **time-averaged scheme** for hopping analysis.
+
+* dump_modify
+
+You must include:
+
+```bash
+dump_modify sort id
+```
+This ensures atom data is written in ascending atom ID order in every frame, which is critical for consistent indexing.
+
 
 
 #### (2) POSCAR_LATTICE
