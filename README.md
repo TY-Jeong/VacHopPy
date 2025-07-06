@@ -269,7 +269,7 @@ The argument `{dump_interval}` specifies how many timesteps between consecutive 
 ```bash
 dump all custom {dump_interval} lammps.dump id x y z fx fy fz
 ```
-VacHopPy records this `{dump_interval}` value as `nblock` in the `cond.json` file.
+**VacHopPy** records this `{dump_interval}` value as `nblock` in the `cond.json` file.
 
 > Note: Smaller `{dump_interval}` values (e.g., 1 or 2) are strongly recommended because **VacHopPy** uses a **time-averaged scheme** for hopping analysis.
 
