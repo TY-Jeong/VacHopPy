@@ -249,7 +249,7 @@ dump            all custom {dump_interval} lammps.dump id x y z fx fy fz
 dump_modify     sort id
 ```
 
-* pair_coeff
+* **pair_coeff**
 
 Must follow the format:
 ```bash
@@ -257,7 +257,7 @@ pair_coeff * * {potential_file} {atom_symbols}
 ```
 where `{potential_file}` is the path to the interatomic potential (e.g., a machine learning potential), and `{atom_symbols}` lists the element symbols in the order corresponding to atom types.
 
-* dump
+* **dump**
 
 The dump command must use the all group and custom style to output at least:
 
@@ -273,7 +273,7 @@ VacHopPy records this `{dump_interval}` value as `nblock` in the `cond.json` fil
 
 > Note: Smaller `{dump_interval}` values (e.g., 1 or 2) are strongly recommended because **VacHopPy** uses a **time-averaged scheme** for hopping analysis.
 
-* dump_modify
+* **dump_modify**
 
 You must include:
 
