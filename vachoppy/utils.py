@@ -31,6 +31,7 @@ def get_path_single(interval,
                     pos_file="pos.npy",
                     force_file="force.npy",
                     cond_file="cond.json",
+                    use_incomplete_encounter=False,
                     rmax=3.25):
     
     with open('cond.json', 'r') as f:
@@ -66,6 +67,11 @@ def get_path_single(interval,
         lattice=lattice,
         trajectory=traj,
         verbose=True
+    )
+    
+    enc = Encounter(
+        analyzer=anal,
+        use_incomplete_encounter=use_incomplete_encounter
     )
 
 

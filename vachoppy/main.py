@@ -111,6 +111,9 @@ if check_util:
                                 type=float,
                                 default=3.25,
                                 help='maximum distance for hopping path identification (default: 3.25)')
+            parser.add_argument('--use_complete_encounter',
+                                action='store_true',
+                                help='')
             
         if mode_value == 'combine_vasprun':
             parser.add_argument('-v1', '--vasprun_in1',
@@ -374,7 +377,8 @@ def main():
                 pos_file=args.pos,
                 force_file=args.force,
                 cond_file=args.cond,
-                rmax=args.rmax
+                rmax=args.rmax,
+                use_incomplete_encounter=not(args.use_complete_encounter)
             )
             
         if mode_value == 'combine_vasprun':
