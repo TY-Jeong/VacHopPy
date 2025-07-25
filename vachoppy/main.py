@@ -76,14 +76,10 @@ if check_util:
                                 help='symbol of atom species')
             parser.add_argument('md_result',
                                 type=str,
-                                help='MD result file')
+                                help='MD result file (vasprun.xml or log.lammps)')
             parser.add_argument('-l', '--lammps',
                                 action='store_true',
                                 help='flag for lammps data (default: False)')
-            parser.add_argument('-d', '--data',
-                                type=str,
-                                default=None,
-                                help='path to lammps data file (required if using read_restart)')
             
         if mode_value == 'combine_vasprun':
             parser.add_argument('-v1', '--vasprun_in1',
@@ -335,8 +331,7 @@ def main():
             if args.lammps:
                 # read lammps data
                 extract_from_lammps(args.symbol, 
-                                    args.md_result,
-                                    data_file_override=args.data)
+                                    args.md_result)
             else:
                 # reand vasp data
                 extract_from_vasp(args.symbol, vasprun=args.md_result)

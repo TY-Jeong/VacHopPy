@@ -8,204 +8,418 @@ from lxml import etree
 from collections import Counter
 from pymatgen.io.vasp.outputs import Vasprun
 
-
-def parse_in_file(lammps_in, data_override=None):
-    with open(lammps_in) as f:
-        lines = f.readlines()
-    
-    potim = nblock = temp = None
-    atom_symbols = []
-    lammps_dump = None
-    lammps_data = None
-    use_restart = False
-    
-    for line in lines:
-        line = line.strip()
-        # timestep
-        if line.startswith("timestep"):
-            potim = float(line.split()[1])
-        # dump
-        elif line.startswith("dump") and "custom" in line:
-            parts = line.split()
-            try:
-                nblock = int(parts[4])
-                lammps_dump = parts[5]
-            except:
-                pass
-        # temp
-        elif line.startswith("fix") and "nvt" in line and "temp" in line:
-            match = re.search(r"temp\s+([0-9.]+)\s+([0-9.]+)", line)
-            if match:
-                t1, t2 = float(match.group(1)), float(match.group(2))
-                if t1 != t2:
-                    raise ValueError(f"TEBEG ({t1}) and TEEND ({t2}) are not equal.")
-                temp = t1
-        # atom symbols
-        elif line.startswith("pair_coeff") and "*" in line:
-            atom_symbols = line.split()[4:]
-        # data file
-        elif line.startswith("read_data"):
-            lammps_data = line.split()[1]
-        elif line.startswith("read_restart"):
-            use_restart = True
-    
-    if use_restart and data_override:
-        lammps_data = data_override
-    
-    if None in [potim, nblock, temp] or not lammps_dump or not atom_symbols or not lammps_data:
-        raise ValueError("Failed to parse required variables from input file.")
-    
-    atom_symbol_map = {i + 1: sym for i, sym in enumerate(atom_symbols)}
-    return potim, nblock, temp, atom_symbol_map, lammps_dump, lammps_data
+import re
+import numpy as np
+import json
+import os
+from tqdm import tqdm
 
 
-def extract_from_lammps(species: str,
-                        in_file: str,
-                        data_file_override=None,
-                        prefix_pos: str = "pos",
-                        prefix_force: str = "force",
-                        prefix_cond: str = "cond"):
+def get_lattice_from_bounds(bounds: list[str]) -> list[list[float]]:
+    tokens = [list(map(float, line.split())) for line in bounds]
+    if len(tokens[0]) == 2:  # Orthogonal
+        (xlo, xhi), (ylo, yhi), (zlo, zhi) = tokens
+        lx = xhi - xlo
+        ly = yhi - ylo
+        lz = zhi - zlo
+        lattice = [
+            [lx, 0.0, 0.0],
+            [0.0, ly, 0.0],
+            [0.0, 0.0, lz]
+        ]
+    elif len(tokens[0]) == 3:  # Triclinic
+        (xlo, xhi, xy), (ylo, yhi, xz), (zlo, zhi, yz) = tokens
+        lx = xhi - xlo
+        ly = yhi - ylo
+        lz = zhi - zlo
+        lattice = [
+            [lx, 0.0, 0.0],
+            [xy, ly, 0.0],
+            [xz, yz, lz]
+        ]
+    else:
+        raise ValueError("Unknown BOX BOUNDS format.")
+    return lattice
 
-    potim_ps, nblock, temperature, type_symbol_map, dump_file, data_file = parse_in_file(
-        in_file, data_override=data_file_override)
-    potim_fs = potim_ps * 1000.0  # ps → fs
+def get_nsw_from_dump(dump_file, nblock, num_atoms):
+    frame_size = num_atoms + 9
+    read_bytes = frame_size * 2 * 100
+    with open(dump_file, "rb") as f:
+        f.seek(0, os.SEEK_END)
+        file_size = f.tell()
+        f.seek(max(file_size - read_bytes, 0), os.SEEK_SET)
+        tail = f.read().decode(errors="ignore").splitlines()
 
-    with open(data_file) as f:
-        lines = f.readlines()
-
-    num_atoms = None
-    atom_data_raw_start = None
-    for i, line in enumerate(lines):
-        line_strip = line.strip()
-        # parse total number of atoms
-        if num_atoms is None and line_strip.lower().endswith("atoms") and any(c.isdigit() for c in line_strip):
-            num_atoms = int(line_strip.split()[0])
-        # start line for atomic coordinates
-        elif line_strip.startswith("Atoms"):
-            atom_data_raw_start = i
+    last_step = None
+    for i in reversed(range(len(tail))):
+        if tail[i].startswith("ITEM: TIMESTEP"):
+            last_step = int(tail[i + 1].strip())
             break
 
-    if num_atoms is None or atom_data_raw_start is None:
-        raise ValueError("Failed to find number of atoms or Atoms section in data file.")
-
-    atom_data = []
-    line_idx = atom_data_raw_start + 1
-    while len(atom_data) < num_atoms and line_idx < len(lines):
-        line_stripped = lines[line_idx].strip()
-        if line_stripped != "":
-            parts = line_stripped.split()
-            atom_id = int(parts[0])
-            atom_type = int(parts[1])
-            atom_data.append((atom_id, atom_type))
-        line_idx += 1
-
-    atom_data.sort(key=lambda x: x[0])
-    species_list = [type_symbol_map[atom_type] for _, atom_type in atom_data]
-
-    atom_counts = dict(Counter(species_list))
-    target_indices = [i for i, s in enumerate(species_list) if s == species]
-    if not target_indices:
-        raise ValueError(f"No atoms with symbol '{species}' found.")
-
-    frame_count = 0
-    box_lengths = None
-    lattice_matrix = None
-
-    with open(dump_file) as f:
+    with open(dump_file, "r") as f:
         for line in f:
-            if "ITEM: BOX BOUNDS" in line:
-                bounds = []
-                tilt_factors = [0.0, 0.0, 0.0]
-                for i in range(3):
-                    parts = list(map(float, f.readline().strip().split()))
-                    bounds.append(parts[:2])
-                    if len(parts) == 3:
-                        tilt_factors[i] = parts[2]
-                lx = bounds[0][1] - bounds[0][0]
-                ly = bounds[1][1] - bounds[1][0]
-                lz = bounds[2][1] - bounds[2][0]
-                xy, xz, yz = tilt_factors
-
-                if lattice_matrix is None:
-                    lattice_matrix = [
-                        [lx,  0.0, 0.0],
-                        [xy,  ly,  0.0],
-                        [xz,  yz,  lz]
-                    ]
-                    box_lengths = np.array([lx, ly, lz])
-            elif "ITEM: ATOMS" in line:
-                # skip atom lines
-                for _ in range(num_atoms):
-                    f.readline()
-                frame_count += 1
-
-    n_frames = frame_count
-    n_target = len(target_indices)
-
-    pos_memmap = np.lib.format.open_memmap(f"{prefix_pos}.npy",
-                                           mode='w+',
-                                           dtype=np.float64,
-                                           shape=(n_frames, n_target, 3))
-    force_memmap = np.lib.format.open_memmap(f"{prefix_force}.npy",
-                                             mode='w+',
-                                             dtype=np.float64,
-                                             shape=(n_frames, n_target, 3))
-
-    with open(dump_file) as f:
-        t = 0
-        prev_pos_frac = None
-        while True:
-            line = f.readline()
-            if not line:
+            if line.startswith("ITEM: TIMESTEP"):
+                first_step = int(next(f).strip())
                 break
 
-            if "ITEM: BOX BOUNDS" in line:
-                for _ in range(3):
-                    f.readline()
+    if first_step is None or last_step is None:
+        raise ValueError("Could not find timestep info")
 
-            elif "ITEM: ATOMS" in line:
-                headers = line.strip().split()[2:]
-                col_idx = {name: idx for idx, name in enumerate(headers)}
-                atoms = np.zeros((num_atoms, 6))
+    return 1 + (last_step - first_step) // nblock
+
+def extract_from_lammps(species, 
+                        log_path, 
+                        pos_prefix='pos', 
+                        force_prefix='force', 
+                        cond_prefix='cond'):
+    timestep = None
+    dump_file = None
+    nblock = None
+    temperature = None
+    symbol_map = {}
+
+    with open(log_path, 'r') as f:
+        lines = f.readlines()
+
+    for line in lines:
+        if line.strip().startswith("timestep"):
+            timestep = float(line.strip().split()[1]) * 1000  # ps -> fs
+        elif line.startswith("dump "):
+            match = re.search(r'dump\s+\S+\s+all\s+custom\s+(\d+)\s+(\S+)', line)
+            if match:
+                nblock = int(match.group(1))
+                dump_file = match.group(2)
+        elif line.startswith("fix "):
+            match = re.search(r'temp\s+([0-9.]+)\s+[0-9.]+\s+[0-9.]+', line)
+            if match:
+                temperature = float(match.group(1))
+        elif line.startswith("pair_coeff "):
+            parts = line.strip().split()
+            i = 1
+            while parts[i] == '*':
+                i += 1
+            symbols = parts[i + 1:]
+            for i, s in enumerate(symbols):
+                symbol_map[i + 1] = s
+
+    if timestep is None:
+        raise RuntimeError("timestep not found in log file")
+    if dump_file is None:
+        raise RuntimeError("dump file not found in log file")
+    if nblock is None:
+        raise RuntimeError("nblock not found in log file")
+    if temperature is None:
+        raise RuntimeError("temperature not found in log file")
+    if not symbol_map:
+        raise RuntimeError("pair_coeff symbols not found in log file")
+
+    selected_types = [t for t, sym in symbol_map.items() if sym == species]
+    if not selected_types:
+        raise ValueError(f"species '{species}' not found in symbol_map")
+
+    num_atoms = None
+    lattice = None
+    check_num_atoms, check_lattice, check_idx = False, False, False
+    first_frame_atoms = 0
+    with open(dump_file, 'r') as f:
+        while True:
+            line = f.readline()
+            if (not check_num_atoms) and line.startswith("ITEM: NUMBER OF ATOMS"):
+                num_atoms = int(f.readline().strip())
+                check_num_atoms = True
+            elif (not check_lattice) and line.startswith("ITEM: BOX BOUNDS"):
+                bounds_lines = [f.readline().strip() for _ in range(3)]
+                lattice = get_lattice_from_bounds(bounds_lines)
+                check_lattice = True
+            elif (not check_idx) and line.startswith("ITEM: ATOMS"):
+                headers = line.split()[2:]
+                type_idx = headers.index("type")
+                xs_idx = headers.index("xs")
+                ys_idx = headers.index("ys")
+                zs_idx = headers.index("zs")
+                ix_idx = headers.index("ix")
+                iy_idx = headers.index("iy")
+                iz_idx = headers.index("iz")
+                fx_idx = headers.index("fx")
+                fy_idx = headers.index("fy")
+                fz_idx = headers.index("fz")
+                check_idx = True
+                
                 for _ in range(num_atoms):
-                    parts = f.readline().strip().split()
-                    atom_id = int(parts[col_idx['id']])
-                    index = atom_id - 1
-                    atoms[index, :3] = [float(parts[col_idx[c]]) for c in ('x', 'y', 'z')]
-                    atoms[index, 3:] = [float(parts[col_idx[c]]) for c in ('fx', 'fy', 'fz')]
+                    atom_line = f.readline().split()
+                    if int(atom_line[type_idx]) in selected_types:
+                        first_frame_atoms += 1
+            
+            if check_num_atoms and check_lattice and check_idx:
+                break
 
-                pos_frac_frame = atoms[target_indices, :3] / box_lengths[np.newaxis, :]
+    nsw = get_nsw_from_dump(dump_file, nblock, num_atoms)
 
-                if t == 0:
-                    pos_frac_unwrapped = pos_frac_frame
-                else:
-                    delta = pos_frac_frame - prev_pos_frac
-                    delta[delta > 0.5] -= 1
-                    delta[delta < -0.5] += 1
-                    pos_frac_unwrapped = pos_memmap[t - 1] + delta
+    pos_memmap = np.memmap(pos_prefix + '.npy', 
+                           dtype='float64', 
+                           mode='w+', 
+                           shape=(nsw, first_frame_atoms, 3))
+    force_memmap = np.memmap(force_prefix + '.npy', 
+                             dtype='float64', 
+                             mode='w+', 
+                             shape=(nsw, first_frame_atoms, 3))
 
-                pos_memmap[t] = pos_frac_unwrapped
-                force_memmap[t] = atoms[target_indices, 3:]
-                prev_pos_frac = pos_frac_frame
-                t += 1
+    frame_idx = 0
+    with open(dump_file, 'r') as f:
+        for _ in tqdm(range(nsw), desc=f"Reading {dump_file}"):
+            while True:
+                line = f.readline()
+                if not line:
+                    break
+                if line.startswith("ITEM: TIMESTEP"):
+                    _ = f.readline()
+                elif line.startswith("ITEM: NUMBER OF ATOMS"):
+                    _ = f.readline()
+                elif line.startswith("ITEM: BOX BOUNDS"):
+                    _ = [f.readline() for _ in range(3)]
+                elif line.startswith("ITEM: ATOMS"):
+                    # _ = f.readline()
+                    count = 0
+                    for _ in range(num_atoms):
+                        atom_line = f.readline().split()
+                        atom_type = int(atom_line[type_idx])
+                        if atom_type in selected_types:
+                            frac_coord = [
+                                float(atom_line[xs_idx]) + int(atom_line[ix_idx]),
+                                float(atom_line[ys_idx]) + int(atom_line[iy_idx]),
+                                float(atom_line[zs_idx]) + int(atom_line[iz_idx])
+                            ]
+                            force = [
+                                float(atom_line[fx_idx]),
+                                float(atom_line[fy_idx]),
+                                float(atom_line[fz_idx])
+                            ]
+                            pos_memmap[frame_idx, count] = frac_coord
+                            force_memmap[frame_idx, count] = force
+                            count += 1
+                    frame_idx += 1
+                    break
 
     pos_memmap.flush()
     force_memmap.flush()
-    print(f"{prefix_pos}.npy is created.")
-    print(f"{prefix_force}.npy is created.")
+
+    atom_counts = {s: 0 for s in set(symbol_map.values())}
+    atom_counts[species] = first_frame_atoms
 
     cond = {
         "symbol": species,
-        "nsw": n_frames,
-        "potim": potim_fs,
+        "nsw": (nsw - 1) * nblock + 1,
+        "potim": timestep,
         "nblock": nblock,
         "temperature": temperature,
         "atom_counts": atom_counts,
-        "lattice": lattice_matrix
+        "lattice": lattice
     }
-    with open(f"{prefix_cond}.json", "w") as f:
+
+    with open(cond_prefix + ".json", "w") as f:
         json.dump(cond, f, indent=2)
-    print(f"{prefix_cond}.json is created.")
+
+    print(f"{pos_prefix}.npy, {force_prefix}.npy, {cond_prefix}.json created.")
+
+
+
+# def parse_in_file(lammps_in, data_override=None):
+#     with open(lammps_in) as f:
+#         lines = f.readlines()
+    
+#     potim = nblock = temp = None
+#     atom_symbols = []
+#     lammps_dump = None
+#     lammps_data = None
+#     use_restart = False
+    
+#     for line in lines:
+#         line = line.strip()
+#         # timestep
+#         if line.startswith("timestep"):
+#             potim = float(line.split()[1])
+#         # dump
+#         elif line.startswith("dump") and "custom" in line:
+#             parts = line.split()
+#             try:
+#                 nblock = int(parts[4])
+#                 lammps_dump = parts[5]
+#             except:
+#                 pass
+#         # temp
+#         elif line.startswith("fix") and "nvt" in line and "temp" in line:
+#             match = re.search(r"temp\s+([0-9.]+)\s+([0-9.]+)", line)
+#             if match:
+#                 t1, t2 = float(match.group(1)), float(match.group(2))
+#                 if t1 != t2:
+#                     raise ValueError(f"TEBEG ({t1}) and TEEND ({t2}) are not equal.")
+#                 temp = t1
+#         # atom symbols
+#         elif line.startswith("pair_coeff") and "*" in line:
+#             atom_symbols = line.split()[4:]
+#         # data file
+#         elif line.startswith("read_data"):
+#             lammps_data = line.split()[1]
+#         elif line.startswith("read_restart"):
+#             use_restart = True
+    
+#     if use_restart and data_override:
+#         lammps_data = data_override
+    
+#     if None in [potim, nblock, temp] or not lammps_dump or not atom_symbols or not lammps_data:
+#         raise ValueError("Failed to parse required variables from input file.")
+    
+#     atom_symbol_map = {i + 1: sym for i, sym in enumerate(atom_symbols)}
+#     return potim, nblock, temp, atom_symbol_map, lammps_dump, lammps_data
+
+
+# def extract_from_lammps(species: str,
+#                         in_file: str,
+#                         data_file_override=None,
+#                         prefix_pos: str = "pos",
+#                         prefix_force: str = "force",
+#                         prefix_cond: str = "cond"):
+
+#     potim_ps, nblock, temperature, type_symbol_map, dump_file, data_file = parse_in_file(
+#         in_file, data_override=data_file_override)
+#     potim_fs = potim_ps * 1000.0  # ps → fs
+
+#     with open(data_file) as f:
+#         lines = f.readlines()
+
+#     num_atoms = None
+#     atom_data_raw_start = None
+#     for i, line in enumerate(lines):
+#         line_strip = line.strip()
+#         # parse total number of atoms
+#         if num_atoms is None and line_strip.lower().endswith("atoms") and any(c.isdigit() for c in line_strip):
+#             num_atoms = int(line_strip.split()[0])
+#         # start line for atomic coordinates
+#         elif line_strip.startswith("Atoms"):
+#             atom_data_raw_start = i
+#             break
+
+#     if num_atoms is None or atom_data_raw_start is None:
+#         raise ValueError("Failed to find number of atoms or Atoms section in data file.")
+
+#     atom_data = []
+#     line_idx = atom_data_raw_start + 1
+#     while len(atom_data) < num_atoms and line_idx < len(lines):
+#         line_stripped = lines[line_idx].strip()
+#         if line_stripped != "":
+#             parts = line_stripped.split()
+#             atom_id = int(parts[0])
+#             atom_type = int(parts[1])
+#             atom_data.append((atom_id, atom_type))
+#         line_idx += 1
+
+#     atom_data.sort(key=lambda x: x[0])
+#     species_list = [type_symbol_map[atom_type] for _, atom_type in atom_data]
+
+#     atom_counts = dict(Counter(species_list))
+#     target_indices = [i for i, s in enumerate(species_list) if s == species]
+#     if not target_indices:
+#         raise ValueError(f"No atoms with symbol '{species}' found.")
+
+#     frame_count = 0
+#     box_lengths = None
+#     lattice_matrix = None
+
+#     with open(dump_file) as f:
+#         for line in f:
+#             if "ITEM: BOX BOUNDS" in line:
+#                 bounds = []
+#                 tilt_factors = [0.0, 0.0, 0.0]
+#                 for i in range(3):
+#                     parts = list(map(float, f.readline().strip().split()))
+#                     bounds.append(parts[:2])
+#                     if len(parts) == 3:
+#                         tilt_factors[i] = parts[2]
+#                 lx = bounds[0][1] - bounds[0][0]
+#                 ly = bounds[1][1] - bounds[1][0]
+#                 lz = bounds[2][1] - bounds[2][0]
+#                 xy, xz, yz = tilt_factors
+
+#                 if lattice_matrix is None:
+#                     lattice_matrix = [
+#                         [lx,  0.0, 0.0],
+#                         [xy,  ly,  0.0],
+#                         [xz,  yz,  lz]
+#                     ]
+#                     box_lengths = np.array([lx, ly, lz])
+#             elif "ITEM: ATOMS" in line:
+#                 # skip atom lines
+#                 for _ in range(num_atoms):
+#                     f.readline()
+#                 frame_count += 1
+
+#     n_frames = frame_count
+#     n_target = len(target_indices)
+
+#     pos_memmap = np.lib.format.open_memmap(f"{prefix_pos}.npy",
+#                                            mode='w+',
+#                                            dtype=np.float64,
+#                                            shape=(n_frames, n_target, 3))
+#     force_memmap = np.lib.format.open_memmap(f"{prefix_force}.npy",
+#                                              mode='w+',
+#                                              dtype=np.float64,
+#                                              shape=(n_frames, n_target, 3))
+
+#     with open(dump_file) as f:
+#         t = 0
+#         prev_pos_frac = None
+#         while True:
+#             line = f.readline()
+#             if not line:
+#                 break
+
+#             if "ITEM: BOX BOUNDS" in line:
+#                 for _ in range(3):
+#                     f.readline()
+
+#             elif "ITEM: ATOMS" in line:
+#                 headers = line.strip().split()[2:]
+#                 col_idx = {name: idx for idx, name in enumerate(headers)}
+#                 atoms = np.zeros((num_atoms, 6))
+#                 for _ in range(num_atoms):
+#                     parts = f.readline().strip().split()
+#                     atom_id = int(parts[col_idx['id']])
+#                     index = atom_id - 1
+#                     atoms[index, :3] = [float(parts[col_idx[c]]) for c in ('x', 'y', 'z')]
+#                     atoms[index, 3:] = [float(parts[col_idx[c]]) for c in ('fx', 'fy', 'fz')]
+
+#                 pos_frac_frame = atoms[target_indices, :3] / box_lengths[np.newaxis, :]
+
+#                 if t == 0:
+#                     pos_frac_unwrapped = pos_frac_frame
+#                 else:
+#                     delta = pos_frac_frame - prev_pos_frac
+#                     delta[delta > 0.5] -= 1
+#                     delta[delta < -0.5] += 1
+#                     pos_frac_unwrapped = pos_memmap[t - 1] + delta
+
+#                 pos_memmap[t] = pos_frac_unwrapped
+#                 force_memmap[t] = atoms[target_indices, 3:]
+#                 prev_pos_frac = pos_frac_frame
+#                 t += 1
+
+#     pos_memmap.flush()
+#     force_memmap.flush()
+#     print(f"{prefix_pos}.npy is created.")
+#     print(f"{prefix_force}.npy is created.")
+
+#     cond = {
+#         "symbol": species,
+#         "nsw": n_frames,
+#         "potim": potim_fs,
+#         "nblock": nblock,
+#         "temperature": temperature,
+#         "atom_counts": atom_counts,
+#         "lattice": lattice_matrix
+#     }
+#     with open(f"{prefix_cond}.json", "w") as f:
+#         json.dump(cond, f, indent=2)
+#     print(f"{prefix_cond}.json is created.")
 
 
 
@@ -301,36 +515,6 @@ def extract_from_vasp(species: str,
 
     print(f"{cond_file} is created.")
 
-
-# def combine_vasprun(vasprun1, 
-#                     vasprun2,
-#                     vasprun_out = "vasprun_combined.xml"):
-#     # Load and merge files
-#     v1 = etree.parse(vasprun1)
-#     v2 = etree.parse(vasprun2)
-
-#     r1 = v1.getroot()
-#     r2 = v2.getroot()
-
-#     # remove duplicated <parameters> from v2
-#     p2 = r2.find("parameters")
-#     if p2 is not None:
-#         r2.remove(p2)
-
-#     # append calculations from v2
-#     calcs2 = r2.findall("calculation")
-#     for c in calcs2:
-#         r1.append(c)
-
-#     # recalculate total steps
-#     nsw_total = len(r1.findall("calculation"))
-
-#     # fix ALL <i name="NSW"> across entire tree
-#     for elem in r1.findall(".//i[@name='NSW']"):
-#         elem.text = str(nsw_total)
-
-#     # save result
-#     etree.ElementTree(r1).write(vasprun_out, pretty_print=True)
 
 def combine_vasprun(vasprun1, 
                     vasprun2,
