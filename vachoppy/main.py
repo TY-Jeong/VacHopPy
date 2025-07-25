@@ -43,11 +43,17 @@ group.add_argument(
 # utilities
 group.add_argument(
     '-u',
-    choices=['extract_data', 'combine_vasprun', 'crop_vasprun', 'fingerprint', 'cosine_distance'],
+    choices=['extract_data',
+             'hopping_history',
+             'combine_vasprun', 
+             'crop_vasprun', 
+             'fingerprint', 
+             'cosine_distance'],
     dest='util',
     help=(
         """Choose mode:
         'extract_data'    - Extract input data from MD results
+        'hopping_history' - Print hopping history from a single dataset
         'combine_vasprun' - Combine two successive vasprun.xml
         'crop_vasprun'.   - Crop vasprun.xml
         'fingerprint'     - Extract fingerprint
@@ -80,6 +86,31 @@ if check_util:
             parser.add_argument('-l', '--lammps',
                                 action='store_true',
                                 help='flag for lammps data (default: False)')
+            
+        if mode_value == 'hopping_history':
+            parser.add_argument('interval',
+                                type=float,
+                                help='time interval for averaging in ps')
+            parser.add_argument('-l', '--lattice',
+                                type=str,
+                                default='POSCAR_LATTICE',
+                                help='lattice file in POSCAR format (default: POSCAR_LATTICE)')
+            parser.add_argument('-p', '--pos',
+                                type=str,
+                                default='pos.npy',
+                                help='pos.npy file (default: pos.npy)')
+            parser.add_argument('-f', '--force',
+                                type=str,
+                                default='force.npy',
+                                help='force.npy file (default: force.npy)')
+            parser.add_argument('-c', '--cond',
+                                type=str,
+                                default='cond.json',
+                                help='cond.json file (default: cond.json)')
+            parser.add_argument('--rmax',
+                                type=float,
+                                default=3.25,
+                                help='maximum distance for hopping path identification (default: 3.25)')
             
         if mode_value == 'combine_vasprun':
             parser.add_argument('-v1', '--vasprun_in1',
@@ -335,6 +366,16 @@ def main():
             else:
                 # reand vasp data
                 extract_from_vasp(args.symbol, vasprun=args.md_result)
+                
+        if mode_value == 'hopping_history':
+            get_path_single(
+                interval=args.interval,
+                poscar_lattice=args.lattice,
+                pos_file=args.pos,
+                force_file=args.force,
+                cond_file=args.cond,
+                rmax=args.rmax
+            )
             
         if mode_value == 'combine_vasprun':
             combine_vasprun(args.vasprun_in1, args.vasprun_in2, args.vasprun_out)
