@@ -32,7 +32,8 @@ def get_path_single(interval,
                     force_file="force.npy",
                     cond_file="cond.json",
                     use_incomplete_encounter=False,
-                    rmax=3.25):
+                    rmax=3.25,
+                    animation=False):
     
     with open('cond.json', 'r') as f:
         data = json.load(f)
@@ -73,6 +74,14 @@ def get_path_single(interval,
         analyzer=anal,
         use_incomplete_encounter=use_incomplete_encounter
     )
+    
+    if animation:
+        traj.animation(
+            index='all',
+            step='all',
+            fps=20,
+            dpi=150
+        )
 
 
 def get_lattice_from_bounds(bounds: list[str]) -> list[list[float]]:

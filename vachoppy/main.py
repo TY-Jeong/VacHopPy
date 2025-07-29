@@ -114,6 +114,9 @@ if check_util:
             parser.add_argument('--use_complete_encounter',
                                 action='store_true',
                                 help='')
+            parser.add_argument('-a', '--animation',
+                                action='store_true',
+                                help='if use, animation will be generated.')
             
         if mode_value == 'combine_vasprun':
             parser.add_argument('-v1', '--vasprun_in1',
@@ -378,7 +381,8 @@ def main():
                 force_file=args.force,
                 cond_file=args.cond,
                 rmax=args.rmax,
-                use_incomplete_encounter=not(args.use_complete_encounter)
+                use_incomplete_encounter=not(args.use_complete_encounter),
+                animation=args.animation
             )
             
         if mode_value == 'combine_vasprun':
