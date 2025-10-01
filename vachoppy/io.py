@@ -2,10 +2,7 @@ import os
 import time
 import h5py
 import json
-import inspect
 import itertools
-import functools
-import tracemalloc
 import numpy as np
 import MDAnalysis as mda
 from tqdm import tqdm
@@ -19,47 +16,14 @@ from pymatgen.core.structure import Structure
 from pymatgen.analysis.local_env import VoronoiNN
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
+from vachoppy.utils import monitor_performance
+
 BOLD = '\033[1m'
 CYAN = '\033[36m'
 MAGENTA = '\033[35m'
 GREEN = '\033[92m' 
 RED = '\033[91m' 
 RESET = '\033[0m'
-
-def monitor_performance(func):
-    """
-    A decorator that measures and prints the execution time 
-    and peak memory usage of a function.
-    """
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        is_verbose = False
-        try:
-            sig = inspect.signature(func)
-            bound_args = sig.bind(*args, **kwargs)
-            bound_args.apply_defaults()
-            is_verbose = bound_args.arguments.get('verbose', False)
-        except TypeError:
-            # This handles cases where arguments don't match the signature
-            pass
-
-        if not is_verbose:
-            return func(*args, **kwargs)
-
-        tracemalloc.start()
-        start_time = time.perf_counter()
-        result = func(*args, **kwargs)
-        end_time = time.perf_counter()
-        elapsed_time = end_time - start_time
-        _, peak_mem = tracemalloc.get_traced_memory()
-        tracemalloc.stop()
-        
-        print(f"Execution Time: {elapsed_time:.3f} seconds")
-        print(f"Peak RAM Usage: {peak_mem / 1024**3:.3f} GB")
-        
-        return result
-    return wrapper
-
 
 @monitor_performance
 def parse_md(filename: str,

@@ -4,24 +4,27 @@ import h5py
 import json
 import math
 import copy   
+import itertools
 import numpy as np
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 from PIL import Image
-from tqdm import tqdm
-from colorama import Fore, Style
+from typing import Union
+from pathlib import Path
+from tqdm.auto import tqdm
 from tabulate import tabulate
+from colorama import Fore, Style
+from joblib import Parallel, delayed
 
 from collections import defaultdict
 from itertools import permutations
 
-# For Arrow3D
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 
-import plotly.graph_objects as go
-from vachoppy.io import Site, monitor_performance, parse_lammps
+from vachoppy.utils import monitor_performance
 
 # color map for tqdm
 BOLD = '\033[1m'
@@ -48,54 +51,6 @@ class Arrow3D(FancyArrowPatch):
         xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)
         self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
         super().draw(renderer)
-
-
-class Calculator(Trajectory):
-    @monitor_performance
-    def __init__(self,
-                 traj: str,
-                 site,
-                 t_interval: float,
-                 eps: float = 1.0e-3,
-                 use_incomplete_encounter: bool = True,
-                 verbose: bool = True):
-        # Trajectory
-        super().__init__(
-            traj=traj, site=site, t_interval=t_interval, verbose=False
-        )
-        
-        # TrajectoryAnalyzer
-        self.analyzer = TrajectoryAnalyzer(
-            trajectory=self, site=site, eps=eps, verbose=False
-        )
-        self.hopping_history = self.analyzer.hopping_history
-        self.counts = self.analyzer.counts
-        self.path_unknown = self.analyzer.path_unknown
-        self.unknown_name = self.analyzer.unknown_name
-        self.counts_unknown = self.analyzer.counts_unknown
-        self.residence_time = self.analyzer.residence_time
-        self.msd_rand = self.analyzer.msd_rand
-        
-        # Encounter
-        self.encounter = Encounter(
-            analyzer=self.analyzer,
-            use_incomplete_encounter=use_incomplete_encounter,
-            verbose=False
-        )
-        self.f_cor = self.encounter.f_cor
-        self.encounter_num = self.encounter.num_encounter
-        self.encounter_msd = self.encounter.msd
-        self.encounter_path_names = self.encounter.path_name
-        self.encounter_path_counts = self.encounter.path_count
-        self.encounter_path_distance = self.encounter.path_distance
-        
-        self.verbose = verbose
-        if self.verbose:
-            self.summary()
-    
-    def summary(self):
-        self.analyzer.summary()
-        self.encounter.summary()
 
 
 class Trajectory:
@@ -1367,7 +1322,7 @@ class TrajectoryAnalyzer:
         self.eps = eps
         self.verbose = verbose
         
-        # site(lattice) 정보
+        # site(lattice)
         self.path = site.path
         self.path_name = site.path_name
         self.site_name = site.site_name
@@ -1567,7 +1522,7 @@ class Encounter:
                  verbose: bool = True):
         self.analyzer = analyzer
         self.trajectory = analyzer.trajectory
-        self.site = analyzer.site # [NEW] site 객체 직접 참조
+        self.site = analyzer.site
         self.eps = analyzer.eps
         self.use_incomplete_encounter = use_incomplete_encounter
         self.verbose = verbose
@@ -1625,12 +1580,10 @@ class Encounter:
 
     def _get_unwrapped_vacancy_trajectory(self) -> None:
         """Generates a simplified unwrapped trajectory for all vacancies combined."""
-        # [MODIFIED] Trajectory 객체의 unwrapped 데이터 직접 사용
         source = self.trajectory.unwrapped_vacancy_trajectory_coord_cart
         num_steps = self.trajectory.num_steps
         num_vac = self.trajectory.num_vacancies
         
-        # 딕셔너리를 (num_steps, num_vac, 3) 모양의 배열로 변환
         self.vacancy_coord_unwrap = np.zeros((num_steps, num_vac, 3))
         for step, coords in source.items():
             if coords is not None and len(coords) == num_vac:
@@ -1816,3 +1769,482 @@ class Encounter:
         ]
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
         print('')
+
+
+class Calculator(Trajectory):
+    """
+    Orchestrates the full vacancy diffusion analysis pipeline from a single trajectory.
+
+    This high-level class inherits from the Trajectory class to perform initial
+    data processing. It then provides a `calculate` method to run the subsequent
+    analysis workflow (TrajectoryAnalyzer -> Encounter) for computing detailed
+    diffusion properties like the correlation factor.
+
+    For convenience, it copies key analytical results from the child analyzer
+    objects to its own attributes after `calculate()` is run.
+
+    Args:
+        traj (str): 
+            Path to the HDF5 trajectory file.
+        site (Site): 
+            An initialized Site object containing lattice structure and path info.
+        t_interval (float): 
+            The time interval in picoseconds (ps) for coarse-graining the trajectory.
+        eps (float, optional): 
+            A tolerance for floating-point comparisons, passed to TrajectoryAnalyzer.
+            Defaults to 1.0e-3.
+        use_incomplete_encounter (bool, optional): 
+            If True, incomplete encounters are included in the final analysis.
+            Defaults to True.
+        verbose (bool, optional): 
+            If True, prints a full summary of the analysis after `calculate()`
+            is completed. Defaults to True.
+
+    Attributes:
+        analyzer (TrajectoryAnalyzer): 
+            The TrajectoryAnalyzer instance, created after `calculate()` is called.
+        encounter (Encounter): 
+            The Encounter instance, created after `calculate()` is called.
+        
+        **Inherited from Trajectory**:
+        occupation (np.ndarray): Maps each atom to a site index at each step.
+        trace_arrows (dict): Hop events (arrows) for each atom at each step.
+        ...and all other attributes from the Trajectory class.
+
+        **Results (populated after `calculate()` is called)**:
+        hopping_history (list): A detailed log of every hop for each vacancy.
+        counts (np.ndarray): Counts of each pre-defined hop path.
+        residence_time (np.ndarray): Time spent by each vacancy at each site type.
+        msd_rand (float): Mean Squared Displacement from random walk theory.
+        f_cor (float): The final calculated tracer correlation factor (f).
+        encounter_msd (float): The MSD calculated from complete encounters.
+        ...and other copied results from analyzer and encounter objects.
+    """
+    @monitor_performance
+    def __init__(self,
+                 traj: str,
+                 site,
+                 t_interval: float,
+                 eps: float = 1.0e-3,
+                 use_incomplete_encounter: bool = True,
+                 verbose: bool = True):
+        
+        self.eps = eps
+        self.use_incomplete_encounter = use_incomplete_encounter
+        self.verbose = verbose
+        
+        # Trajectory
+        super().__init__(traj=traj, 
+                         site=site, 
+                         t_interval=t_interval, 
+                         verbose=False)
+        
+        self.analyzer = None
+        self.hopping_history = None
+        self.counts = None
+        self.path_unknown = None
+        self.unknown_name = None
+        self.counts_unknown = None
+        self.residence_time = None
+        self.msd_rand = None
+        
+        self.encounter = None
+        self.f_cor = None
+        self.encounter_num = None
+        self.encounter_msd = None
+        self.encounter_path_names = None
+        self.encounter_path_counts = None
+        self.encounter_path_distance = None
+        
+    def calculate(self) -> None:
+        """
+        Runs the TrajectoryAnalyzer and Encounter analyses and populates results.
+
+        This method performs the computationally intensive parts of the analysis
+        and should be called explicitly after the Calculator object is initialized.
+        """
+        verbose_backup = self.verbose
+        # TrajectoryAnalyzer
+        self.analyzer = TrajectoryAnalyzer(
+            trajectory=self, 
+            site=self.site, 
+            eps=self.eps, 
+            verbose=False
+        )
+        self.hopping_history = self.analyzer.hopping_history
+        self.counts = self.analyzer.counts
+        self.path_unknown = self.analyzer.path_unknown
+        self.unknown_name = self.analyzer.unknown_name
+        self.counts_unknown = self.analyzer.counts_unknown
+        self.residence_time = self.analyzer.residence_time
+        self.msd_rand = self.analyzer.msd_rand
+        
+        # Encounter
+        self.encounter = Encounter(
+            analyzer=self.analyzer,
+            use_incomplete_encounter=self.use_incomplete_encounter,
+            verbose=False
+        )
+        self.f_cor = self.encounter.f_cor
+        self.encounter_num = self.encounter.num_encounter
+        self.encounter_msd = self.encounter.msd
+        self.encounter_path_names = self.encounter.path_name
+        self.encounter_path_counts = self.encounter.path_count
+        self.encounter_path_distance = self.encounter.path_distance
+        
+        self.verbose = verbose_backup
+        if self.verbose:
+            self.summary()
+        
+    def summary(self) -> None:
+        """
+        Prints the summaries from the analysis results.
+        
+        Raises:
+            RuntimeError: If the summary is called before `calculate()` has been run.
+        """
+        if not self.analyzer or not self.encounter:
+            raise RuntimeError("Analysis has not been run. Please call the .calculate() method first.")
+        self.analyzer.summary()
+        self.encounter.summary()
+        
+
+class TrajBundle:
+    """Manages a collection of HDF5 trajectory files from simulations.
+
+    This class automatically finds, validates, and groups trajectory files based
+    on simulation parameters. It searches for files in a given path, groups them
+    by temperature, and ensures that all grouped files are from consistent
+    simulations (e.g., same timestep, atom counts, lattice).
+
+    Args:
+        path (str): 
+            The root directory to search for trajectory files.
+        symbol (str): 
+            The chemical symbol of the target element to filter files.
+        prefix (str, optional): 
+            The prefix of the trajectory files to search for.
+            Defaults to "TRAJ".
+        depth (int, optional): 
+            The maximum directory depth to search.
+            Defaults to 2.
+        eps (float, optional): 
+            The tolerance for comparing floating-point values
+            like temperature, dt, and lattice vectors. Defaults to 1.0e-3.
+        verbose (bool, optional): 
+            Verbosity tag. Defaults to True.
+
+    Attributes:
+        temperatures (list[float]): 
+            A sorted list of unique temperatures found.
+        traj (list[list[str]]): 
+            A 2D list where each sublist contains file paths
+            for a corresponding temperature in `self.temperatures`.
+        atom_count (int): 
+            The number of atoms for the specified symbol, confirmed
+            to be consistent across all files.
+        lattice (np.ndarray): 
+            The 3x3 lattice vectors as a NumPy array, confirmed
+            to be consistent across all files.
+    """
+    def __init__(self,
+                 path: str,
+                 symbol: str,
+                 prefix: str = "TRAJ",
+                 depth: int = 2,
+                 eps: float = 1.0e-3,
+                 verbose: bool = True):
+        
+        self.eps = eps
+        self.path = Path(path)
+        self.depth = depth
+        self.symbol = symbol
+        self.prefix = prefix
+        self.verbose = verbose
+        
+        if not self.path.is_dir():
+            raise NotADirectoryError(f"Error: Invalid directory: '{path}'")
+        if self.depth < 1:
+            raise ValueError("Error: depth must be 1 or greater.")
+
+        # List of TRAJ_*_.h5 files 
+        self.temperatures = []
+        self.traj = []
+        self.search_traj()
+        
+        self.atom_count = None
+        self.lattice = None
+        self._validate_consistency()
+        
+        if self.verbose:
+            self.summary()
+        
+    def _validate_consistency(self) -> None:
+        """
+        Validates that all found trajectory files share consistent simulation parameters
+        and sets the class attributes for lattice and atom_count.
+        """
+        all_paths = list(itertools.chain.from_iterable(self.traj))
+        
+        if not all_paths:
+            return
+
+        ref_path = all_paths[0]
+        try:
+            with h5py.File(ref_path, "r") as f:
+                cond = json.loads(f.attrs["metadata"])
+                ref_dt = cond.get("dt")
+                ref_atom_counts = cond.get("atom_counts")
+                ref_lattice = np.array(cond.get("lattice"))
+                
+                self.lattice = ref_lattice
+                self.atom_count = ref_atom_counts.get(self.symbol)
+
+        except Exception as e:
+            raise IOError(f"Could not read reference metadata from '{ref_path}'. Reason: {e}")
+        
+        if len(all_paths) > 1:
+            for path in all_paths[1:]:
+                try:
+                    with h5py.File(path, "r") as f:
+                        cond = json.loads(f.attrs['metadata'])
+                        
+                        current_dt = cond.get("dt")
+                        if abs(current_dt - ref_dt) > self.eps:
+                            raise ValueError(
+                                f"Inconsistent 'dt' parameter found.\n"
+                                f"  - Reference '{ref_path}': {ref_dt}\n"
+                                f"  - Conflicting '{path}': {current_dt}"
+                            )
+                        
+                        current_atom_counts = cond.get('atom_counts')
+                        if current_atom_counts != ref_atom_counts:
+                            raise ValueError(
+                                f"Inconsistent 'atom_counts' parameter found.\n"
+                                f"  - Reference '{ref_path}': {ref_atom_counts}\n"
+                                f"  - Conflicting '{path}': {current_atom_counts}"
+                            )
+                            
+                        current_lattice = np.array(cond.get('lattice'))
+                        if not np.all(np.abs(current_lattice - ref_lattice) <= self.eps):
+                            raise ValueError(
+                                f"Inconsistent 'lattice' parameter found.\n"
+                                f"  - Reference '{ref_path}':\n{ref_lattice}\n"
+                                f"  - Conflicting '{path}':\n{current_lattice}"
+                            )
+                except Exception as e:
+                    if isinstance(e, ValueError):
+                        raise
+                    raise IOError(f"Could not read or validate metadata from '{path}'. Reason: {e}")
+        
+    def search_traj(self) -> None:
+        """
+        Searches for HDF5 trajectory files, groups them by temperature,
+        and populates self.temperatures and self.traj lists.
+        """
+        glob_iterators = []
+        for i in range(self.depth):
+            dir_prefix = '*/' * i
+            pattern = f"{dir_prefix}{self.prefix}*.h5"
+            glob_iterators.append(self.path.glob(pattern))    
+        candidate_files = itertools.chain.from_iterable(glob_iterators)
+        
+        found_paths = []
+        for file_path in sorted(candidate_files):
+            try:
+                with h5py.File(file_path, "r") as f:
+                    metadata_str = f.attrs.get("metadata")
+                    if not metadata_str:
+                        if self.verbose:
+                            print(f"Warning: File '{file_path.name}' is "+
+                                  "missing 'metadata' attribute. Skipping.")
+                        continue
+                    
+                    cond = json.loads(metadata_str)
+                    file_symbol = cond.get("symbol")
+                    file_temp = cond.get("temperature")
+                    
+                    if file_symbol == self.symbol:
+                        if file_temp is None:
+                            if self.verbose:
+                                print(f"Warning: File '{file_path.name}' is missing "+
+                                      "'temperature' in metadata. Skipping.")
+                            continue
+                        
+                        if "positions" in f and "forces" in f:
+                            found_paths.append((str(file_path.resolve()), float(file_temp)))
+                        else:
+                            if self.verbose:
+                                print(f"Warning: File '{file_path.name}' is missing " +
+                                    "required datasets ('positions', 'forces'). Skipping.")
+            except Exception as e:
+                if self.verbose:
+                    print(f"Warning: Could not read or verify '{file_path.name}'. "
+                          f"Skipping file. Reason: {e}")
+        
+        if not found_paths:
+            raise FileNotFoundError(
+                f"Error: No valid trajectory files found for symbol '{self.symbol}' "
+                f"in path '{self.path}' with depth {self.depth}."
+            )
+            
+        sorted_files = sorted(found_paths, key=lambda item: item[1])
+        temp_groups, traj_groups = [], []
+        for path, temp in sorted_files:
+            if not traj_groups or abs(temp - temp_groups[-1]) > self.eps:
+                temp_groups.append(temp)
+                traj_groups.append([path])
+            else:
+                traj_groups[-1].append(path)
+        
+        self.temperatures = temp_groups
+        self.traj = traj_groups
+    
+    def summary(self) -> None:
+        """
+        Creates a 'bundle.txt' file, summarizing the found trajectories.
+        Includes system information at the top.
+        """
+        output_filename = "bundle.txt"
+        with open(output_filename, 'w', encoding='utf-8') as f:
+            f.write("--- System Information ---\n")
+            f.write(f"Symbol        : {self.symbol}\n")
+            f.write(f"Atom Count    : {self.atom_count}\n")
+            f.write(f"Lattice (Ang) :\n{self.lattice}\n\n")
+            f.write("--- Trajectory Summary ---\n\n")
+            
+            for temp, paths in zip(self.temperatures, self.traj):
+                f.write(f"--- Temperature: {temp:.1f} K (Found {len(paths)} files) ---\n")
+                
+                total_sim_time = 0.0
+                
+                for path in paths:
+                    try:
+                        with h5py.File(path, 'r') as h5f:
+                            cond = json.loads(h5f.attrs['metadata'])
+                            nsw = cond.get('nsw')
+                            dt = cond.get('dt')
+                            
+                            if nsw is not None and dt is not None:
+                                sim_time = (nsw * dt) / 1000.0  # in ps
+                                total_sim_time += sim_time
+                                f.write(f"  - {path}: {sim_time:.2f} ps\n")
+                            else:
+                                f.write(f"  - {path}: [nsw/dt not found in metadata]\n")
+                    except Exception as e:
+                        f.write(f"  - {path}: [Error reading metadata: {e}]\n")
+                        
+                f.write(f"\n  Total simulation time: {total_sim_time:.2f} ps\n\n")
+        print(f"Summary written to '{output_filename}'")
+        
+        
+        
+class CalculatorBundle(TrajBundle):
+    """
+    Manages and runs the full analysis pipeline on a bundle of trajectories.
+
+    This class inherits from TrajBundle to find and group trajectory files.
+    It then provides a method to run the entire Calculator analysis (Trajectory,
+    TrajectoryAnalyzer, Encounter) on each file, supporting parallel processing
+    for improved performance.
+
+    Args:
+        path (str): 
+            The root directory to search for trajectory files.
+        site (Site): 
+            An initialized Site object containing lattice structure and path information.
+        t_interval (float): 
+            The time interval in picoseconds (ps)
+        prefix (str, optional): 
+            Prefix of the trajectory files. Defaults to "TRAJ".
+        depth (int, optional): 
+            Maximum directory depth for file search. Defaults to 2.
+        n_jobs (int, optional): 
+            The number of CPU cores to use for parallel analysis. 
+            If 1, runs sequentially. If -1, uses all available cores.
+            Defaults to 1.
+        use_incomplete_encounter (bool, optional): 
+            Flag for Encounter analysis.
+            Defaults to True.
+        eps (float, optional): 
+            Tolerance for floating-point comparisons.
+            Defaults to 1.0e-3.
+        verbose (bool, optional): 
+            Verbosity flag. Defaults to True.
+    """
+    def __init__(self,
+                 path: str,
+                 site,
+                 t_interval: float,
+                 prefix: str = "TRAJ",
+                 depth: int = 2,
+                 n_jobs: int=1,
+                 use_incomplete_encounter: bool = True,
+                 eps: float = 1.0e-3,
+                 verbose: bool = True):
+        
+        self.site = site
+        self.t_interval = t_interval
+        self.n_jobs = n_jobs
+        self.use_incomplete_encounter = use_incomplete_encounter
+        self.eps = eps
+        self.symbol = self.site.symbol
+        
+        super().__init__(path, 
+                         self.symbol, 
+                         prefix=prefix, 
+                         depth=depth, 
+                         eps=self.eps, 
+                         verbose=False)
+        
+        self.all_traj_paths = [path for temp_paths in self.traj for path in temp_paths]
+        self.verbose = verbose
+        
+        # list of calculators
+        self.calculators = None
+        
+    def _run_single_task(self, traj) -> Union['Calculator', None]:
+        """
+        Runs the Calculator analysis for a single trajectory file.
+
+        Args:
+            traj_path (str): The file path of the trajectory to analyze.
+
+        Returns:
+            Calculator | None: An initialized Calculator object if analysis is
+            successful, otherwise None.
+        """
+        try:
+            calc = Calculator(
+                traj=traj,
+                site=self.site,
+                t_interval=self.t_interval,
+                eps=self.eps,
+                use_incomplete_encounter=self.use_incomplete_encounter,
+                verbose=False
+            )
+            calc.calculate()
+            return calc
+        except Exception as e:
+            print(f"\nWarning: Failed to analyze '{traj}'. Reason: {e}. Skipped.")
+            return None
+    
+    @monitor_performance
+    def calculate(self) -> None:
+        """
+        Runs the full analysis for all trajectories and stores the results
+        in the `self.calculators` attribute.
+        """
+        results = Parallel(n_jobs=self.n_jobs)(
+            delayed(self._run_single_task)(traj) 
+            for traj in tqdm(self.all_traj_paths,
+                             desc=f'{RED}{BOLD}Progress{RESET}',
+                             bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET),
+                             ascii=False) 
+        )
+        
+        successful_results = [res for res in results if res is not None]
+        print(f"\nAnalysis complete: {len(successful_results)} successful, " +
+              f"{len(results) - len(successful_results)} failed.")
+        
+        self.calculators = successful_results   
