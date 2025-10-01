@@ -849,7 +849,7 @@ class Site:
         print(f"Number of inequivalent paths for {self.symbol} : {len(self.path_name)} (Rmax = {self.rmax:.2f} Å)")
         print('')
         print('Path information')
-        headers = ['name', 'init', 'final', 'a(Å)', 'z', 'coord_init', 'coord_final']
+        headers = ['name', 'init', 'final', 'a(Ang)', 'z', 'coord_init', 'coord_final']
         data = [
             [
                 path['name'], 

@@ -48,7 +48,55 @@ class Arrow3D(FancyArrowPatch):
         xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)
         self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
         super().draw(renderer)
+
+
+class Calculator(Trajectory):
+    @monitor_performance
+    def __init__(self,
+                 traj: str,
+                 site,
+                 t_interval: float,
+                 eps: float = 1.0e-3,
+                 use_incomplete_encounter: bool = True,
+                 verbose: bool = True):
+        # Trajectory
+        super().__init__(
+            traj=traj, site=site, t_interval=t_interval, verbose=False
+        )
         
+        # TrajectoryAnalyzer
+        self.analyzer = TrajectoryAnalyzer(
+            trajectory=self, site=site, eps=eps, verbose=False
+        )
+        self.hopping_history = self.analyzer.hopping_history
+        self.counts = self.analyzer.counts
+        self.path_unknown = self.analyzer.path_unknown
+        self.unknown_name = self.analyzer.unknown_name
+        self.counts_unknown = self.analyzer.counts_unknown
+        self.residence_time = self.analyzer.residence_time
+        self.msd_rand = self.analyzer.msd_rand
+        
+        # Encounter
+        self.encounter = Encounter(
+            analyzer=self.analyzer,
+            use_incomplete_encounter=use_incomplete_encounter,
+            verbose=False
+        )
+        self.f_cor = self.encounter.f_cor
+        self.encounter_num = self.encounter.num_encounter
+        self.encounter_msd = self.encounter.msd
+        self.encounter_path_names = self.encounter.path_name
+        self.encounter_path_counts = self.encounter.path_count
+        self.encounter_path_distance = self.encounter.path_distance
+        
+        self.verbose = verbose
+        if self.verbose:
+            self.summary()
+    
+    def summary(self):
+        self.analyzer.summary()
+        self.encounter.summary()
+
 
 class Trajectory:
     """
@@ -1743,7 +1791,7 @@ class Encounter:
 
     def summary(self):
         """Prints a comprehensive, formatted summary of the encounter analysis."""
-        print("# Encounter Analysis ###")
+        print("# Encounter Analysis")
         print(f"  Use incomplete encounters : {self.use_incomplete_encounter}")
         print(f"  Correlation factor (f)    : {self.f_cor:.5f}")
         print(f"  Mean Squared Disp. (MSD)  : {self.msd:.5f} Ang^2")
