@@ -139,13 +139,13 @@ def parse_md(filename: str,
             
             try:
                 chunk_forces = np.array(
-                    [atoms.get_forces() for atoms in chunk_atoms], dtype=np.float32
+                    [atoms.get_forces() for atoms in chunk_atoms], dtype=np.float64
                 )
             except AttributeError:
                 raise ValueError("Force data not found in the trajectory.")
             
             chunk_positions = np.array(
-                [atoms.get_positions() for atoms in chunk_atoms], dtype=np.float32
+                [atoms.get_positions() for atoms in chunk_atoms], dtype=np.float64
             )
             chunk_positions = chunk_positions @ inv_lattice # convert to fractional coords
             
@@ -174,13 +174,13 @@ def parse_md(filename: str,
                 temp_pos_memmap = np.lib.format.open_memmap(
                     temp_pos_path,
                     mode="w+",
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(len(chunk_atoms), len(indices), 3)
                 )
                 temp_force_memmap = np.lib.format.open_memmap(
                     temp_force_path,
                     mode="w+",
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(len(chunk_atoms), len(indices), 3)
                 )
                 
@@ -196,12 +196,12 @@ def parse_md(filename: str,
                 pos_dataset = f_h5.create_dataset(
                     "positions", 
                     shape=(num_frames, atom_counts[sym], 3), 
-                    dtype=np.float32
+                    dtype=np.float64
                 )
                 force_dataset = f_h5.create_dataset(
                     "forces", 
                     shape=(num_frames, atom_counts[sym], 3), 
-                    dtype=np.float32
+                    dtype=np.float64
                 )
                 
                 current_pos = 0
@@ -346,12 +346,12 @@ def parse_lammps(lammps_data:str,
                 'positions': h5_file.create_dataset(
                     "positions",
                     shape=(num_frames, atom_counts[sym], 3),
-                    dtype=np.float32
+                    dtype=np.float64
                 ),
                 'forces': h5_file.create_dataset(
                     "forces",
                     shape=(num_frames, atom_counts[sym], 3),
-                    dtype=np.float32
+                    dtype=np.float64
                 )
             }
             
@@ -386,8 +386,8 @@ def parse_lammps(lammps_data:str,
                 except AttributeError:
                     raise ValueError("Force data not found in the trajectory.")
                 
-            chunk_positions = np.array(chunk_positions, dtype=np.float32)
-            chunk_forces = np.array(chunk_forces, dtype=np.float32)
+            chunk_positions = np.array(chunk_positions, dtype=np.float64)
+            chunk_forces = np.array(chunk_forces, dtype=np.float64)
             chunk_positions = chunk_positions @ inv_lattice # convert to fractional coords
 
             displacement = np.zeros_like(chunk_positions)
@@ -557,12 +557,12 @@ def concat_traj(traj1:str,
             pos_out = f_out.create_dataset(
                 "positions", 
                 shape=(total_frames, atom_counts[symbol], 3), 
-                dtype=np.float32
+                dtype=np.float64
             )
             force_out = f_out.create_dataset(
                 "forces", 
                 shape=(total_frames, atom_counts[symbol], 3), 
-                dtype=np.float32
+                dtype=np.float64
             )
 
             pbar = tqdm(
@@ -677,7 +677,7 @@ class Site:
         structure (str): 
             Path to the crystallographic structure file.
         symbol (str): 
-            The chemical symbol of the diffusing species to analyze.
+            The atomic symbol of the diffusing species to analyze.
         format (str, optional): 
             The format of the structure file. If None, ASE
             will attempt to automatically determine the format. Defaults to None.
@@ -694,6 +694,8 @@ class Site:
     Attributes:
         structure (pymatgen.core.structure.Structure): 
             The crystal structure as a pymatgen Structure object.
+        symbol (str):
+            The atomic symbol of the diffusing species to analyze.
         path (list[dict]): 
             A list of dictionaries, where each dictionary describes a unique hopping path.
         path_name (list[str]): 
@@ -789,7 +791,7 @@ class Site:
             point = {
                 'site': f"site{site_i}",
                 'coord': self.structure[i].frac_coords,
-                'coord_C': self.structure[i].coords
+                'coord_cart': self.structure[i].coords
             }
             self.lattice_sites.append(point)
             
@@ -1088,5 +1090,4 @@ class TrajBundle:
                         f.write(f"  - {path}: [Error reading metadata: {e}]\n")
 
                 f.write(f"\n  Total simulation time: {total_sim_time:.2f} ps\n\n")
-
         print(f"Summary written to '{output_filename}'")
