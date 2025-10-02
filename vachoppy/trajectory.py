@@ -1757,7 +1757,7 @@ class Encounter:
             print(f"  Mean hops per encounter   : {np.sum(self.path_count) / self.num_encounter:.5f}")
         print('') 
         
-        print(f"# Pathwise Counts in Encounters ###")
+        print(f"# Pathwise Counts in Encounters")
         header = ['Path', 'a (Ang)', 'Count', 'Count/Encounter']
         data = [
             [
@@ -2716,7 +2716,7 @@ class Calculator_Bundle(TrajBundle):
         
     def plot_f(self, 
                title: Optional[str] = None, 
-               inset_arrhenius: bool = True, 
+               inset_arrhenius: bool = False, 
                save: bool = True, 
                filename: str = 'f.png', 
                dpi: int = 300) -> None:
@@ -2729,7 +2729,7 @@ class Calculator_Bundle(TrajBundle):
             title (str, optional): 
                 A custom title for the plot. Defaults to None.
             inset_arrhenius (bool, optional): 
-                If True, includes the inset plot. Defaults to True.
+                If True, includes the inset plot. Defaults to False.
             save (bool, optional): 
                 If True, saves the figure. Defaults to True.
             filename (str, optional): 
