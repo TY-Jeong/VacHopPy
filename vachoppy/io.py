@@ -882,7 +882,6 @@ def Calculator(path: str,
         raise FileNotFoundError(f"Error: The path '{path}' was not found.")
 
     if p.is_dir():
-        # Calculator_Bundle에 필요한 모든 kwargs를 전달
         return Calculator_Bundle(
             path=path,
             site=site,
@@ -890,7 +889,6 @@ def Calculator(path: str,
             **kwargs
         )
     elif p.is_file():
-        # Calculator_Single이 받는 인자들만 kwargs에서 선별
         single_keys = ['eps', 'use_incomplete_encounter', 'verbose']
         single_kwargs = {key: kwargs[key] for key in single_keys if key in kwargs}
         

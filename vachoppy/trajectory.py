@@ -1461,6 +1461,9 @@ class TrajectoryAnalyzer:
 
     def summary(self) -> None:
         """Prints a comprehensive summary of the hopping analysis."""
+        # update unknown path information (for bundle application)
+        self._counts_unknown_path()
+        
         # Path counts
         name_all = self.path_name + self.unknown_name
         counts_all = np.hstack((self.counts, self.counts_unknown))
@@ -1871,14 +1874,10 @@ class Calculator_Single(Trajectory):
             use_incomplete_encounter=use_incomplete_encounter,
             verbose=False
         )
-        self.f = self.encounter.f_cor
-        self.encounter_num = self.encounter.num_encounter
-        self.encounter_msd = self.encounter.msd
-        self.encounter_path_names = self.encounter.path_name
-        self.encounter_path_counts = self.encounter.path_count
-        self.encounter_path_distance = self.encounter.path_distance
         
+        self.f = self.encounter.f_cor
         self.verbose = verbose
+        self.calculate_is_done = False
      
     def _get_correlation_factor(self):
         """Extracts the correlation factor from the encounter analysis."""
@@ -1916,43 +1915,117 @@ class Calculator_Single(Trajectory):
         self._get_diffusivity()
         self._get_residence_time()
         self._get_mean_number_of_equivalent_paths()
+        self.calculate_is_done = True
+        
+    def plot_counts(self,
+                    title: str = None,
+                    save: bool = True, 
+                    filename: str = 'counts.png', 
+                    dpi: int = 300) -> None:
+        """
+        Generates a bar plot showing the total counts for each migration path.
+
+        This plot visualizes the frequency of both predefined (known) and
+        dynamically discovered (unknown) hopping events across all temperatures.
+
+        Args:
+            title (str, optional): 
+                A custom title for the plot. Defaults to None.
+            save (bool, optional): 
+                If True, saves the figure. Defaults to True.
+            filename (str, optional): 
+                Filename for the saved plot. Defaults to 'counts.png'.
+            dpi (int, optional): 
+                Resolution for the saved figure. Defaults to 300.
+        """
+        if self.counts is None or self.counts_unknown is None:
+            raise RuntimeError("Path counts have not been calculated. "
+                               "Please run the .calculate() method first.")
+
+        name_all = self.site.path_name + [p['name'] for p in self.path_unknown]
+        counts_all = np.append(np.sum(self.counts, axis=0), 
+                               np.sum(self.counts_unknown, axis=0))
+       
+        if len(name_all) == 0:
+            print("Warning: No path count data available to plot.")
+            return
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        for axis in ['top', 'bottom', 'left', 'right']:
+            ax.spines[axis].set_linewidth(1.2)
+            
+        x_pos = np.arange(len(name_all))
+        bars = ax.bar(x_pos, counts_all, color='steelblue', edgecolor='k', alpha=0.8)
+
+        ax.set_ylabel('Total Counts', fontsize=13)
+        ax.set_xlabel('Path Name', fontsize=13)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(name_all, rotation=45, ha="right", rotation_mode="anchor")
+
+        if title is not None:
+            ax.set_title(title, fontsize=12, pad=10)
+            
+        ax.bar_label(bars, fmt='%d', padding=3, fontsize=10)
+        ax.yaxis.grid(True, linestyle='--', alpha=0.7)
+        ax.set_axisbelow(True)
+        ax.set_ylim(top=ax.get_ylim()[1] * 1.1)
+        
+        fig.tight_layout()
+        if save:
+            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        
+        plt.show()
+        plt.close(fig)
+        
         
     def summary(self) -> None:
         """Prints a summary of the analysis results in a structured format."""
         if not self.analyzer or not self.encounter:
             raise RuntimeError("Primary analysis objects (analyzer, encounter) are missing.")
-
+        if not self.calculate_is_done:
+            self.calculate()
+            
         print("=" * 60)
-        print(f"Summary for Trajectory: {self.traj}")
-        print(f"  - Lattice structure : {self.site.structure_file}")
-        print(f"  - t_interval        : {self.t_interval:.3f} ps ({self.frame_interval} frames)")
+        print("Summary for Trajectory dataset")
+        print(f"  - Path to TRAJ bundle : {self.traj}")
+        print(f"  - Lattice structure   : {self.site.structure_file}")
+        print(f"  - t_interval          : {self.t_interval:.3f} ps ({self.frame_interval} frames)")
+        print(f"  - Temperatures (K)    : {[self.temperature]}")
+        print(f"  - Num. of TRAJ files  : [1]")
         print("=" * 60)
-        print("")
-
-        if self.D is not None:
-            print("-"*19 + " Diffusion Parameters " + "-"*19)
-            print(f"Diffusivity (D)                  : {self.D:.4e} m^2/s")
-            print(f"Random Walk Diffusivity (D_rand) : {self.D_rand:.4e} m^2/s")
-            print(f"Correlation Factor (f)           : {self.f:.4f}")
-            print(f"Residence Time (tau)             : {self.tau:.4f} ps")
-            print(f"Mean Equivalent Paths (z_mean)   : {self.z_mean:.4f}")
-            print("-" * 60)
-            print("")
         
-        print("-"*17 + " Lattice Site Information " + "-"*17)
-        self.site.summary()
+        print("\n" + "-"*16 + " Temperature-Dependent Data " + "-"*16)
+        headers = ["Temp (K)", "D (m2/s)", "D_rand (m2/s)", "f", "tau (ps)", "z_mean"]
+        table_data = zip([self.temperature], [self.D], [self.D_rand], [self.f], [self.tau], [self.z_mean])
+        formats = [".1f", ".3e", ".3e", ".4f", ".4f", ".4f"]
+        table_data = []
+        for row in zip([self.temperature], [self.D], [self.D_rand], [self.f], [self.tau], [self.z_mean]):
+            formatted_row = [f"{value:{fmt}}" for value, fmt in zip(row, formats)]
+            table_data.append(formatted_row)
+        table = tabulate(table_data, headers=headers, 
+                            tablefmt="simple", stralign='left', numalign='left')
+        print(table)
         print("-" * 60)
-        print("")
         
-        print("-"*17 + " Trajectory of Vacancies " + "-"*18)
-        self.analyzer.summary()
-        print("-" * 60)
-        print("")
-        
-        print("-"*14 + " Results of Encounter Analysis " + "-"*15)
-        self.encounter.summary()
+        print("\n" + "-"*17 + " Final Fitted Parameters " + "-"*18)
+        print(f"Diffusivity (D):")
+        print(f"  - Ea          : - ")
+        print(f"  - D0          : - ")
+        print(f"  - R-squared   : -")
+        print(f"Random Walk Diffusivity (D_rand):")
+        print(f"  - Ea          : -")
+        print(f"  - D0          : -")
+        print(f"  - R-squared   : -")
+        print(f"Correlation Factor (f):")
+        print(f"  - Ea          : -")
+        print(f"  - f0          : -")
+        print(f"  - R-squared   : -")
+        print(f"Residence Time (tau):")
+        print(f"  - Ea (fixed)  : -")
+        print(f"  - tau0        : -")
+        print(f"  - R-squared   : -")
+        print(f"Effective Hopping Distance (a) : -")
         print("=" * 60)
-        print("")
         
 
 class TrajBundle:
@@ -2248,10 +2321,12 @@ class Calculator_Bundle(TrajBundle):
         self.all_traj_paths = [path for temp_paths in self.traj for path in temp_paths]
         self.verbose = verbose
         
-        # list of calculators
         self.calculators = None
         self.num_vacancies = None
+        self.counts = None  # (num_vacancies, num_paths)
+        
         self.path_unknown = None
+        self.counts_unknown = None
         
         # correlation factor
         self.f = None
@@ -2324,10 +2399,11 @@ class Calculator_Bundle(TrajBundle):
         self.index_calc_temp = np.concatenate(([0], np.cumsum(self.num_calc_temp)))
         
         self.num_vacancies = self.calculators[0].num_vacancies
-        self.path_unknown = self.site.path_unknown
         self.t_interval = self.calculators[0].t_interval
         self.frame_interval = self.calculators[0].frame_interval
+        self.counts = np.sum(np.array([c.counts for c in self.calculators]), axis=0) # (num_vacancies, num_paths)
         
+        self._gather_unknown_paths()
         self._get_correlation_factor()
         self._get_random_walk_diffusivity()
         self._get_diffusivity()
@@ -2370,7 +2446,91 @@ class Calculator_Bundle(TrajBundle):
         except Exception as e:
             print(f"\nWarning: Failed to analyze '{traj}'. Reason: {e}. Skipped.")
             return (traj, None)
-    
+
+    def _get_path_key(self, path):
+        """Generates a unique, hashable key for a given migration path.
+
+        This helper method creates a tuple that can be used as a dictionary key to
+        uniquely identify a path. It combines the initial and final sites with a
+        discretized version of the path distance. Discretizing the distance by
+        rounding it relative to a small epsilon (`self.eps`) ensures that paths
+        with floating-point distances that are very close are treated as identical.
+
+        Args:
+            path (dict): 
+                A dictionary representing a migration path, requiring
+                'site_init', 'site_final', and 'distance' keys.
+
+        Returns:
+            tuple: A hashable tuple `(site_init, site_final, discretized_distance)`
+                used for unique path identification.
+        """
+        discretized_distance = round(path['distance'] / self.eps)
+        return (path['site_init'], path['site_final'], discretized_distance)
+
+    def _gather_unknown_paths(self):
+        """Consolidates and re-labels all 'unknown' paths from multiple calculators.
+
+        This method performs three main tasks to create a unified list of previously
+        unidentified migration paths:
+
+        1.  **Path Aggregation**: It iterates through all `path_unknown` lists from
+            each calculator. Using a dictionary-based registry for efficient O(1)
+            lookups, it identifies unique unknown paths (based on sites and
+            distance) and counts their total occurrences across all calculators.
+
+        2.  **Final List Population**: It processes the registry to populate the
+            instance's final attributes: `self.path_unknown` (a list of unique
+            path dictionaries) and `self.count_unknown` (a corresponding list of
+            occurrence counts).
+
+        3.  **History Re-labeling**: It performs a final pass through the
+            `hopping_history` of each calculator. Any history event originally
+            marked as 'unknown' is updated with the new canonical name
+            (e.g., 'unknown1', 'unknown2') assigned during aggregation.
+
+        This method modifies `self.path_unknown`, `self.count_unknown`, and the
+        `hopping_history` within each calculator object in place.
+
+        Returns:
+            None
+        """
+        path_registry = {}
+        
+        for c in self.calculators:
+            if not hasattr(c, 'path_unknown') or not c.path_unknown:
+                continue
+
+            for path in c.path_unknown:
+                key = self._get_path_key(path)
+                
+                if key in path_registry:
+                    path_registry[key]['count'] += 1.0
+                else:
+                    new_name = f"unknown{len(path_registry) + 1}"
+                    path['name'] = new_name
+                    path_registry[key] = {
+                        'path': path,
+                        'count': 1.0
+                    }
+        
+        self.path_unknown = []
+        self.counts_unknown = []
+        for reg_item in path_registry.values():
+            self.path_unknown.append(reg_item['path'])
+            self.counts_unknown.append(reg_item['count'])
+
+        for c in self.calculators:
+            if not hasattr(c, 'hopping_history'):
+                continue
+
+            for history_vacancy in c.hopping_history:
+                for history in history_vacancy:
+                    if history['name'].startswith('unknown'):
+                        key = self._get_path_key(history)
+                        if key in path_registry:
+                            history['name'] = path_registry[key]['path']['name']
+
     def _get_correlation_factor(self):
         """Calculates the temperature-dependent correlation factor."""
         
@@ -2378,11 +2538,11 @@ class Calculator_Bundle(TrajBundle):
             raise RuntimeError("Please call the .calculate() method first.") 
 
         self.f_ind = np.array([c.f for c in self.calculators], dtype=np.float64)
-        num_enc_all = np.array([c.encounter_num for c in self.calculators])
-        msd_enc_all = np.array([c.encounter_msd for c in self.calculators])
+        num_enc_all = np.array([c.encounter.num_encounter for c in self.calculators])
+        msd_enc_all = np.array([c.encounter.msd for c in self.calculators])
         
         msd_enc_rand_all = np.array([
-            np.sum(c.encounter_path_distance**2 * c.encounter_path_counts)
+            np.sum(c.encounter.path_distance**2 * c.encounter.path_count)
             if c.f is not None else np.nan
             for c in self.calculators
         ])
@@ -2419,8 +2579,8 @@ class Calculator_Bundle(TrajBundle):
         if self.calculators is None:
             raise RuntimeError("Please call the .calculate() method first.")
             
-        total_time_all = np.array([calc.t_interval * calc.num_steps for calc in self.calculators])
-        msd_rand_all = np.array([calc.msd_rand for calc in self.calculators])
+        total_time_all = np.array([c.t_interval * c.num_steps for c in self.calculators])
+        msd_rand_all = np.array([c.msd_rand for c in self.calculators])
         
         self.D_rand = []
         for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
@@ -2460,7 +2620,10 @@ class Calculator_Bundle(TrajBundle):
             raise RuntimeError("Please call the .calculate() method first.")
         
         total_time_all = np.array([c.t_interval * c.num_steps for c in self.calculators])
-        total_jumps_all = np.array([np.sum(c.counts) / c.num_vacancies for c in self.calculators])
+        total_jumps_all = np.array(
+            [(np.sum(c.counts) + np.sum(c.counts_unknown)) / c.num_vacancies 
+             for c in self.calculators]
+        )
 
         self.tau = []
         for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
@@ -2915,7 +3078,66 @@ class Calculator_Bundle(TrajBundle):
             fig.savefig(filename, dpi=dpi, bbox_inches="tight")
         plt.show()
         plt.close(fig)
+    
+    def plot_counts(self,
+                    title: str = None,
+                    save: bool = True, 
+                    filename: str = 'counts.png', 
+                    dpi: int = 300) -> None:
+        """
+        Generates a bar plot showing the total counts for each migration path.
+
+        This plot visualizes the frequency of both predefined (known) and
+        dynamically discovered (unknown) hopping events across all temperatures.
+
+        Args:
+            title (str, optional): 
+                A custom title for the plot. Defaults to None.
+            save (bool, optional): 
+                If True, saves the figure. Defaults to True.
+            filename (str, optional): 
+                Filename for the saved plot. Defaults to 'counts.png'.
+            dpi (int, optional): 
+                Resolution for the saved figure. Defaults to 300.
+        """
+        if self.counts is None or self.counts_unknown is None:
+            raise RuntimeError("Path counts have not been calculated. "
+                               "Please run the .calculate() method first.")
+
+        name_all = self.site.path_name + [p['name'] for p in self.path_unknown]
+        counts_all = np.append(np.sum(self.counts, axis=0), self.counts_unknown)
+       
+        if len(name_all) == 0:
+            print("Warning: No path count data available to plot.")
+            return
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        for axis in ['top', 'bottom', 'left', 'right']:
+            ax.spines[axis].set_linewidth(1.2)
+            
+        x_pos = np.arange(len(name_all))
+        bars = ax.bar(x_pos, counts_all, color='steelblue', edgecolor='k', alpha=0.8)
+
+        ax.set_ylabel('Total Counts', fontsize=13)
+        ax.set_xlabel('Path Name', fontsize=13)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(name_all, rotation=45, ha="right", rotation_mode="anchor")
+
+        if title is not None:
+            ax.set_title(title, fontsize=12, pad=10)
+            
+        ax.bar_label(bars, fmt='%d', padding=3, fontsize=10)
+        ax.yaxis.grid(True, linestyle='--', alpha=0.7)
+        ax.set_axisbelow(True)
+        ax.set_ylim(top=ax.get_ylim()[1] * 1.1)
         
+        fig.tight_layout()
+        if save:
+            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        
+        plt.show()
+        plt.close(fig)
+       
     def summary(self):
         """
         Prints a comprehensive summary of the analysis results, including
@@ -2926,13 +3148,30 @@ class Calculator_Bundle(TrajBundle):
             self.calculate()
         
         print("=" * 60)
-        print("Summary for Trajectory Bundle")
+        print("Summary for Trajectory dataset")
         print(f"  - Path to TRAJ bundle : {self.path} (depth={self.depth})")
         print(f"  - Lattice structure   : {self.site.structure_file}")
         print(f"  - t_interval          : {self.t_interval:.3f} ps ({self.frame_interval} frames)")
         print(f"  - Temperatures (K)    : {self.temperatures.tolist()}")
         print(f"  - Num. of TRAJ files  : {self.num_calc_temp.tolist()}")
         print("=" * 60)
+        
+        if self.calculators and len(self.temperatures) > 0:
+            print("\n" + "-"*16 + " Temperature-Dependent Data " + "-"*16)
+            
+            headers = ["Temp (K)", "D (m2/s)", "D_rand (m2/s)", "f", "tau (ps)", "z_mean"]
+            table_data = zip(self.temperatures, self.D, self.D_rand, self.f, self.tau, self.z_mean)
+            
+            formats = [".1f", ".3e", ".3e", ".4f", ".4f", ".4f"]
+            table_data = []
+            for row in zip(self.temperatures, self.D, self.D_rand, self.f, self.tau, self.z_mean):
+                formatted_row = [f"{value:{fmt}}" for value, fmt in zip(row, formats)]
+                table_data.append(formatted_row)
+    
+            table = tabulate(table_data, headers=headers, 
+                             tablefmt="simple", stralign='left', numalign='left')
+            print(table)
+            print("-" * 60)
         
         if self.Ea_D is not None:
             print("\n" + "-"*17 + " Final Fitted Parameters " + "-"*18)
@@ -2953,30 +3192,23 @@ class Calculator_Bundle(TrajBundle):
             print(f"  - tau0        : {self.tau0:.3e} ps")
             print(f"  - R-squared   : {self.tau_R2:.4f}")
             print(f"Effective Hopping Distance (a) : {self.a:.4f} Å")
-            print("-" * 60)
         else:
-            print("\n" + "-"*19 + " Diffusion Parameters " + "-"*20)
-            print(f"Tracer Diffusivity (D)           : {self.D.item():.4e} m^2/s")
-            print(f"Random Walk Diffusivity (D_rand) : {self.D_rand.item():.4e} m^2/s")
-            print(f"Correlation Factor (f)           : {self.f.item():.4f}")
-            print(f"Residence Time (tau)             : {self.tau.item():.4f} ps")
-            print(f"Mean Equivalent Paths (z_mean)   : {self.z_mean.item():.4f}")
-            print("-" * 60)
-        
-        if self.calculators and len(self.temperatures) > 0:
-            print("\n" + "-"*17 + " Temperature-Dependent Data " + "-"*17)
-            
-            headers = ["Temp (K)", "D (m2/s)", "D_rand (m2/s)", "f", "tau (ps)", "z_mean"]
-            table_data = zip(self.temperatures, self.D, self.D_rand, self.f, self.tau, self.z_mean)
-            
-            formats = [".1f", ".3e", ".3e", ".4f", ".4f", ".4f"]
-            table_data = []
-            for row in zip(self.temperatures, self.D, self.D_rand, self.f, self.tau, self.z_mean):
-                formatted_row = [f"{value:{fmt}}" for value, fmt in zip(row, formats)]
-                table_data.append(formatted_row)
-    
-            table = tabulate(table_data, headers=headers, 
-                             tablefmt="simple", stralign='left', numalign='left')
-            print(table)
-            print("=" * 60)
-                              
+            print("\n" + "-"*17 + " Final Fitted Parameters " + "-"*18)
+            print(f"Diffusivity (D):")
+            print(f"  - Ea          : - ")
+            print(f"  - D0          : - ")
+            print(f"  - R-squared   : -")
+            print(f"Random Walk Diffusivity (D_rand):")
+            print(f"  - Ea          : -")
+            print(f"  - D0          : -")
+            print(f"  - R-squared   : -")
+            print(f"Correlation Factor (f):")
+            print(f"  - Ea          : -")
+            print(f"  - f0          : -")
+            print(f"  - R-squared   : -")
+            print(f"Residence Time (tau):")
+            print(f"  - Ea (fixed)  : -")
+            print(f"  - tau0        : -")
+            print(f"  - R-squared   : -")
+            print(f"Effective Hopping Distance (a) : -")
+        print("=" * 60)
