@@ -10,12 +10,13 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 from PIL import Image
-from typing import Union
+from typing import Union, Tuple, Optional
 from pathlib import Path
 from tqdm.auto import tqdm
 from tabulate import tabulate
 from colorama import Fore, Style
 from joblib import Parallel, delayed
+from scipy.optimize import minimize_scalar
 
 from collections import defaultdict
 from itertools import permutations
@@ -1771,17 +1772,18 @@ class Encounter:
         print('')
 
 
-class Calculator(Trajectory):
+class Calculator_Single(Trajectory):
     """
     Orchestrates the full vacancy diffusion analysis pipeline from a single trajectory.
 
-    This high-level class inherits from the Trajectory class to perform initial
-    data processing. It then provides a `calculate` method to run the subsequent
-    analysis workflow (TrajectoryAnalyzer -> Encounter) for computing detailed
-    diffusion properties like the correlation factor.
+    This class performs the entire primary analysis (Trajectory, TrajectoryAnalyzer,
+    Encounter) upon instantiation. It inherits from the Trajectory class to
+    process the raw trajectory data and immediately creates child analyzer objects
+    to compute intermediate results like hop counts and mean squared displacements.
 
-    For convenience, it copies key analytical results from the child analyzer
-    objects to its own attributes after `calculate()` is run.
+    After the object is created, the user can call the .calculate() method to
+    compute the final derived physical properties, such as the correlation factor,
+    diffusivity, and residence time, from the pre-computed results.
 
     Args:
         traj (str): 
@@ -1789,36 +1791,41 @@ class Calculator(Trajectory):
         site (Site): 
             An initialized Site object containing lattice structure and path info.
         t_interval (float): 
-            The time interval in picoseconds (ps) for coarse-graining the trajectory.
+            The time interval in picoseconds (ps) for coarse-graining.
         eps (float, optional): 
-            A tolerance for floating-point comparisons, passed to TrajectoryAnalyzer.
-            Defaults to 1.0e-3.
+            A tolerance for floating-point comparisons. Defaults to 1.0e-3.
         use_incomplete_encounter (bool, optional): 
-            If True, incomplete encounters are included in the final analysis.
+            If True, incomplete encounters are included in the final analysis. 
             Defaults to True.
         verbose (bool, optional): 
-            If True, prints a full summary of the analysis after `calculate()`
-            is completed. Defaults to True.
+            Verbosity flag. Defaults to True.
 
     Attributes:
         analyzer (TrajectoryAnalyzer): 
-            The TrajectoryAnalyzer instance, created after `calculate()` is called.
+            The TrajectoryAnalyzer instance, created during initialization.
         encounter (Encounter): 
-            The Encounter instance, created after `calculate()` is called.
+            The Encounter instance, created during initialization.
         
-        **Inherited from Trajectory**:
-        occupation (np.ndarray): Maps each atom to a site index at each step.
-        trace_arrows (dict): Hop events (arrows) for each atom at each step.
-        ...and all other attributes from the Trajectory class.
+        -- Attributes Populated During Initialization --
+        hopping_history (list): 
+            A detailed log of every hop for each vacancy.
+        counts (np.ndarray): 
+            Counts of each pre-defined hop path.
+        msd_rand (float): 
+            Mean Squared Displacement from random walk theory (in Ang^2).
+        ...and other attributes copied from the analyzer and encounter objects.
 
-        **Results (populated after `calculate()` is called)**:
-        hopping_history (list): A detailed log of every hop for each vacancy.
-        counts (np.ndarray): Counts of each pre-defined hop path.
-        residence_time (np.ndarray): Time spent by each vacancy at each site type.
-        msd_rand (float): Mean Squared Displacement from random walk theory.
-        f_cor (float): The final calculated tracer correlation factor (f).
-        encounter_msd (float): The MSD calculated from complete encounters.
-        ...and other copied results from analyzer and encounter objects.
+        -- Attributes Populated After .calculate() is Called --
+        f (float): 
+            The correlation factor (f).
+        D_rand (float): 
+            The random walk diffusivity (in m^2/s).
+        D (float): 
+            The final tracer diffusivity (D = D_rand * f_cor) (in m^2/s).
+        tau (float): 
+            The average residence time (in ps).
+        z_mean (float): 
+            The mean number of equivalent paths for observed hops.
     """
     @monitor_performance
     def __init__(self,
@@ -1829,9 +1836,13 @@ class Calculator(Trajectory):
                  use_incomplete_encounter: bool = True,
                  verbose: bool = True):
         
-        self.eps = eps
-        self.use_incomplete_encounter = use_incomplete_encounter
-        self.verbose = verbose
+        self.analyzer = None
+        self.encounter = None
+        
+        self.f = None
+        self.D_rand = None
+        self.D = None
+        self.tau = None
         
         # Trajectory
         super().__init__(traj=traj, 
@@ -1839,36 +1850,11 @@ class Calculator(Trajectory):
                          t_interval=t_interval, 
                          verbose=False)
         
-        self.analyzer = None
-        self.hopping_history = None
-        self.counts = None
-        self.path_unknown = None
-        self.unknown_name = None
-        self.counts_unknown = None
-        self.residence_time = None
-        self.msd_rand = None
-        
-        self.encounter = None
-        self.f_cor = None
-        self.encounter_num = None
-        self.encounter_msd = None
-        self.encounter_path_names = None
-        self.encounter_path_counts = None
-        self.encounter_path_distance = None
-        
-    def calculate(self) -> None:
-        """
-        Runs the TrajectoryAnalyzer and Encounter analyses and populates results.
-
-        This method performs the computationally intensive parts of the analysis
-        and should be called explicitly after the Calculator object is initialized.
-        """
-        verbose_backup = self.verbose
         # TrajectoryAnalyzer
         self.analyzer = TrajectoryAnalyzer(
             trajectory=self, 
             site=self.site, 
-            eps=self.eps, 
+            eps=eps, 
             verbose=False
         )
         self.hopping_history = self.analyzer.hopping_history
@@ -1882,31 +1868,91 @@ class Calculator(Trajectory):
         # Encounter
         self.encounter = Encounter(
             analyzer=self.analyzer,
-            use_incomplete_encounter=self.use_incomplete_encounter,
+            use_incomplete_encounter=use_incomplete_encounter,
             verbose=False
         )
-        self.f_cor = self.encounter.f_cor
+        self.f = self.encounter.f_cor
         self.encounter_num = self.encounter.num_encounter
         self.encounter_msd = self.encounter.msd
         self.encounter_path_names = self.encounter.path_name
         self.encounter_path_counts = self.encounter.path_count
         self.encounter_path_distance = self.encounter.path_distance
         
-        self.verbose = verbose_backup
-        if self.verbose:
-            self.summary()
+        self.verbose = verbose
+     
+    def _get_correlation_factor(self):
+        """Extracts the correlation factor from the encounter analysis."""
+        if self.f is None:
+            self.f = self.encounter.f_cor
+    
+    def _get_random_walk_diffusivity(self):
+        """Calculates the random walk diffusivity."""
+        total_time = self.t_interval * self.num_steps
+        self.D_rand = self.msd_rand / (6 * total_time) * 1e-8 # m2/s
+    
+    def _get_diffusivity(self):
+        """Calculates the final tracer diffusivity."""
+        self.D = self.D_rand * self.f
+        
+    def _get_residence_time(self):
+        """Calculates the mean residence time."""
+        total_time = self.t_interval * self.num_steps
+        total_jumps = np.sum(self.counts) / self.num_vacancies
+        self.tau = total_time / total_jumps
+        
+    def _get_mean_number_of_equivalent_paths(self):
+        """Calculates the weighted harmonic mean of equivalent paths (z)."""
+        z = np.array([path['z'] for path in self.site.path], dtype=np.float64)
+        counts = np.sum(self.counts, axis=0)
+        self.z_mean = np.sum(counts) / np.sum(counts / z)
+    
+    def calculate(self) -> None:
+        """
+        Calculates the final physical properties (D, f, tau, etc.) from the
+        results of the initial analysis.
+        """
+        self._get_correlation_factor()
+        self._get_random_walk_diffusivity()
+        self._get_diffusivity()
+        self._get_residence_time()
+        self._get_mean_number_of_equivalent_paths()
         
     def summary(self) -> None:
-        """
-        Prints the summaries from the analysis results.
-        
-        Raises:
-            RuntimeError: If the summary is called before `calculate()` has been run.
-        """
+        """Prints a summary of the analysis results in a structured format."""
         if not self.analyzer or not self.encounter:
-            raise RuntimeError("Analysis has not been run. Please call the .calculate() method first.")
+            raise RuntimeError("Primary analysis objects (analyzer, encounter) are missing.")
+
+        print("=" * 60)
+        print(f"Summary for Trajectory: {self.traj}")
+        print(f"  - Lattice structure : {self.site.structure_file}")
+        print(f"  - t_interval        : {self.t_interval:.3f} ps ({self.frame_interval} frames)")
+        print("=" * 60)
+        print("")
+
+        if self.D is not None:
+            print("-"*19 + " Diffusion Parameters " + "-"*19)
+            print(f"Diffusivity (D)                  : {self.D:.4e} m^2/s")
+            print(f"Random Walk Diffusivity (D_rand) : {self.D_rand:.4e} m^2/s")
+            print(f"Correlation Factor (f)           : {self.f:.4f}")
+            print(f"Residence Time (tau)             : {self.tau:.4f} ps")
+            print(f"Mean Equivalent Paths (z_mean)   : {self.z_mean:.4f}")
+            print("-" * 60)
+            print("")
+        
+        print("-"*17 + " Lattice Site Information " + "-"*17)
+        self.site.summary()
+        print("-" * 60)
+        print("")
+        
+        print("-"*17 + " Trajectory of Vacancies " + "-"*18)
         self.analyzer.summary()
+        print("-" * 60)
+        print("")
+        
+        print("-"*14 + " Results of Encounter Analysis " + "-"*15)
         self.encounter.summary()
+        print("=" * 60)
+        print("")
         
 
 class TrajBundle:
@@ -2138,37 +2184,35 @@ class TrajBundle:
         print(f"Summary written to '{output_filename}'")
         
         
-        
-class CalculatorBundle(TrajBundle):
+class Calculator_Bundle(TrajBundle):
     """
     Manages and runs the full analysis pipeline on a bundle of trajectories.
 
-    This class inherits from TrajBundle to find and group trajectory files.
-    It then provides a method to run the entire Calculator analysis (Trajectory,
-    TrajectoryAnalyzer, Encounter) on each file, supporting parallel processing
-    for improved performance.
+    This class discovers and groups trajectory files, then orchestrates the
+    entire analysis workflow for each file in parallel. It calculates various
+    physical properties, aggregates them by temperature, and performs Arrhenius fits.
+    Finally, it provides a suite of plotting methods to visualize the results.
+
+    The main entry point is the .calculate() method, which runs the entire
+    computational pipeline.
 
     Args:
         path (str): 
             The root directory to search for trajectory files.
         site (Site): 
-            An initialized Site object containing lattice structure and path information.
+            An initialized Site object with lattice and path information.
         t_interval (float): 
-            The time interval in picoseconds (ps)
+            The time interval in picoseconds (ps).
         prefix (str, optional): 
-            Prefix of the trajectory files. Defaults to "TRAJ".
+            Prefix of trajectory files. Defaults to "TRAJ".
         depth (int, optional): 
             Maximum directory depth for file search. Defaults to 2.
         n_jobs (int, optional): 
-            The number of CPU cores to use for parallel analysis. 
-            If 1, runs sequentially. If -1, uses all available cores.
-            Defaults to 1.
+            Number of CPU cores for parallel analysis. -1 uses all available cores. Defaults to 1.
         use_incomplete_encounter (bool, optional): 
-            Flag for Encounter analysis.
-            Defaults to True.
+            Flag for Encounter analysis. Defaults to True.
         eps (float, optional): 
-            Tolerance for floating-point comparisons.
-            Defaults to 1.0e-3.
+            Tolerance for floating-point comparisons. Defaults to 1.0e-3.
         verbose (bool, optional): 
             Verbosity flag. Defaults to True.
     """
@@ -2182,6 +2226,9 @@ class CalculatorBundle(TrajBundle):
                  use_incomplete_encounter: bool = True,
                  eps: float = 1.0e-3,
                  verbose: bool = True):
+        
+        self.kb = 8.61733326e-5
+        self.cmap = plt.get_cmap("Set1")
         
         self.site = site
         self.t_interval = t_interval
@@ -2197,43 +2244,58 @@ class CalculatorBundle(TrajBundle):
                          eps=self.eps, 
                          verbose=False)
         
+        self.temperatures = np.array(self.temperatures, dtype=np.float64)
         self.all_traj_paths = [path for temp_paths in self.traj for path in temp_paths]
         self.verbose = verbose
         
         # list of calculators
         self.calculators = None
+        self.num_vacancies = None
+        self.path_unknown = None
         
-    def _run_single_task(self, traj) -> Union['Calculator', None]:
-        """
-        Runs the Calculator analysis for a single trajectory file.
-
-        Args:
-            traj_path (str): The file path of the trajectory to analyze.
-
-        Returns:
-            Calculator | None: An initialized Calculator object if analysis is
-            successful, otherwise None.
-        """
-        try:
-            calc = Calculator(
-                traj=traj,
-                site=self.site,
-                t_interval=self.t_interval,
-                eps=self.eps,
-                use_incomplete_encounter=self.use_incomplete_encounter,
-                verbose=False
-            )
-            calc.calculate()
-            return calc
-        except Exception as e:
-            print(f"\nWarning: Failed to analyze '{traj}'. Reason: {e}. Skipped.")
-            return None
-    
+        # correlation factor
+        self.f = None
+        self.f0 = None
+        self.Ea_f = None
+        self.f_R2 = None
+        
+        # random walk diffusivity
+        self.D_rand = None
+        self.D_rand0 = None
+        self.Ea_D_rand = None
+        self.D_rand_R2 = None
+        
+        # diffusivity
+        self.D = None
+        self.D0 = None
+        self.Ea_D = None
+        self.D_R2 = None
+        
+        # residence time
+        self.tau = None
+        self.tau0 = None
+        self.Ea_tau0 = self.Ea_D_rand
+        self.tau_R2 = None
+        
+        # effective hopping distance
+        self.a = None
+       
+        # <z>
+        self.z_mean = None
+        
+        
     @monitor_performance
     def calculate(self) -> None:
         """
-        Runs the full analysis for all trajectories and stores the results
-        in the `self.calculators` attribute.
+        Runs the full analysis pipeline on all trajectories.
+
+        This method performs the following steps:
+        1. Runs the analysis for each trajectory file in parallel.
+        2. Gathers and sorts the results.
+        3. Groups the results by temperature.
+        4. Calculates temperature-averaged physical properties (D, f, tau, etc.).
+        5. Performs Arrhenius fits if more than one temperature is available.
+        6. Calculates the effective hopping distance from the fit results.
         """
         results = Parallel(n_jobs=self.n_jobs)(
             delayed(self._run_single_task)(traj) 
@@ -2243,8 +2305,678 @@ class CalculatorBundle(TrajBundle):
                              ascii=False) 
         )
         
-        successful_results = [res for res in results if res is not None]
+        # Successfully terminated calculators
+        successful_results = [res for res in results if res[1] is not None]
+
+        # Sort the results in order of traj
+        path_order_map = {path: i for i, path in enumerate(self.all_traj_paths)}
+        successful_results = sorted(successful_results, key=lambda res: path_order_map[res[0]])
+        self.calculators = [calc for _, calc in successful_results]
         print(f"\nAnalysis complete: {len(successful_results)} successful, " +
               f"{len(results) - len(successful_results)} failed.")
         
-        self.calculators = successful_results   
+        # Count the number of calc at each temperature
+        calc_temps = np.array([calc.temperature for calc in self.calculators])
+        self.num_calc_temp = np.bincount(
+            np.argmin(np.abs(calc_temps[:, np.newaxis] - self.temperatures), axis=1), 
+            minlength=len(self.temperatures)
+        )
+        self.index_calc_temp = np.concatenate(([0], np.cumsum(self.num_calc_temp)))
+        
+        self.num_vacancies = self.calculators[0].num_vacancies
+        self.path_unknown = self.site.path_unknown
+        self.t_interval = self.calculators[0].t_interval
+        self.frame_interval = self.calculators[0].frame_interval
+        
+        self._get_correlation_factor()
+        self._get_random_walk_diffusivity()
+        self._get_diffusivity()
+        self._get_residence_time()
+        self._get_mean_number_of_equivalent_paths()
+        
+        if len(self.temperatures) >= 2:
+            self._fit_correlation_factor()
+            self._fit_random_walk_diffusivity()
+            self._fit_diffusivity()
+            self._fit_residence_time()
+            self._get_effective_hopping_distance()
+    
+    # ===================================================================
+    # Internal Helper Methods
+    # ===================================================================
+         
+    def _run_single_task(self, traj) -> Tuple[str, Optional['Calculator_Single']]:
+        """
+        Worker function to run analysis on a single trajectory file.
+        
+        Args:
+            traj_path (str): The file path of the trajectory to analyze.
+
+        Returns:
+            A tuple containing the input path and the resulting Calculator_Single
+            object, or None if the analysis failed.
+        """
+        try:
+            calc = Calculator_Single(
+                traj=traj,
+                site=self.site,
+                t_interval=self.t_interval,
+                eps=self.eps,
+                use_incomplete_encounter=self.use_incomplete_encounter,
+                verbose=False
+            )
+            return (traj, calc)
+        
+        except Exception as e:
+            print(f"\nWarning: Failed to analyze '{traj}'. Reason: {e}. Skipped.")
+            return (traj, None)
+    
+    def _get_correlation_factor(self):
+        """Calculates the temperature-dependent correlation factor."""
+        
+        if self.calculators is None:
+            raise RuntimeError("Please call the .calculate() method first.") 
+
+        self.f_ind = np.array([c.f for c in self.calculators], dtype=np.float64)
+        num_enc_all = np.array([c.encounter_num for c in self.calculators])
+        msd_enc_all = np.array([c.encounter_msd for c in self.calculators])
+        
+        msd_enc_rand_all = np.array([
+            np.sum(c.encounter_path_distance**2 * c.encounter_path_counts)
+            if c.f is not None else np.nan
+            for c in self.calculators
+        ])
+        
+        self.f_avg = [np.nanmean(self.f_ind[start:end]) 
+                      for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:])]
+
+        self.f = []
+        for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
+            num_enc_slice = num_enc_all[start:end]
+            msd_enc_slice = msd_enc_all[start:end]
+            msd_enc_rand_slice = msd_enc_rand_all[start:end]
+            
+            valid_mask = ~np.isnan(msd_enc_rand_slice)
+            if not np.any(valid_mask):
+                self.f.append(np.nan)
+                continue
+
+            num_enc_valid = num_enc_slice[valid_mask]
+            total_num_enc = np.sum(num_enc_valid)
+            
+            if total_num_enc == 0:
+                self.f.append(np.nan)
+                continue
+                
+            msd_total = np.sum(msd_enc_slice[valid_mask] * num_enc_valid) / total_num_enc
+            msd_rand_total = np.sum(msd_enc_rand_slice[valid_mask]) / total_num_enc
+            
+            self.f.append(msd_total / msd_rand_total)
+        self.f = np.array(self.f, dtype=np.float64)
+    
+    def _get_random_walk_diffusivity(self):
+        """Calculates the temperature-dependent random walk diffusivity."""
+        if self.calculators is None:
+            raise RuntimeError("Please call the .calculate() method first.")
+            
+        total_time_all = np.array([calc.t_interval * calc.num_steps for calc in self.calculators])
+        msd_rand_all = np.array([calc.msd_rand for calc in self.calculators])
+        
+        self.D_rand = []
+        for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
+            t_i = np.sum(total_time_all[start:end])
+            msd_rand_i = np.sum(msd_rand_all[start:end])
+            if t_i == 0:
+                self.D_rand.append(np.nan)
+            else:
+                self.D_rand.append(msd_rand_i / (6 * t_i))
+                
+        self.D_rand = np.array(self.D_rand) * 1e-8
+    
+    def _get_diffusivity(self):
+        """Calculates the temperature-dependent tracer diffusivity."""
+        if self.D_rand is None:
+            raise RuntimeError(
+                "D_rand is not calculated. Please call '_get_random_walk_diffusivity()' first."
+            )
+        if self.f is None:
+            raise RuntimeError(
+                "Correlation factor (f) is not calculated. Please call '_get_correlation_factor()' first."
+            )
+            
+        d_rand_arr = np.asarray(self.D_rand)
+        f_arr = np.asarray(self.f)
+        
+        if d_rand_arr.shape != f_arr.shape:
+            raise ValueError(
+                f"Shape mismatch: D_rand shape {d_rand_arr.shape} does not match f shape {f_arr.shape}."
+            )
+
+        self.D = d_rand_arr * f_arr
+    
+    def _get_residence_time(self):
+        """Calculates the temperature-dependent residence time."""
+        if self.calculators is None:
+            raise RuntimeError("Please call the .calculate() method first.")
+        
+        total_time_all = np.array([c.t_interval * c.num_steps for c in self.calculators])
+        total_jumps_all = np.array([np.sum(c.counts) / c.num_vacancies for c in self.calculators])
+
+        self.tau = []
+        for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
+            t_i = np.sum(total_time_all[start:end])
+            count_i = np.sum(total_jumps_all[start:end])
+            
+            if count_i == 0:
+                self.tau.append(np.nan)
+            else:
+                self.tau.append(t_i / count_i)
+                
+        self.tau = np.array(self.tau, dtype=np.float64) 
+     
+    def _get_effective_hopping_distance(self):
+        """Calculates the effective hopping distance from fit parameters."""
+        if self.D_rand0 is None:
+            self._get_random_walk_diffusivity()
+            self._fit_random_walk_diffusivity()
+        if self.tau0 is None:
+            self._get_residence_time()
+        
+        term = 6 * self.D_rand0 * self.tau0
+        if term < 0:
+            print(
+                f"Warning: The term (6 * D0 * tau0) is negative ({term:.2e}). "
+                "Effective hopping distance cannot be calculated. Setting to NaN."
+            )
+            self.a = np.nan
+            return
+        
+        self.a = np.sqrt(term) * 1e4
+        
+    def _get_mean_number_of_equivalent_paths(self):
+        """Calculates the temperature-dependent mean number of equivalent paths."""
+        if self.calculators is None:
+            raise RuntimeError("Please call the .calculate() method first.")
+
+        z = np.array([path['z'] for path in self.site.path], dtype=np.float64)
+        all_counts = np.array([np.sum(c.counts, axis=0) for c in self.calculators])
+
+        self.z_mean = []
+        for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
+            counts = np.sum(all_counts[start:end], axis=0)
+
+            total_jumps = np.sum(counts)
+            if total_jumps == 0:
+                self.z_mean.append(np.nan)
+                continue
+            denominator = np.sum(np.divide(counts, z, where=z!=0))
+            
+            if denominator == 0:
+                self.z_mean.append(np.nan)
+            else:
+                self.z_mean.append(total_jumps / denominator)
+        self.z_mean = np.array(self.z_mean, dtype=np.float64) 
+     
+    def _fit_correlation_factor(self):
+        """Performs an Arrhenius fit on the correlation factor data."""
+        self.Ea_f, self.f0, self.f_R2 = self._Arrhenius_fit(
+            self.temperatures, self.f, self.kb
+        )
+    
+    def _fit_random_walk_diffusivity(self):
+        """Performs an Arrhenius fit on the random walk diffusivity data."""
+        self.Ea_D_rand, self.D_rand0, self.D_rand_R2 = self._Arrhenius_fit(
+            self.temperatures, self.D_rand, self.kb
+        )
+    
+    def _fit_diffusivity(self):
+        """Performs an Arrhenius fit on the diffusivity data."""
+        self.Ea_D, self.D0, self.D_R2 = self._Arrhenius_fit(
+            self.temperatures, self.D, self.kb
+        )
+    
+    def _fit_residence_time(self):
+        """Fits the residence time data to find the pre-exponential factor tau0."""
+        if self.tau is None:
+            self._get_residence_time()
+            
+        if self.Ea_D_rand is None:
+            self._get_random_walk_diffusivity()
+            self._fit_random_walk_diffusivity()
+        
+        valid_mask = ~np.isnan(self.tau)
+        if np.sum(valid_mask) < 2:
+            self.tau0 = np.nan
+            self.tau_R2 = np.nan
+            return
+
+        tau_valid = self.tau[valid_mask]
+        temps_valid = self.temperatures[valid_mask]
+
+        error_tau = lambda tau0: np.linalg.norm(
+            tau_valid - tau0 * np.exp(self.Ea_D_rand / (self.kb * temps_valid))
+        )
+
+        tau0_opt = minimize_scalar(error_tau)
+        self.tau0 = tau0_opt.x # ps
+    
+        ss_residual = tau0_opt.fun ** 2
+        ss_total = np.sum((tau_valid - np.mean(tau_valid))**2)
+
+        if ss_total == 0:
+            self.tau_R2 = 1.0 if ss_residual == 0 else 0.0
+        else:
+            self.tau_R2 = 1 - (ss_residual / ss_total)
+
+    @staticmethod
+    def _Arrhenius_fit(temperatures: np.ndarray, 
+                       data: np.ndarray, 
+                       kb: float) -> Tuple[float, float, float]:
+        """
+        Fits data to the Arrhenius equation and returns fitting parameters.
+
+        Args:
+            temperatures (np.ndarray): Array of temperatures (in K).
+            data (np.ndarray): Array of data to be fitted (e.g., diffusivity).
+            kb (float): Boltzmann constant in the desired units (e.g., eV/K).
+
+        Returns:
+            Tuple[float, float, float]: A tuple containing:
+                - activation_energy (float)
+                - pre_exponential_factor (float)
+                - r_squared (float)
+        """
+        if len(temperatures) <= 1:
+            raise ValueError("At least two temperature points are required.")
+        
+        valid_mask = data > 0
+        if np.sum(valid_mask) < 2:
+            raise ValueError("At least two valid data points (> 0) are required.")
+        
+        temps_valid = temperatures[valid_mask]
+        data_valid = data[valid_mask]
+        
+        x = 1 / temps_valid
+        y = np.log(data_valid)
+        slope, intercept = np.polyfit(x, y, deg=1)
+        
+        activation_energy = -slope * kb
+        pre_exponential_factor = np.exp(intercept)
+        
+        # Calculate R-squared for goodness of fit
+        y_predicted = slope * x + intercept
+        ss_residual = np.sum((y - y_predicted)**2)
+        ss_total = np.sum((y - np.mean(y))**2)
+        
+        if ss_total == 0:
+            r_squared = 1.0 if ss_residual == 0 else 0.0
+        else:
+            r_squared = 1 - (ss_residual / ss_total)
+            
+        return activation_energy, pre_exponential_factor, r_squared
+
+    # ===================================================================
+    # Plotting Methods
+    # ===================================================================
+     
+    def _create_arrhenius_plot(self, 
+                               data: np.ndarray, 
+                               temperatures: np.ndarray, 
+                               slope: float, 
+                               intercept: float,
+                               ylabel: str, 
+                               title: Optional[str] = None, 
+                               figsize: Tuple[float, float] = (4.2, 4.0)) -> Tuple[plt.Figure, plt.Axes]:
+        """
+        Generic helper function to create a styled Arrhenius plot.
+
+        Args:
+            data (np.ndarray): The y-data for the scatter plot (e.g., diffusivity).
+            temperatures (np.ndarray): The temperature data points.
+            slope (float): The slope of the fit line on the ln(y) vs 1000/T plot.
+            intercept (float): The intercept of the fit line.
+            ylabel (str): The label for the y-axis.
+            title (str, optional): The title of the plot. Defaults to None.
+            figsize (Tuple[float, float], optional): The figure size. Defaults to (4.2, 4.0).
+
+        Returns:
+            A tuple containing the matplotlib Figure and Axes objects.
+        """
+        valid_mask = ~np.isnan(data)
+        temps_valid = temperatures[valid_mask]
+        data_valid = data[valid_mask]
+
+        fig, ax = plt.subplots(figsize=figsize)
+        for axis in ['top', 'bottom', 'left', 'right']:
+            ax.spines[axis].set_linewidth(1.2)
+
+        x_points = 1000 / temps_valid
+        y_points = np.log(data_valid)
+        
+        for i in range(len(temps_valid)):
+            ax.scatter(x_points[i], y_points[i], color=self.cmap(i),
+                       marker="s", s=50, label=f"{temps_valid[i]:.0f} K")
+
+        x_fit = np.linspace(np.min(x_points), np.max(x_points), 100)
+        ax.plot(x_fit, slope * x_fit + intercept, 'k:', linewidth=1.2)
+        ax.legend(title='Temperature')
+        
+        ax.set_xlabel('1000 / T (K⁻¹)', fontsize=11)
+        ax.set_ylabel(ylabel, fontsize=11)
+        if title is not None:
+            ax.set_title(title, fontsize=12, pad=10)
+        
+        fig.tight_layout()
+        return fig, ax
+             
+    def plot_D_rand(self, 
+                    title: Optional[str] = None, 
+                    save: bool = True, 
+                    filename: str = "D_rand.png", 
+                    dpi: int = 300) -> None:
+        """
+        Generates and displays an Arrhenius plot for the random walk diffusivity.
+
+        Args:
+            title (str, optional): 
+                A custom title for the plot. Defaults to None.
+            save (bool, optional): 
+                If True, saves the figure. Defaults to True.
+            filename (str, optional): 
+                The filename for the saved figure. Defaults to "D_rand.png".
+            dpi (int, optional): 
+                The resolution for the saved figure. Defaults to 300.
+        """
+        if self.D_rand is None or self.Ea_D_rand is None:
+             raise RuntimeError("Please run analysis and fitting for 'D_rand' first.")
+         
+        slope = -self.Ea_D_rand / (self.kb * 1000) 
+        intercept = np.log(self.D_rand0)
+
+        fig, ax = self._create_arrhenius_plot(
+            data=self.D_rand,
+            temperatures=self.temperatures,
+            slope=slope,
+            intercept=intercept,
+            ylabel=r'ln $D_{rand}$ ($m^2/s$)',
+            title=title
+        )
+        
+        text_str = (f'$E_a = {self.Ea_D_rand:.2f}$ eV\n'
+                    f'$Drand_0 = {self.D_rand0:.1e}$ $m^2/s$\n'
+                    f'$R^2 = {self.D_rand_R2:.2f}$')
+        
+        ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
+                verticalalignment='bottom', horizontalalignment='left',
+                bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+        
+        if save:
+            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        plt.show()
+        
+    def plot_f(self, 
+               title: Optional[str] = None, 
+               inset_arrhenius: bool = True, 
+               save: bool = True, 
+               filename: str = 'f.png', 
+               dpi: int = 300) -> None:
+        """
+        Plots the correlation factor (f) vs. temperature.
+
+        Optionally includes an inset plot showing the Arrhenius relationship for f.
+
+        Args:
+            title (str, optional): 
+                A custom title for the plot. Defaults to None.
+            inset_arrhenius (bool, optional): 
+                If True, includes the inset plot. Defaults to True.
+            save (bool, optional): 
+                If True, saves the figure. Defaults to True.
+            filename (str, optional): 
+                The filename for the saved figure. Defaults to "f.png".
+            dpi (int, optional): 
+                The resolution for the saved figure. Defaults to 300.
+        """
+        if self.f is None:
+            raise RuntimeError("Correlation factor has not been calculated. "
+                               "Please run _get_correlation_factor() first.")
+
+        f_data = np.asarray(self.f)
+        valid_mask = ~np.isnan(f_data)
+        temps_valid = self.temperatures[valid_mask]
+        f_valid = f_data[valid_mask]
+
+        fig, ax = plt.subplots(figsize=(4.2, 4.0))
+        for axis in ['top', 'bottom', 'left', 'right']:
+            ax.spines[axis].set_linewidth(1.2)
+
+        for i in range(len(temps_valid)):
+            ax.scatter(temps_valid[i], f_valid[i], color=self.cmap(i),
+                       marker='s', s=50, label=f"{temps_valid[i]:.0f} K")
+        
+        ax.set_ylim([0, 1])
+        ax.set_xlabel('Temperature (K)', fontsize=11)
+        ax.set_ylabel(r'$f$', fontsize=11)
+        
+        if title is not None:
+            ax.set_title(title, fontsize=12, pad=10)
+
+        if inset_arrhenius and len(f_valid) >= 2:
+            Ea_f, f0, r2_f = self._Arrhenius_fit(temps_valid, f_valid, self.kb)
+
+            axins = ax.inset_axes([1.05, 0.6, 0.4, 0.4])
+            
+            x_points_ins = 1000 / temps_valid
+            y_points_ins = np.log(f_valid)
+            slope_ins = -Ea_f / (self.kb * 1000)
+            intercept_ins = np.log(f0)
+            
+            x_fit_ins = np.linspace(np.min(x_points_ins), np.max(x_points_ins), 100)
+            axins.plot(x_fit_ins, slope_ins * x_fit_ins + intercept_ins, 'k:', lw=1.2)
+            axins.scatter(x_points_ins, y_points_ins, c=self.cmap(np.where(valid_mask)[0]), marker='s')
+            
+            axins.set_xlabel('1000/T (K⁻¹)', fontsize=9)
+            axins.set_ylabel(r'ln $f$', fontsize=9)
+            axins.tick_params(axis='both', which='major', labelsize=8)
+
+            axins.set_xticks([])
+            axins.set_yticks([])
+
+            # margin = np.abs(np.log(0.1))
+            # bottom, top = axins.get_ylim()
+            # axins.set_ylim(bottom - margin, top + margin) 
+
+            text_str = (f'$E_a = {Ea_f:.3f}$ eV\n'
+                        f'$f_0 = {f0:.3f}$\n'
+                        f'$R^2 = {r2_f:.4f}$')
+            
+            ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
+                verticalalignment='bottom', horizontalalignment='left',
+                bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+        
+        if save:
+            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        plt.show()
+        plt.close(fig)
+        
+    def plot_D(self, 
+               title: Optional[str] = None, 
+               save: bool = True, 
+               filename: str = "D.png", 
+               dpi: int = 300) -> None:
+        """
+        Generates and displays an Arrhenius plot for the tracer diffusivity.
+
+        Args:
+            title (str, optional): 
+                A custom title for the plot. Defaults to None.
+            save (bool, optional): 
+                If True, saves the figure. Defaults to True.
+            filename (str, optional): 
+                The filename for the saved figure. Defaults to "D.png".
+            dpi (int, optional): 
+                The resolution for the saved figure. Defaults to 300.
+        """
+        if self.D is None or self.Ea_D is None:
+             raise RuntimeError("Please run analysis and fitting for 'D' first.")
+         
+        slope = -self.Ea_D / (self.kb * 1000)
+        intercept = np.log(self.D0)
+        
+        fig, ax = self._create_arrhenius_plot(
+            data=self.D,
+            temperatures=self.temperatures,
+            slope=slope,
+            intercept=intercept,
+            ylabel=r'ln $D$ ($m^2/s$)',
+            title=title
+        )
+        
+        text_str = (f'$E_a = {self.Ea_D_rand:.2f}$ eV\n'
+                    f'$D_0 = {self.D_rand0:.1e}$ $m^2/s$\n'
+                    f'$R^2 = {self.D_rand_R2:.2f}$')
+        
+        ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
+                verticalalignment='bottom', horizontalalignment='left',
+                bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+        
+        if save:
+            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        plt.show()
+        
+    def plot_tau(self, 
+                 title: Optional[str] = None, 
+                 save: bool = True, 
+                 filename: str = 'tau.png', 
+                 dpi: int = 300) -> None:
+        """
+        Plots the residence time (tau) vs. temperature using a bar chart.
+
+        Overlays the Arrhenius fit and displays the results. The y-axis is on a
+        logarithmic scale for better visualization.
+
+        Args:
+            title (str, optional): 
+                A custom title for the plot. Defaults to None.
+            save (bool, optional): 
+                If True, saves the figure. Defaults to True.
+            filename (str, optional): 
+                The filename for the saved figure. Defaults to "tau.png".
+            dpi (int, optional): 
+                The resolution for the saved figure. Defaults to 300.
+        """
+        if self.tau is None or self.tau0 is None or self.Ea_D_rand is None:
+            raise RuntimeError("Residence time and its fit parameters have not been "
+                               "calculated. Please run the analysis first.")
+        
+        valid_mask = ~np.isnan(self.tau)
+        temps_valid = self.temperatures[valid_mask]
+        tau_valid = self.tau[valid_mask]
+
+        if len(tau_valid) == 0:
+            print("Warning: No valid residence time data to plot.")
+            return
+        
+        fig, ax = plt.subplots(figsize=(4.5, 4.2))
+        for axis in ['top', 'bottom', 'left', 'right']:
+            ax.spines[axis].set_linewidth(1.2)
+
+        if len(temps_valid) > 1:
+            bar_width = np.mean(np.diff(temps_valid)) * 0.7
+        else:
+            bar_width = temps_valid[0] * 0.1
+
+        for i in range(len(temps_valid)):
+            ax.bar(temps_valid[i], tau_valid[i], width=bar_width,
+                   edgecolor='k', color=self.cmap(i),
+                   label=f"{temps_valid[i]:.0f} K")
+        
+        x_fit = np.linspace(np.min(temps_valid), np.max(temps_valid), 200)     
+        y_fit = self.tau0 * np.exp(self.Ea_D_rand / (self.kb * x_fit))
+        ax.plot(x_fit, y_fit, 'k:', linewidth=1.5)
+        
+        ax.set_xlabel('Temperature (K)', fontsize=11)
+        ax.set_ylabel(r'$\tau$ (ps)', fontsize=11)
+        ax.legend(title='Temperature')
+
+        text_str = (f'$E_a = {self.Ea_D_rand:.2f}$ eV\n'
+                    f'$\\tau_0 = {self.tau0:.1e}$ ps\n'
+                    f'$R^2 = {self.tau_R2:.2f}$')
+        
+        ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
+                verticalalignment='bottom', horizontalalignment='left',
+                bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+
+        if title is not None:
+            ax.set_title(title, fontsize=12, pad=10)
+            
+        fig.tight_layout()
+        if save:
+            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        plt.show()
+        plt.close(fig)
+        
+    def summary(self):
+        """
+        Prints a comprehensive summary of the analysis results, including
+        fitted parameters and temperature-dependent data in a table.
+        """
+        if self.calculators is None:
+            print("Calculator has not been run. Running .calculate() now...")
+            self.calculate()
+        
+        print("=" * 60)
+        print("Summary for Trajectory Bundle")
+        print(f"  - Path to TRAJ bundle : {self.path} (depth={self.depth})")
+        print(f"  - Lattice structure   : {self.site.structure_file}")
+        print(f"  - t_interval          : {self.t_interval:.3f} ps ({self.frame_interval} frames)")
+        print(f"  - Temperatures (K)    : {self.temperatures.tolist()}")
+        print(f"  - Num. of TRAJ files  : {self.num_calc_temp.tolist()}")
+        print("=" * 60)
+        
+        if self.Ea_D is not None:
+            print("\n" + "-"*17 + " Final Fitted Parameters " + "-"*18)
+            print(f"Tracer Diffusivity (D):")
+            print(f"  - Ea          : {self.Ea_D:.3f} eV")
+            print(f"  - D0          : {self.D0:.3e} m^2/s")
+            print(f"  - R-squared   : {self.D_R2:.4f}")
+            print(f"Random Walk Diffusivity (D_rand):")
+            print(f"  - Ea          : {self.Ea_D_rand:.3f} eV")
+            print(f"  - D0          : {self.D_rand0:.3e} m^2/s")
+            print(f"  - R-squared   : {self.D_rand_R2:.4f}")
+            print(f"Correlation Factor (f):")
+            print(f"  - Ea          : {self.Ea_f:.3f} eV")
+            print(f"  - f0          : {self.f0:.3f}")
+            print(f"  - R-squared   : {self.f_R2:.4f}")
+            print(f"Residence Time (tau):")
+            print(f"  - Ea (fixed)  : {self.Ea_D_rand:.3f} eV")
+            print(f"  - tau0        : {self.tau0:.3e} ps")
+            print(f"  - R-squared   : {self.tau_R2:.4f}")
+            print(f"Effective Hopping Distance (a) : {self.a:.4f} Å")
+            print("-" * 60)
+        else:
+            print("\n" + "-"*19 + " Diffusion Parameters " + "-"*20)
+            print(f"Tracer Diffusivity (D)           : {self.D.item():.4e} m^2/s")
+            print(f"Random Walk Diffusivity (D_rand) : {self.D_rand.item():.4e} m^2/s")
+            print(f"Correlation Factor (f)           : {self.f.item():.4f}")
+            print(f"Residence Time (tau)             : {self.tau.item():.4f} ps")
+            print(f"Mean Equivalent Paths (z_mean)   : {self.z_mean.item():.4f}")
+            print("-" * 60)
+        
+        if self.calculators and len(self.temperatures) > 0:
+            print("\n" + "-"*17 + " Temperature-Dependent Data " + "-"*17)
+            
+            headers = ["Temp (K)", "D (m2/s)", "D_rand (m2/s)", "f", "tau (ps)", "z_mean"]
+            table_data = zip(self.temperatures, self.D, self.D_rand, self.f, self.tau, self.z_mean)
+            
+            formats = [".1f", ".3e", ".3e", ".4f", ".4f", ".4f"]
+            table_data = []
+            for row in zip(self.temperatures, self.D, self.D_rand, self.f, self.tau, self.z_mean):
+                formatted_row = [f"{value:{fmt}}" for value, fmt in zip(row, formats)]
+                table_data.append(formatted_row)
+    
+            table = tabulate(table_data, headers=headers, 
+                             tablefmt="simple", stralign='left', numalign='left')
+            print(table)
+            print("=" * 60)
+                              
