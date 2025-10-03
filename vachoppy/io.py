@@ -20,6 +20,7 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 from vachoppy.utils import *
 from vachoppy.trajectory import *
+from vachoppy.vibration import *
 
 BOLD = '\033[1m'
 CYAN = '\033[36m'
@@ -337,7 +338,7 @@ def parse_lammps(lammps_data:str,
             unit=" frames", 
             total=num_frames,
             ascii=False,
-            bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET)
+            bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, Fore.RESET)
         )
         prev_positions = None
         for start_frame in range(0, num_frames, chunk_size):
@@ -537,7 +538,7 @@ def concat_traj(traj1:str,
                 unit=" frames", 
                 total=total_frames,
                 ascii=False,
-                bar_format='{l_bar}%s{bar:35}%s{r_bar}{bar:-10b}'%(Fore.GREEN, Fore.RESET)
+                bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, Fore.RESET)
             )
 
             # Copy from the first file
@@ -829,11 +830,10 @@ class Site:
             ] for path in self.path
         ]
         print(tabulate(data, headers=headers, tablefmt="simple"))
-
+        
 
 def Calculator(path: str,
                site, # : Site
-               t_interval: float,
                **kwargs) -> Union[Calculator_Bundle, Calculator_Single]:
     """
     A factory function that returns the appropriate calculator instance.
@@ -858,8 +858,9 @@ def Calculator(path: str,
                 File prefix. (Bundle only). Defaults to "TRAJ".
             - depth (int, optional): 
                 Directory search depth. (Bundle only). Defaults to 2.
-            - n_jobs (int, optional): 
-                Number of parallel jobs. (Bundle only). Defaults to 1.
+            - sampling_size (int, optional): 
+                Number of initial trajectory frames to use for the analysis.
+                Defaults to 5000.
             - use_incomplete_encounter (bool, optional): 
                 Flag for Encounter analysis. Defaults to True.
             - eps (float, optional): 
@@ -877,16 +878,90 @@ def Calculator(path: str,
         ValueError: If the path exists but is not a regular file or directory.
     """
     p = Path(path)
-    
     if not p.exists():
         raise FileNotFoundError(f"Error: The path '{path}' was not found.")
+    
+    t_interval = kwargs.pop('t_interval', None)
+    
+    # Helper function for t_interval estimation
+    def _get_t_interval(traj: str) -> float:
+        vib_init_keys = ['sampling_size', 'filter_high_freq']
+        vib_init_kwargs = {key: kwargs.get(key) for key in vib_init_keys if key in kwargs}
+        vib_params = {
+            'traj': traj,
+            'site': site,
+            'verbose': False
+        }
 
+        vib_params.update(vib_init_kwargs)
+        vib = Vibration(**vib_params)
+        vib.calculate()
+        if vib.mean_frequency > 0:
+            estimated_interval = 1 / vib.mean_frequency
+            print(" "*13 + f"-> t_interval : {estimated_interval:.3f} ps")
+            return estimated_interval
+        else:
+            raise ValueError(f"Could not estimate t_interval from '{traj}' as mean frequency is zero.")
+        
+    # Helper function to get dt
+    def _get_dt(traj: str) -> float:
+        with h5py.File(traj, 'r') as f:
+            return json.loads(f.attrs['metadata']).get('dt')
+    
+    bundle = None   
+    representative_traj = ""
+    bundle_init_keys = ['prefix', 'depth', 'eps', 'verbose']
+    bundle_init_kwargs = {key: kwargs.get(key) for key in bundle_init_keys if key in kwargs}
+
+    if p.is_file():
+        representative_traj = str(p.resolve())
+    elif p.is_dir():
+        bundle = TrajBundle(path=path, symbol=site.symbol, **bundle_init_kwargs)
+        if not bundle.traj or not bundle.traj[0]:
+            raise FileNotFoundError(f"No valid trajectory files found in '{path}' to use for analysis.")
+        representative_traj = bundle.traj[0][0]
+        
+    dt_fs = _get_dt(representative_traj)
+    dt_ps = dt_fs / 1000.0
+    
+    if t_interval is None:
+        print("="*60)
+        print(" "*15 + "Automatic t_interval Estimation")
+        print("="*60)
+        if p.is_dir():
+            t_interval_list = []
+            for i, temp in enumerate(bundle.temperatures):
+                file_path = Path(bundle.traj[i][0])
+                short_path = os.path.join(*file_path.parts[-bundle.depth:])
+                print(f"  [{temp} K] Estimating from {short_path}")
+                t_interval_list.append(_get_t_interval(bundle.traj[i][0]))
+            t_interval = np.mean(t_interval_list) 
+        elif p.is_file():
+            print(f"  Estimating from {p.name}")
+            t_interval = _get_t_interval(representative_traj)
+        print("="*60)
+    
+        original_t_interval = t_interval            
+        num_dt_steps = round(original_t_interval / dt_ps)
+        adjusted_t_interval = num_dt_steps * dt_ps
+
+        print(" "*4 + "Adjusting t_interval to the nearest multiple of 'dt'")
+        print("="*60)
+        print(f"    - dt                  : {dt_ps:.4f} ps")
+        print(f"    - Original t_interval : {original_t_interval:.4f} ps")
+        print(f"    - Adjusted t_interval : {adjusted_t_interval:.4f} ps ({num_dt_steps} frames)")
+        t_interval = adjusted_t_interval
+        print("="*60)
+    
     if p.is_dir():
+        bundle_keys = ['prefix', 'depth', 'use_incomplete_encounter', 'eps', 'verbose']
+        bundle_kwargs = {key: kwargs.get(key) for key in bundle_keys if key in kwargs}
+        
         return Calculator_Bundle(
             path=path,
             site=site,
             t_interval=t_interval,
-            **kwargs
+            **bundle_kwargs
         )
     elif p.is_file():
         single_keys = ['eps', 'use_incomplete_encounter', 'verbose']
