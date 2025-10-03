@@ -968,11 +968,31 @@ class Trajectory:
         dist_sq = np.sum(np.dot(delta, self.lattice_parameter)**2, axis=2)
         return np.argmin(dist_sq, axis=1)
     
-    def _get_occupation(self) -> None:
-        """
-        Analyzes the atomic trajectory to determine site occupations over time,
-        applying a transition state (TS) criterion to validate hops.
-        This version strictly mimics the calculation flow of the original code.
+    def _get_occupation(self,
+                        force_margin : float = 0.01,
+                        cos_margin : float = 0.1) -> None:
+        """Analyzes atomic trajectory to determine site occupations over time.
+
+        This method iterates through the trajectory and assigns each atom to its
+        nearest lattice site. For atoms that appear to have hopped between
+        timesteps, a robust transition state (TS) criterion is applied to
+        validate the hop and prevent miscounting oscillations as jumps.
+
+        The TS criterion has two conditions:
+        1. Force Magnitude Check: The force on the atom must be greater than
+           `force_margin` for its direction to be considered reliable.
+        2. Cosine Difference Check: The force vector must be pointing back
+           towards the initial site more significantly than towards the final
+           site (by a margin of `cos_margin`) for the hop to be rejected.
+
+        The final occupation history is stored in the `self.occupation` attribute.
+
+        Args:
+            force_margin (float, optional): The minimum force magnitude (in eV/Å)
+                required to perform the directional TS check. Defaults to 0.01.
+            cos_margin (float, optional): The required difference between the cosine
+                of the angle to the initial site and the final site to reject a hop.
+                Defaults to 0.1.
         """
         with h5py.File(self.traj, 'r') as f:
             pos_data = f['positions']
@@ -1022,17 +1042,19 @@ class Trajectory:
                         cos_init = np.nan
                     else:
                         cos_init = np.dot(force_atom, r_init) / (norm_f * norm_init)
-
+                        
                     if norm_f < eps or norm_final < eps:
                         cos_final = np.nan
                     else:
                         cos_final = np.dot(force_atom, r_final) / (norm_f * norm_final)
                         
-                    if np.isnan(cos_init) or np.isnan(cos_final):
-                        if self.verbose:
-                            print(f"WARNING: NaN in cos_init/final at step {i} in file {self.traj}")
+                    accept_hop = True
                     
-                    if cos_init > cos_final:
+                    if norm_f > force_margin and not (np.isnan(cos_init) or np.isnan(cos_final)):
+                        if (cos_init - cos_final) > cos_margin:
+                            accept_hop = False
+                            
+                    if not accept_hop:
                         occupation_i[index] = site_init
                         
                 occupation[i] = occupation_i
@@ -1861,7 +1883,7 @@ class TrajBundle:
                 cond = json.loads(f.attrs["metadata"])
                 ref_dt = cond.get("dt")
                 ref_atom_counts = cond.get("atom_counts")
-                ref_lattice = np.array(cond.get("lattice"))
+                ref_lattice = np.array(cond.get("lattice"), dtype=np.float64)
                 
                 self.lattice = ref_lattice
                 self.atom_count = ref_atom_counts.get(self.symbol)

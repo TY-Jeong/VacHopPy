@@ -228,7 +228,7 @@ class Vibration:
             
             num_frames = cond.get('nsw')
             self.sampling_size = min(sampling_size, num_frames)
-            self.positions = f['positions'][:self.sampling_size]
+            self.positions = f['positions'][:self.sampling_size].astype(np.float64)
             
     def _filter_frequencies_iqr(self, frequencies: list) -> list:
         """Filters high-frequency outliers from a list of frequencies using the IQR method."""
