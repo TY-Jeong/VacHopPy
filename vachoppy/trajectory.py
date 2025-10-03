@@ -72,6 +72,11 @@ class Trajectory:
         t_interval (float): 
             The time interval in picoseconds (ps) between
             each analysis step. This determines the coarse-graining level.
+        force_margin (float, optional): The minimum force magnitude (in eV/Å)
+            required to perform the directional TS check. Defaults to 0.01.
+        cos_margin (float, optional): The required difference between the cosine
+            of the angle to the initial site and the final site to reject a hop.
+            Defaults to 0.1.
         verbose (bool, optional): 
             Verbosity tag. Defaults to True.
 
@@ -101,6 +106,8 @@ class Trajectory:
                  traj: str,
                  site,
                  t_interval: float,
+                 force_margin: float = 0.1,
+                 cos_margin: float = 0.01,
                  verbose: bool = True):
         
         self._validate_traj(traj)
@@ -108,40 +115,42 @@ class Trajectory:
         
         self.traj = traj
         self.site = site
-        self.t_interval = t_interval    # interval
+        self.force_margin = force_margin
+        self.cos_margin = cos_margin
+        self.t_interval = t_interval
         self.verbose = verbose
         
         # Read cond
         self.total_frames = None    # nsw
-        self.temperature = None     # temp
-        self.dt = None              # potim
+        self.temperature = None     
+        self.dt = None         
         self.symbol = None
-        self.num_frames = None      # nsw_cut
-        self.num_steps = None       # num_step
-        self.num_atoms = None       # num_atom
-        self.frame_interval = None  # interval_nsw
+        self.num_frames = None  
+        self.num_steps = None   
+        self.num_atoms = None  
+        self.frame_interval = None 
         self.lattice_parameter = None
         self._read_cond()
         
         # Read site
-        self.lattice_sites = None       # lattice_point
-        self.lattice_sites_cart = None  # lattice_point_C
-        self.num_lattice_sites = None   # num_lattice_point
-        self.num_vacancies = None       # num_vac
+        self.lattice_sites = None   
+        self.lattice_sites_cart = None  
+        self.num_lattice_sites = None   
+        self.num_vacancies = None      
         self._read_site()
         
         self.occupation = None
-        self._get_occupation()          # atomic_trajectory
+        self._get_occupation(self.force_margin, self.cos_margin) 
         
         self.trace_arrows = None
-        self._get_trace_arrows()        # get_trace_arrows
+        self._get_trace_arrows() 
         
         # Vacancy trajectory
         self.hopping_sequence = {}
         self.vacancy_trajectory_index = {}
-        self.vacancy_trajectory_coord_cart = {} # vacancy_trajectory_coord_C
+        self.vacancy_trajectory_coord_cart = {}
         self.transient_vacancy = {}
-        self._get_vacancy_trajectory()  # get_vacancy_trajectory
+        self._get_vacancy_trajectory()
         
         # Unwrapped trajectory
         self.unwrapped_vacancy_trajectory_coord_cart = None
@@ -969,8 +978,8 @@ class Trajectory:
         return np.argmin(dist_sq, axis=1)
     
     def _get_occupation(self,
-                        force_margin : float = 0.01,
-                        cos_margin : float = 0.1) -> None:
+                        force_margin : float,
+                        cos_margin : float) -> None:
         """Analyzes atomic trajectory to determine site occupations over time.
 
         This method iterates through the trajectory and assigns each atom to its
@@ -989,10 +998,9 @@ class Trajectory:
 
         Args:
             force_margin (float, optional): The minimum force magnitude (in eV/Å)
-                required to perform the directional TS check. Defaults to 0.01.
+                required to perform the directional TS check.
             cos_margin (float, optional): The required difference between the cosine
                 of the angle to the initial site and the final site to reject a hop.
-                Defaults to 0.1.
         """
         with h5py.File(self.traj, 'r') as f:
             pos_data = f['positions']
