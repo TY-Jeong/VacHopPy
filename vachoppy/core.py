@@ -36,6 +36,7 @@ def parse_md(filename: str,
              dt: float = 1.0,
              label: str = None,
              chunk_size: int = 5000,
+             dtype=np.float64,
              verbose: bool = True) -> None:
     """Parses a generic MD trajectory using ASE and saves data to HDF5 files.
 
@@ -94,7 +95,7 @@ def parse_md(filename: str,
         prev_positions = None
         generator = iread(filename, index=':', format=format)
         
-        pbar = tqdm(desc=f"{RED}{BOLD}progress{RESET}", unit=" frames")
+        pbar = tqdm(desc=f"{RED}{BOLD}Progress{RESET}", unit=" frames")
         
         while True:
             chunk_atoms = list(itertools.islice(generator, chunk_size))
@@ -142,13 +143,13 @@ def parse_md(filename: str,
                 temp_pos_memmap = np.lib.format.open_memmap(
                     temp_pos_path,
                     mode="w+",
-                    dtype=np.float64,
+                    dtype=dtype,
                     shape=(len(chunk_atoms), len(indices), 3)
                 )
                 temp_force_memmap = np.lib.format.open_memmap(
                     temp_force_path,
                     mode="w+",
-                    dtype=np.float64,
+                    dtype=dtype,
                     shape=(len(chunk_atoms), len(indices), 3)
                 )
                 
@@ -164,12 +165,12 @@ def parse_md(filename: str,
                 pos_dataset = f_h5.create_dataset(
                     "positions", 
                     shape=(num_frames, atom_counts[sym], 3), 
-                    dtype=np.float64
+                    dtype=dtype
                 )
                 force_dataset = f_h5.create_dataset(
                     "forces", 
                     shape=(num_frames, atom_counts[sym], 3), 
-                    dtype=np.float64
+                    dtype=dtype
                 )
                 
                 current_pos = 0
@@ -178,7 +179,7 @@ def parse_md(filename: str,
                     chunk_len = len(temp_data)
                     pos_dataset[current_pos : current_pos + chunk_len] = temp_data
                     current_pos += chunk_len
-                    os.remove(temp_path) # Clean up
+                    os.remove(temp_path)
 
                 current_pos = 0
                 for temp_path in temp_files['force'][sym]:
@@ -224,6 +225,7 @@ def parse_lammps(lammps_data:str,
                  dt:float=1.0,
                  label:str=None,
                  chunk_size=5000,
+                 dtype=np.float64,
                  verbose:bool=True) -> None:
     """Parses a LAMMPS trajectory using MDAnalysis and saves data to HDF5 files.
 
@@ -314,12 +316,12 @@ def parse_lammps(lammps_data:str,
                 'positions': h5_file.create_dataset(
                     "positions",
                     shape=(num_frames, atom_counts[sym], 3),
-                    dtype=np.float64
+                    dtype=dtype
                 ),
                 'forces': h5_file.create_dataset(
                     "forces",
                     shape=(num_frames, atom_counts[sym], 3),
-                    dtype=np.float64
+                    dtype=dtype
                 )
             }
             
@@ -334,7 +336,7 @@ def parse_lammps(lammps_data:str,
             h5_file.attrs['metadata'] = json.dumps(cond)
 
         pbar = tqdm(
-            desc=f"{RED}{BOLD}progress{RESET}", 
+            desc=f"{RED}{BOLD}Progress{RESET}", 
             unit=" frames", 
             total=num_frames,
             ascii=False,
@@ -354,8 +356,8 @@ def parse_lammps(lammps_data:str,
                 except AttributeError:
                     raise ValueError("Force data not found in the trajectory.")
                 
-            chunk_positions = np.array(chunk_positions, dtype=np.float64)
-            chunk_forces = np.array(chunk_forces, dtype=np.float64)
+            chunk_positions = np.array(chunk_positions, dtype=dtype)
+            chunk_forces = np.array(chunk_forces, dtype=dtype)
             chunk_positions = chunk_positions @ inv_lattice # convert to fractional coords
 
             displacement = np.zeros_like(chunk_positions)

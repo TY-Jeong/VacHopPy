@@ -180,7 +180,7 @@ def concat_traj(traj1:str,
             )
 
             pbar = tqdm(
-                desc=f"{RED}{BOLD}progress{RESET}", 
+                desc=f"{RED}{BOLD}Progress{RESET}", 
                 unit=" frames", 
                 total=total_frames,
                 ascii=False,
