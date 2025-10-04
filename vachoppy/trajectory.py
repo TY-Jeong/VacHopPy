@@ -25,6 +25,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 
+from vachoppy.frequency import AttemptFrequency
 from vachoppy.utils import monitor_performance
 
 # color map for tqdm
@@ -2119,7 +2120,6 @@ class Calculator_Single(Trajectory):
             eps=eps, 
             verbose=False
         )
-        self.temperatures = np.array([self.temperature])
         self.hopping_history = self.analyzer.hopping_history
         self.counts = self.analyzer.counts
         self.path_unknown = self.analyzer.path_unknown
@@ -2138,6 +2138,13 @@ class Calculator_Single(Trajectory):
         self.f = self.encounter.f_cor
         self.verbose = verbose
         self.calculate_is_done = False
+        
+        # extra properties...
+        self.a_path = None
+        self.z_path = None
+        self.temperatures = None
+        self.counts_hop = None
+        self.times_site = None
      
     def _get_correlation_factor(self):
         """Extracts the correlation factor from the encounter analysis."""
@@ -2164,6 +2171,24 @@ class Calculator_Single(Trajectory):
         z = np.array([path['z'] for path in self.site.path], dtype=np.float64)
         counts = np.sum(self.counts, axis=0)
         self.z_mean = np.sum(counts) / np.sum(counts / z)
+        
+    def _get_extra_properties(self):
+        """Calculates extra properties: a_path, z_path, temperatures, counts_hop, times"""
+        self.a_path, self.z_path = [], []
+        for path in self.site.path:
+            self.a_path.append(path['distance'])
+            self.z_path.append(path['z'])
+        self.temperatures = np.array([self.temperature])
+        self.counts_hop = [np.sum(self.counts, axis=0).tolist()]
+        
+        name_to_type_index = {name: i for i, name in enumerate(self.site.site_name)}
+        site_index_to_type_map = np.array(
+            [name_to_type_index[site['site']] for site in self.site.lattice_sites]
+        )
+        all_indices = np.concatenate(list(self.vacancy_trajectory_index.values()))
+        all_type_indices = site_index_to_type_map[all_indices]
+        count_site = np.bincount(all_type_indices, minlength=len(self.site.site_name))
+        self.times_site = (count_site * self.t_interval).tolist()
     
     def calculate(self) -> None:
         """
@@ -2175,6 +2200,7 @@ class Calculator_Single(Trajectory):
         self._get_diffusivity()
         self._get_residence_time()
         self._get_mean_number_of_equivalent_paths()
+        self._get_extra_properties()
         self.calculate_is_done = True
         
     def plot_counts(self,
@@ -2416,13 +2442,18 @@ class Calculator_Single(Trajectory):
             'tau0'      : 'Pre-exponential factor for residence time (ps)',
             'Ea_tau'    : 'Activation barrier for residence time (eV)',
             'a'         : 'Effective hopping distance (Ang)',
+            'a_path'    : 'Path-wise hopping distance (Ang): (n_paths,)',
             'nu'        : 'Effective attempt frequency (THz): (n_temperatures,)',
             'nu_path'   : 'Path-wise attempt frequency (THz): (n_temperatures, n_paths)',
             'Ea_path'   : 'Path-wise hopping barrier (eV): (n_paths)',
-            'z_mean'    : 'Mean number of equivalent paths per path type: (n_temperatures,)',
+            'z'         : 'Effective number of the equivalent paths',
+            'z_path'    : 'Number of the equivalent paths of each path: (n_paths,)',
+            'z_mean'    : 'Mean number of the equivalent paths per path type: (n_temperatures,)',
             'm_mean'    : 'Mean number of path types: (n_temperatures,)',
             'P_site'    : 'Site occupation probability: (n_temperatures, n_sites)',
-            'P_esc'     : 'Escape probability: (n_temperature, n_paths)'
+            'P_esc'     : 'Escape probability: (n_temperature, n_paths)',
+            'times_site': 'Total residence times at each site (ps): (n_temperature, n_sites)',
+            'counts_hop': 'Counts of hops at each temperature: (n_temperature, n_paths)'
         }
         is_list = {
             'D'         : True,
@@ -2438,19 +2469,24 @@ class Calculator_Single(Trajectory):
             'tau0'      : False,
             'Ea_tau'    : False,
             'a'         : False,
+            'a_path'    : True,
             'nu'        : True,
             'nu_path'   : True,
             'Ea_path'   : True,
+            'z'         : False,
+            'z_path'    : True,
             'z_mean'    : True,
             'm_mean'    : True,
             'P_site'    : True,
             'P_esc'     : True,
+            'times_site': True,
+            'counts_hop': True
         }
         contents = {
             'symbol': self.symbol,
             'path': self.site.path_name,
             'site': self.site.site_name,
-            'temperature': self.temperatures.tolist(),
+            'temperatures': self.temperatures.tolist(),
             'num_vacancies': self.num_vacancies,
         }
         
@@ -2571,9 +2607,15 @@ class Calculator_Bundle(TrajBundle):
         # <z>
         self.z_mean = None
         
-        # site occupation probability
-        self.P_site = None
+        # extra properties for attempt frequency calc.
+        self.a_path = None # (n_path,)
+        self.z_path = None # (n_path,)
+        self.P_site = None  # (n_temp, n_site)
+        self.times_site = None # (n_temp, n_site)
+        self.counts_hop = None  # (n_temp, n_path)
         
+        # object of AttemptFrequency
+        self.attempt_frequency = None
         
     @monitor_performance
     def calculate(self, n_jobs: int = -1, verbose=True) -> None:
@@ -2622,14 +2664,14 @@ class Calculator_Bundle(TrajBundle):
         self.t_interval = self.calculators[0].t_interval
         self.frame_interval = self.calculators[0].frame_interval
         self.counts = np.sum(np.array([c.counts for c in self.calculators]), axis=0) # (num_vacancies, num_paths)
-        
+
         self._gather_unknown_paths()
         self._get_correlation_factor()
         self._get_random_walk_diffusivity()
         self._get_diffusivity()
         self._get_residence_time()
         self._get_mean_number_of_equivalent_paths()
-        self._get_site_occupation_probability()
+        self._get_extra_properties()
         
         if len(self.temperatures) >= 2:
             self._fit_correlation_factor()
@@ -2900,29 +2942,53 @@ class Calculator_Bundle(TrajBundle):
             else:
                 self.z_mean.append(total_jumps / denominator)
         self.z_mean = np.array(self.z_mean, dtype=np.float64) 
-    
-    def _get_site_occupation_probability(self):
-        """Calculates the site occupation probability for each temperature."""
+        
+    def _get_extra_properties(self):
+        """Calculates P_site, times, counts_hop, a_path, z_path"""
         name_to_type_index = {name: i for i, name in enumerate(self.site.site_name)}
         site_index_to_type_map = np.array(
             [name_to_type_index[site['site']] for site in self.site.lattice_sites]
         )
-        self.P_site = []
-        for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
-            all_indices_in_temp = np.concatenate(
-                [indices for calc in self.calculators[start:end]
-                 for indices in calc.vacancy_trajectory_index.values()]
-            )
-            all_type_indices = site_index_to_type_map[all_indices_in_temp]
-            count_site = np.bincount(all_type_indices, minlength=len(self.site.site_name))
-            total_counts = np.sum(count_site)
-            if total_counts > 0:
-                P_site_temp = count_site.astype(np.float64) / total_counts
-            else:
-                P_site_temp = np.zeros_like(self.site.site_name, dtype=np.float64)
-                
-            self.P_site.append(P_site_temp.tolist())
         
+        self.counts_hop = []
+        self.times_site = []
+        self.P_site = []
+
+        for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
+            
+            counts_list_temp = []
+            time_temp = 0.0
+            indices_list_temp = []
+
+            for calc in self.calculators[start:end]:
+                counts_list_temp.append(np.sum(calc.counts, axis=0))
+                indices_list_temp.append(np.concatenate(list(calc.vacancy_trajectory_index.values())))
+
+            counts_hop_temp = np.sum(np.array(counts_list_temp, dtype=np.float64), axis=0)
+            self.counts_hop.append(counts_hop_temp.tolist())
+            
+            if indices_list_temp:
+                all_indices_in_temp = np.concatenate(indices_list_temp)
+                all_type_indices = site_index_to_type_map[all_indices_in_temp]
+                count_site = np.bincount(all_type_indices, minlength=len(self.site.site_name))
+                time_temp = count_site * self.t_interval
+                self.times_site.append(time_temp.tolist())
+                
+                total_counts = np.sum(count_site)
+                if total_counts > 0:
+                    P_site_temp = count_site.astype(np.float64) / total_counts
+                else:
+                    P_site_temp = np.zeros_like(self.site.site_name, dtype=np.float64)
+                self.P_site.append(P_site_temp.tolist())
+            else:
+                self.P_site.append(np.zeros_like(self.site.site_name, dtype=np.float64).tolist())
+                
+        self.a_path, self.z_path = [], []
+        for path in self.site.path:
+            self.a_path.append(path['distance'])
+            self.z_path.append(path['z'])
+        
+ 
     def _fit_correlation_factor(self):
         """Performs an Arrhenius fit on the correlation factor data."""
         self.Ea_f, self.f0, self.f_R2 = self._Arrhenius_fit(
@@ -3594,13 +3660,18 @@ class Calculator_Bundle(TrajBundle):
             'tau0'      : 'Pre-exponential factor for residence time (ps)',
             'Ea_tau'    : 'Activation barrier for residence time (eV)',
             'a'         : 'Effective hopping distance (Ang)',
+            'a_path'    : 'Path-wise hopping distance (Ang): (n_paths,)',
             'nu'        : 'Effective attempt frequency (THz): (n_temperatures,)',
             'nu_path'   : 'Path-wise attempt frequency (THz): (n_temperatures, n_paths)',
             'Ea_path'   : 'Path-wise hopping barrier (eV): (n_paths)',
-            'z_mean'    : 'Mean number of equivalent paths per path type: (n_temperatures,)',
+            'z'         : 'Effective number of the equivalent paths',
+            'z_path'    : 'Number of the equivalent paths of each path: (n_paths,)',
+            'z_mean'    : 'Mean number of the equivalent paths per path type: (n_temperatures,)',
             'm_mean'    : 'Mean number of path types: (n_temperatures,)',
             'P_site'    : 'Site occupation probability: (n_temperatures, n_sites)',
-            'P_esc'     : 'Escape probability: (n_temperature, n_paths)'
+            'P_esc'     : 'Escape probability: (n_temperature, n_paths)',
+            'times_site': 'Total residence times at each site (ps): (n_temperature, n_sites)',
+            'counts_hop': 'Counts of hops at each temperature: (n_temperature, n_paths)'
         }
         is_list = {
             'D'         : True,
@@ -3616,19 +3687,24 @@ class Calculator_Bundle(TrajBundle):
             'tau0'      : False,
             'Ea_tau'    : False,
             'a'         : False,
+            'a_path'    : True,
             'nu'        : True,
             'nu_path'   : True,
             'Ea_path'   : True,
+            'z'         : False,
+            'z_path'    : True,
             'z_mean'    : True,
             'm_mean'    : True,
             'P_site'    : True,
             'P_esc'     : True,
+            'times_site': True,
+            'counts_hop': True
         }
         contents = {
             'symbol': self.symbol,
             'path': self.site.path_name,
             'site': self.site.site_name,
-            'temperature': self.temperatures.tolist(),
+            'temperatures': self.temperatures.tolist(),
             'num_vacancies': self.num_vacancies,
         }
         
@@ -3650,3 +3726,71 @@ class Calculator_Bundle(TrajBundle):
         
         if self.verbose:
             print(f"Parameters saved to '{filename}'")
+
+    # ===================================================================
+    # Methods for attempt frequency
+    # ===================================================================
+            
+    def calculate_attempt_frequency(self,
+                                    neb_csv: str,
+                                    filename: str = "parameters.json") -> None:
+        """
+        Calculates attempt frequencies by running the AttemptFrequency analysis
+        and updates the parameter file with the new results.
+
+        Args:
+            neb_csv (str): 
+                Path to the CSV file containing NEB-calculated 
+                activation barriers for each hopping path.
+            filename (str, optional): 
+                The name of the parameter JSON file to create and update. 
+                Defaults to "parameters.json".
+        """
+        if len(self.temperatures) <= 1:
+            raise ValueError(
+                f"Found only {len(self.temperatures)} temperature point. "
+                "This analysis requires data from at least two temperatures."
+            )
+        
+        self.save_parameters(filename=filename)
+        self.attempt_frequency = AttemptFrequency(filename, neb_csv, verbose=False)
+        self.attempt_frequency.update_json()
+        
+        if self.verbose:
+            self.attempt_frequency.summary()
+    
+    def plot_nu(self,
+                title: Optional[str] = None,
+                save: bool = True,
+                filename: str = "attempt_frequency.png",
+                dpi: int = 300) -> None:
+        """
+        Plots the effective attempt frequency (nu) as a function of temperature.
+        This method delegates the plotting task to the internal AttemptFrequency object.
+        """
+        if self.attempt_frequency is None:
+            raise RuntimeError("Attempt frequencies have not been calculated. "
+                               "Please run the .calculate_attempt_frequency() method first.")
+        
+        self.attempt_frequency.plot_nu(title=title,
+                                       save=save,
+                                       filename=filename,
+                                       dpi=dpi)
+        
+    def plot_z(self,
+               title: Optional[str] = None,
+               save: bool = True,
+               filename: str = "coordination_number.png",
+               dpi: int = 300) -> None:
+        """
+        Plots the effective coordination number (z) as a function of temperature.
+        This method delegates the plotting task to the internal AttemptFrequency object.
+        """
+        if self.attempt_frequency is None:
+            raise RuntimeError("Attempt frequencies have not been calculated. "
+                               "Please run the .calculate_attempt_frequency() method first.")
+            
+        self.attempt_frequency.plot_z(title=title,
+                                      save=save,
+                                      filename=filename,
+                                      dpi=dpi)

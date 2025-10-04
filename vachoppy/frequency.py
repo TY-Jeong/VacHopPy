@@ -1,0 +1,279 @@
+import os
+import json
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from collections import Counter
+from tabulate import tabulate
+from typing import Optional
+
+class AttemptFrequency:
+    """
+    Calculates path-wise and effective attempt frequencies from pre-computed
+    simulation parameters and NEB (Nudged Elastic Band) results.
+    """
+    def __init__(self,
+                 parameter_json: str,
+                 neb_csv: str,
+                 verbose: bool = True):
+        """
+        Args:
+            parameter_json (str): Path to the JSON file containing aggregated
+                parameters from a `Calculator_Bundle` analysis.
+            neb_csv (str): Path to the CSV file containing NEB-calculated
+                activation barriers for each hopping path.
+            verbose (bool, optional): Verbosity flag. Defaults to True.
+        """
+        self.parameter_json = parameter_json
+        self.neb_csv = neb_csv
+        self.verbose = verbose
+        
+        # Physical constant
+        self.kb = 8.61733326e-5  # Boltzmann constant in eV/K
+        
+        # --- Attributes loaded from files ---
+        self.path_name: list = None
+        self.temperatures: np.ndarray = None
+        self.Ea_D_rand: float = None
+        self.z_path: np.ndarray = None
+        self.P_site: np.ndarray = None
+        self.times_site: np.ndarray = None
+        self.counts_hop: np.ndarray = None
+        self.Ea_path: np.ndarray = None
+
+        # --- Intermediate calculated attributes ---
+        self.num_paths_per_site: list = None
+        self.P_esc: np.ndarray = None
+        self.P_esc_eff: np.ndarray = None # Effective P_esc
+        self.P: np.ndarray = None
+        
+        # --- Final result attributes ---
+        self.z: np.ndarray = None
+        self.nu: np.ndarray = None
+        self.nu_path: np.ndarray = None
+        
+        # --- Extra attribures ---
+        self.m_mean = None
+        
+        # Execute the calculation pipeline
+        self._load_parameters()
+        self._load_neb_barriers()
+        self._calculate_probabilities()
+        self._calculate_coordination_numbers()
+        self._calculate_attempt_frequencies()
+
+    def _load_parameters(self):
+        """Loads and validates parameters from the input JSON file."""
+        if not os.path.exists(self.parameter_json):
+            raise FileNotFoundError(f"Error: Parameter file not found at '{self.parameter_json}'.")
+        
+        with open(self.parameter_json, 'r') as f:
+            self.parameters = json.load(f)
+        
+        required = {'path', 'temperatures', 'num_vacancies', 'Ea_D_rand',
+                    'P_site', 'times_site', 'counts_hop', 'z_path'}
+        if not required.issubset(self.parameters.keys()):
+            missing = required - set(self.parameters.keys())
+            raise KeyError(f"Error: The JSON file is missing required keys: {missing}")
+        
+        if self.parameters['num_vacancies'] != 1 and self.verbose:
+            print("Warning: This calculation may lose reliability in multi-vacancy systems.")
+        
+        self.path_name = self.parameters['path']
+        self.temperatures = np.array(self.parameters['temperatures'], dtype=np.float64)
+        self.Ea_D_rand = self.parameters['Ea_D_rand']
+        self.z_path = np.array(self.parameters['z_path'], dtype=np.float64)
+        self.P_site = np.array(self.parameters['P_site'], dtype=np.float64)
+        self.times_site = np.array(self.parameters['times_site'], dtype=np.float64)
+        self.counts_hop = np.array(self.parameters['counts_hop'], dtype=np.float64)
+        
+        first_letters = [item[0] for item in self.path_name]
+        counts_dict = Counter(first_letters)
+        self.num_paths_per_site = [counts_dict[key] for key in sorted(counts_dict)]
+    
+    def _load_neb_barriers(self):
+        """Loads path-wise activation barriers from the NEB CSV file."""
+        if not os.path.exists(self.neb_csv):
+            raise FileNotFoundError(f"Error: NEB data file not found at '{self.neb_csv}'.")
+        
+        path_name_to_index = {name: i for i, name in enumerate(self.path_name)}
+        
+        self.Ea_path = np.zeros_like(self.path_name, dtype=np.float64)
+        neb_data = pd.read_csv(self.neb_csv, header=None).to_numpy()
+        
+        for name, Ea in neb_data:
+            if name in path_name_to_index:
+                index = path_name_to_index[name]
+                self.Ea_path[index] = float(Ea)
+            elif self.verbose:
+                print(f"Warning: Path '{name}' from NEB file not found in parameter data. Skipping.")
+            
+    def _calculate_probabilities(self):
+        """Calculates path-wise escape and total probabilities."""
+        self.P_esc = np.exp(-self.Ea_path / (self.kb * self.temperatures[:, np.newaxis]))
+        self.P_esc_eff = np.exp(-self.Ea_D_rand / (self.kb * self.temperatures))
+        P_site_per_path = np.array([np.repeat(p_site, self.num_paths_per_site) for p_site in self.P_site])
+        self.P = P_site_per_path * self.P_esc
+        
+    def _calculate_coordination_numbers(self):
+        self.z = np.sum(self.P * self.z_path, axis=1) / self.P_esc_eff
+        self.m_mean = np.sum(self.P * self.z_path, axis=1) / self.P_esc_eff
+        
+    def _calculate_attempt_frequencies(self):
+        """Calculates path-wise (nu_path) and effective (nu) attempt frequencies."""
+        times_per_path = np.array([np.repeat(time, self.num_paths_per_site) for time in self.times_site])
+        
+        denominator_nu_path = self.z_path * self.P_esc * times_per_path + 1e-12
+        self.nu_path = self.counts_hop / denominator_nu_path
+
+        denominator_nu = (np.sum(self.times_site, axis=1) * np.sum(self.P * self.z_path, axis=1)) + 1e-12
+        self.nu = np.sum(self.counts_hop, axis=1) / denominator_nu
+        
+    def summary(self) -> None:
+        """
+        Prints a comprehensive summary of the attempt frequency analysis results,
+        including temperature-dependent data and path-wise details in tables.
+        """
+        print("\n" + "="*52)
+        print(f"        Attempt Frequency Analysis Summary")
+        print("="*52)
+
+        print("\n" + "-- Temperature-Dependent Effective Parameters --" + "\n")
+        headers_temp = ["Temp (K)", "nu (THz)", "z"]
+        table_data_temp = []
+        formats = [".1f", ".4f", ".4f"]
+
+        for row in zip(self.temperatures, self.nu, self.z):
+            formatted_row = [f"{val:{fmt}}" if not np.isnan(val) else "nan" for val, fmt in zip(row, formats)]
+            table_data_temp.append(formatted_row)
+        
+        if len(self.temperatures) > 1:
+            table_data_temp.append(['-' * len(h) for h in headers_temp])
+            mean_nu = np.nanmean(self.nu)
+            mean_z = np.nanmean(self.z)
+            mean_row = ["Mean", f"{mean_nu:.4f}", f"{mean_z:.4f}"]
+            table_data_temp.append(mean_row)
+
+        print(tabulate(table_data_temp, headers=headers_temp, tablefmt="simple", stralign='left', numalign='left'))
+        # --- 수정 끝 ---
+        print("\n" + "-- Path-Wise Parameters (per Temperature) --" + "\n")
+        headers_path = ["Path Name", "Hop Count", "nu_path (THz)"]
+        for i, temp in enumerate(self.temperatures):
+            print(f"Temperature: {temp:.1f} K")
+            table_data_path = zip(self.path_name, self.counts_hop[i], self.nu_path[i])
+            formatted_data = [[name, f"{count:.0f}", f"{nu:.4f}"] for name, count, nu in table_data_path]
+            print(tabulate(formatted_data, headers=headers_path, tablefmt="simple", stralign='left', numalign='left'))
+            print("-" * 40)
+
+        print(f"\nNOTE: Path-wise attempt frequencies (`nu_path`) can be unreliable for paths")
+        print("      with low hop counts, as they are highly sensitive to statistical noise.")
+        print("="*52 + "\n")
+
+    def plot_nu(self,
+                title: Optional[str] = None,
+                save: bool = True,
+                filename: str = "attempt_frequency.png",
+                dpi: int = 300) -> None:
+        """
+        Plots the effective attempt frequency (nu) as a function of temperature.
+        """
+        fig, ax = plt.subplots(figsize=(6, 5))
+        for axis in ['top', 'bottom', 'left', 'right']:
+            ax.spines[axis].set_linewidth(1.2)
+        
+        ax.plot(self.temperatures, self.nu, marker='s', linestyle='--', color='crimson')
+        
+        ax.set_xlabel('Temperature (K)', fontsize=11)
+        ax.set_ylabel(r'Effective $\nu^*$ (THz)', fontsize=11)
+        ax.set_title(title, fontsize=12, pad=10)
+        ax.grid(True, linestyle='--', alpha=0.7)
+        ax.set_yscale('log')
+        
+        bottom, top = ax.get_ylim()
+        if (top - bottom) < 3.0:
+            center = (top + bottom) / 2
+            new_bottom, new_top = center - 1.5, center + 1.5
+            if new_bottom <= 0:
+                new_bottom = bottom * 0.5
+                new_top = new_bottom + 3.0
+            ax.set_ylim(new_bottom, new_top)
+        
+        fig.tight_layout()
+        if save:
+            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        plt.show()
+        plt.close(fig)
+
+    def plot_z(self,
+               title: Optional[str] = None,
+               save: bool = True,
+               filename: str = "coordination_number.png",
+               dpi: int = 300) -> None:
+        """
+        Plots the effective coordination number (z) as a function of temperature.
+        Ensures the y-axis range is at least 2 for visual clarity.
+        """
+        fig, ax = plt.subplots(figsize=(6, 5))
+        for axis in ['top', 'bottom', 'left', 'right']:
+            ax.spines[axis].set_linewidth(1.2)
+
+        ax.plot(self.temperatures, self.z, marker='s', linestyle='--', color='darkblue')
+        
+        ax.set_xlabel('Temperature (K)', fontsize=11)
+        ax.set_ylabel(r'Effective Coordination Number ($z_{eff}$)', fontsize=11)
+        ax.set_title(title, fontsize=12, pad=10)
+        ax.grid(True, linestyle='--', alpha=0.7)
+        
+        bottom, top = ax.get_ylim()
+        
+        if (top - bottom) < 2.0:
+            center = (top + bottom) / 2
+            new_bottom = center - 1.0
+            new_top = center + 1.0
+            ax.set_ylim(new_bottom, new_top)
+        
+        fig.tight_layout()
+        if save:
+            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        plt.show()
+        plt.close(fig)
+        
+    def update_json(self, filename: Optional[str] = None) -> None:
+        """Updates the source JSON file with newly calculated parameters.
+
+        This method reads the original parameter JSON file, updates the fields
+        calculated by this class (e.g., nu, z, Ea_path), and writes the
+        modified data back to a file. It ensures NumPy arrays are converted
+        to lists for JSON compatibility.
+
+        Args:
+            filename (str, optional): The path to the output JSON file.
+                If None, the original input file (`self.parameter_json`)
+                will be overwritten. Defaults to None.
+        """
+        if filename is None:
+            filename = self.parameter_json
+
+        with open(self.parameter_json, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        attributes_to_update = [
+            'nu', 'nu_path', 'Ea_path', 'z', 'm_mean', 'P_esc'
+        ]
+
+        for attr in attributes_to_update:
+            if hasattr(self, attr):
+                value = getattr(self, attr) 
+                if value is not None:
+                    if isinstance(value, np.ndarray):
+                        data[attr] = value.tolist()
+                    else:
+                        data[attr] = value
+                    if self.verbose:
+                        print(f"  - Updated '{attr}' key.")
+
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+
+        if self.verbose:
+            print(f"Successfully updated and saved parameters to '{filename}'.")

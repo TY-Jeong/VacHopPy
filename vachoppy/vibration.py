@@ -9,7 +9,7 @@ from tqdm.auto import tqdm
 from colorama import Fore, Style
 from scipy.stats import norm
 from scipy.spatial.distance import cdist
-from joblib import Parallel, delayed, cpu_count
+from joblib import Parallel, delayed
 
 from vachoppy.utils import monitor_performance
 

@@ -1,10 +1,10 @@
 import os
-import time
 import h5py
 import json
 import itertools
 import numpy as np
 import MDAnalysis as mda
+
 from tqdm.auto import tqdm
 from pathlib import Path
 from typing import Union
@@ -14,13 +14,13 @@ from colorama import Fore
 from tabulate import tabulate
 
 from pymatgen.io.ase import AseAtomsAdaptor
-from pymatgen.core.structure import Structure
 from pymatgen.analysis.local_env import VoronoiNN
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 from vachoppy.utils import *
 from vachoppy.trajectory import *
 from vachoppy.vibration import *
+
 
 BOLD = '\033[1m'
 CYAN = '\033[36m'
@@ -752,3 +752,4 @@ def Calculator(path: str,
         )
     else:
         raise ValueError(f"Error: The path '{path}' is not a regular file or directory.")
+    
