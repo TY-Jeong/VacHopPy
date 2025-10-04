@@ -106,8 +106,8 @@ class Trajectory:
                  traj: str,
                  site,
                  t_interval: float,
-                 force_margin: float = 0.1,
-                 cos_margin: float = 0.01,
+                 force_margin: float = 0.05,
+                 cos_margin: float = 0.1,
                  verbose: bool = True):
         
         self._validate_traj(traj)
@@ -2119,6 +2119,7 @@ class Calculator_Single(Trajectory):
             eps=eps, 
             verbose=False
         )
+        self.temperatures = np.array([self.temperature])
         self.hopping_history = self.analyzer.hopping_history
         self.counts = self.analyzer.counts
         self.path_unknown = self.analyzer.path_unknown
@@ -2235,8 +2236,7 @@ class Calculator_Single(Trajectory):
         
         plt.show()
         plt.close(fig)
-        
-        
+              
     def summary(self) -> None:
         """Prints a summary of the analysis results in a structured format."""
         if not self.analyzer or not self.encounter:
@@ -2249,7 +2249,7 @@ class Calculator_Single(Trajectory):
         print(f"  - Path to TRAJ bundle : {self.traj}")
         print(f"  - Lattice structure   : {self.site.structure_file}")
         print(f"  - t_interval          : {self.t_interval:.3f} ps ({self.frame_interval} frames)")
-        print(f"  - Temperatures (K)    : {[self.temperature]}")
+        print(f"  - Temperatures (K)    : {self.temperature.tolist()}")
         print(f"  - Num. of TRAJ files  : [1]")
         print("=" * 60)
         
@@ -2285,6 +2285,193 @@ class Calculator_Single(Trajectory):
         print(f"  - R-squared   : -")
         print(f"Effective Hopping Distance (a) : -")
         print("=" * 60)
+        
+    def show_hopping_history(self) -> None:
+        """Prints a detailed, formatted table of the hopping sequence for each vacancy."""
+        for i in range(self.num_vacancies):
+            print(f"File: {str(Path(self.traj).resolve())}")
+            print("=" * 117)
+            print(" "*44 + f"Hopping Sequence of Vacancy {i}")
+            print("=" * 117)
+            
+            header = ['Num', 'Time (ps)', 'Path', 'a (Ang)', 
+                      'Initial Site (Fractional Coordinate)', 
+                      'Final Site (Fractional Coordinate)']
+            data = [
+                [
+                    f"{j+1}",
+                    f"{path['step'] * self.t_interval:.2f}",
+                    f"{path['name']}",
+                    f"{path['distance']:.5f}",
+                    f"{path['site_init']} [{', '.join(f'{x:.5f}' for x in self.site.lattice_sites[path['index_init']]['coord'])}]",
+                    f"{path['site_final']} [{', '.join(f'{x:.5f}' for x in self.site.lattice_sites[path['index_final']]['coord'])}]"
+                ] for j, path in enumerate(self.hopping_history[i])
+            ]
+            print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+            print("=" * 117 + "\n")
+            
+    def show_hopping_paths(self) -> None:
+        """ Prints a summary table of all observed hopping path types and their counts."""
+        
+        path_info = []
+        for i, path in enumerate(self.site.path):
+            p = {
+                'name': path['name'],
+                'a': path['distance'],
+                'z': path['z'],
+                'count': np.sum(self.counts, axis=0)[i],
+                'site_init': f"{path['site_init']} [{', '.join(f'{x:.5f}' for x in path['coord_init'])}]",
+                'site_final': f"{path['site_final']} [{', '.join(f'{x:.5f}' for x in path['coord_final'])}]"
+            }
+            path_info.append(p)
+        
+        for i, path in enumerate(self.path_unknown):
+            p = {
+                'name': path['name'],
+                'a': path['distance'],
+                'z': '-',
+                'count': int(np.sum(self.counts_unknown, axis=0)[i]),
+                'site_init': f"{path['site_init']} [{', '.join(f'{x:.5f}' for x in path['coord_init'])}]",
+                'site_final': f"{path['site_final']} [{', '.join(f'{x:.5f}' for x in path['coord_final'])}]"
+            }
+            path_info.append(p)
+            
+        print("=" * 110)
+        print(" " * 43 + "Hopping Path Information")
+        print("=" * 110)
+        header = ['Name',
+                  'a (Ang)',
+                  'z',
+                  'Count',
+                  'Initial Site (Fractional Coordinate)',
+                  'Final Site (Fractional Coordinate)']
+        data = [
+            [
+                p['name'],
+                p['a'],
+                p['z'],
+                p['count'],
+                p['site_init'],
+                p['site_final']
+            ] for p in path_info
+        ]
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print("=" * 110 + "\n")
+       
+    def save_trajectory(self, filename: str = "trajectory.json") -> None:
+        """Saves the unwrapped Cartesian trajectories of vacancies to a JSON file.
+
+        The output JSON contains simulation metadata (symbol, lattice, etc.)
+        and the time-series coordinates for each vacancy, keyed as 'Vacancy0',
+        'Vacancy1', and so on.
+
+        Args:
+            filename (str, optional): 
+                The name of the output JSON file. Defaults to 'trajectory.json'.
+        """
+        trajectories = {i:[] for i in range(self.num_vacancies)}
+        for coords in self.unwrapped_vacancy_trajectory_coord_cart.values():
+            for i, coord in enumerate(coords):
+                trajectories[i].append(coord.tolist())
+                
+        contents = {
+            'traj': str(Path(self.traj).resolve()),
+            'symbol': self.symbol,
+            't_interval': self.t_interval,
+            'temperature': self.temperature,
+            'num_vacancies': self.num_vacancies,
+            'lattice': self.lattice_parameter.tolist()
+        }
+        for i in range(self.num_vacancies):
+            contents[f'Vacancy{i}'] = trajectories[i]
+            
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(contents, f, indent=2)
+
+        if self.verbose:
+            print(f"Trajectoris saved to '{filename}'.")
+
+    def save_parameters(self,
+                        filename: str = "parameters.json") -> None:
+        """Saves all calculated physical parameters to a JSON file.
+        
+        The output JSON includes a 'description' key that explains each parameter.
+
+        Args:
+            filename (str, optional): 
+                The name of the output JSON file. Defaults to 'parameters.json'.
+        """
+            
+        description = {
+            'D'         : 'Diffusivity (m2/s): (n_temperatures,)',
+            'D0'        : 'Pre-exponential factor for diffusivity (m2/s)',
+            'Ea_D'      : 'Activation barrier for diffusivity (eV)',
+            'D_rand'    : 'Random walk diffusivity (m2/s): (n_temperatures,)',
+            'D_rand0'   : 'Pre-exponential factor for random walk diffusivity (m2/s)',
+            'Ea_D_rand' : 'Activation barrier for random walk diffusivity (eV)',
+            'f'         : 'Correlation factor: (n_temperatures,)',
+            'f0'        : 'Pre-exponential factor for correlation factor',
+            'Ea_f'      : 'Activation barrier for correlation factor (eV)',
+            'tau'       : 'Residence time (ps): (n_temperatures,)',
+            'tau0'      : 'Pre-exponential factor for residence time (ps)',
+            'Ea_tau'    : 'Activation barrier for residence time (eV)',
+            'a'         : 'Effective hopping distance (Ang)',
+            'nu'        : 'Effective attempt frequency (THz): (n_temperatures,)',
+            'nu_path'   : 'Path-wise attempt frequency (THz): (n_temperatures, n_paths)',
+            'Ea_path'   : 'Path-wise hopping barrier (eV): (n_paths)',
+            'z_mean'    : 'Mean number of equivalent paths per path type: (n_temperatures,)',
+            'm_mean'    : 'Mean number of path types: (n_temperatures,)',
+            'P_site'    : 'Site occupation probability: (n_temperatures, n_sites)',
+            'P_esc'     : 'Escape probability: (n_temperature, n_paths)'
+        }
+        is_list = {
+            'D'         : True,
+            'D0'        : False,
+            'Ea_D'      : False,
+            'D_rand'    : True,
+            'D_rand0'   : False,
+            'Ea_D_rand' : False,
+            'f'         : True,
+            'f0'        : False,
+            'Ea_f'      : False,
+            'tau'       : True,
+            'tau0'      : False,
+            'Ea_tau'    : False,
+            'a'         : False,
+            'nu'        : True,
+            'nu_path'   : True,
+            'Ea_path'   : True,
+            'z_mean'    : True,
+            'm_mean'    : True,
+            'P_site'    : True,
+            'P_esc'     : True,
+        }
+        contents = {
+            'symbol': self.symbol,
+            'path': self.site.path_name,
+            'site': self.site.site_name,
+            'temperature': self.temperatures.tolist(),
+            'num_vacancies': self.num_vacancies,
+        }
+        
+        for param in description.keys():
+            if hasattr(self, param):
+                value = getattr(self, param)
+                if isinstance(value, (np.ndarray, np.generic)):
+                    value = value.tolist()
+                if is_list[param] and not isinstance(value, list):
+                    contents[param] = [value]
+                else:
+                    contents[param] = value
+            else:
+                contents[param] = None
+        contents['description'] = description
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(contents, f, indent=2)
+        
+        if self.verbose:
+            print(f"Parameters saved to '{filename}'")
         
         
 class Calculator_Bundle(TrajBundle):
@@ -2375,7 +2562,7 @@ class Calculator_Bundle(TrajBundle):
         # residence time
         self.tau = None
         self.tau0 = None
-        self.Ea_tau0 = self.Ea_D_rand
+        self.Ea_tau = None
         self.tau_R2 = None
         
         # effective hopping distance
@@ -2383,6 +2570,9 @@ class Calculator_Bundle(TrajBundle):
        
         # <z>
         self.z_mean = None
+        
+        # site occupation probability
+        self.P_site = None
         
         
     @monitor_performance
@@ -2439,6 +2629,7 @@ class Calculator_Bundle(TrajBundle):
         self._get_diffusivity()
         self._get_residence_time()
         self._get_mean_number_of_equivalent_paths()
+        self._get_site_occupation_probability()
         
         if len(self.temperatures) >= 2:
             self._fit_correlation_factor()
@@ -2665,8 +2856,8 @@ class Calculator_Bundle(TrajBundle):
             else:
                 self.tau.append(t_i / count_i)
                 
-        self.tau = np.array(self.tau, dtype=np.float64) 
-     
+        self.tau = np.array(self.tau, dtype=np.float64)
+
     def _get_effective_hopping_distance(self):
         """Calculates the effective hopping distance from fit parameters."""
         if self.D_rand0 is None:
@@ -2709,7 +2900,29 @@ class Calculator_Bundle(TrajBundle):
             else:
                 self.z_mean.append(total_jumps / denominator)
         self.z_mean = np.array(self.z_mean, dtype=np.float64) 
-     
+    
+    def _get_site_occupation_probability(self):
+        """Calculates the site occupation probability for each temperature."""
+        name_to_type_index = {name: i for i, name in enumerate(self.site.site_name)}
+        site_index_to_type_map = np.array(
+            [name_to_type_index[site['site']] for site in self.site.lattice_sites]
+        )
+        self.P_site = []
+        for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
+            all_indices_in_temp = np.concatenate(
+                [indices for calc in self.calculators[start:end]
+                 for indices in calc.vacancy_trajectory_index.values()]
+            )
+            all_type_indices = site_index_to_type_map[all_indices_in_temp]
+            count_site = np.bincount(all_type_indices, minlength=len(self.site.site_name))
+            total_counts = np.sum(count_site)
+            if total_counts > 0:
+                P_site_temp = count_site.astype(np.float64) / total_counts
+            else:
+                P_site_temp = np.zeros_like(self.site.site_name, dtype=np.float64)
+                
+            self.P_site.append(P_site_temp.tolist())
+        
     def _fit_correlation_factor(self):
         """Performs an Arrhenius fit on the correlation factor data."""
         self.Ea_f, self.f0, self.f_R2 = self._Arrhenius_fit(
@@ -2736,6 +2949,7 @@ class Calculator_Bundle(TrajBundle):
         if self.Ea_D_rand is None:
             self._get_random_walk_diffusivity()
             self._fit_random_walk_diffusivity()
+        self.Ea_tau = self.Ea_D_rand
         
         valid_mask = ~np.isnan(self.tau)
         if np.sum(valid_mask) < 2:
@@ -2747,7 +2961,7 @@ class Calculator_Bundle(TrajBundle):
         temps_valid = self.temperatures[valid_mask]
 
         error_tau = lambda tau0: np.linalg.norm(
-            tau_valid - tau0 * np.exp(self.Ea_D_rand / (self.kb * temps_valid))
+            tau_valid - tau0 * np.exp(self.Ea_tau / (self.kb * temps_valid))
         )
 
         tau0_opt = minimize_scalar(error_tau)
@@ -3213,7 +3427,7 @@ class Calculator_Bundle(TrajBundle):
         
         if self.Ea_D is not None:
             print("\n" + "="*17 + " Final Fitted Parameters " + "="*18)
-            print(f"Tracer Diffusivity (D):")
+            print(f"Diffusivity (D):")
             print(f"  - Ea          : {self.Ea_D:.3f} eV")
             print(f"  - D0          : {self.D0:.3e} m^2/s")
             print(f"  - R-squared   : {self.D_R2:.4f}")
@@ -3250,3 +3464,189 @@ class Calculator_Bundle(TrajBundle):
             print(f"  - R-squared   : -")
             print(f"Effective Hopping Distance (a) : -")
         print("=" * 60)
+            
+    def show_hopping_paths(self) -> None:
+        """ Prints a summary table of all observed hopping path types and their counts."""
+        
+        path_info = []
+        for i, path in enumerate(self.site.path):
+            p = {
+                'name': path['name'],
+                'a': path['distance'],
+                'z': path['z'],
+                'count': np.sum(self.counts, axis=0)[i],
+                'site_init': f"{path['site_init']} [{', '.join(f'{x:.5f}' for x in path['coord_init'])}]",
+                'site_final': f"{path['site_final']} [{', '.join(f'{x:.5f}' for x in path['coord_final'])}]"
+            }
+            path_info.append(p)
+        
+        for i, path in enumerate(self.path_unknown):
+            p = {
+                'name': path['name'],
+                'a': path['distance'],
+                'z': '-',
+                'count': int(np.sum(self.counts_unknown, axis=0)[i]),
+                'site_init': f"{path['site_init']} [{', '.join(f'{x:.5f}' for x in path['coord_init'])}]",
+                'site_final': f"{path['site_final']} [{', '.join(f'{x:.5f}' for x in path['coord_final'])}]"
+            }
+            path_info.append(p)
+            
+        print("=" * 110)
+        print(" " * 43 + "Hopping Path Information")
+        print("=" * 110)
+        header = ['Name',
+                  'a (Ang)',
+                  'z',
+                  'Count',
+                  'Initial Site (Fractional Coordinate)',
+                  'Final Site (Fractional Coordinate)']
+        data = [
+            [
+                p['name'],
+                p['a'],
+                p['z'],
+                p['count'],
+                p['site_init'],
+                p['site_final']
+            ] for p in path_info
+        ]
+        print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+        print("=" * 110 + "\n")
+    
+    def show_hopping_history(self) -> None:
+        """Prints a detailed, formatted table of the hopping sequence for each vacancy."""
+        print("\n" + "="*87)
+        print(" "*5 + "NOTE: `show_hopping_history()` is a method for a single trajectory analysis!")
+        print("="*87)
+        print("This method displays the detailed hop-by-hop history for a single simulation.\n"
+              "The current object is a 'Calculator_Bundle' that manages a collection of simulations.\n\n"
+              "To view the history for a specific trajectory, you need to select one of the individual\n"
+              "calculator objects stored in the `.calculators` list using its index.\n")
+        print("You can find the index for a specific file by checking the `.all_traj_paths` attribute.")
+        print("The order of files in this list matches the order of the `.calculators` list.\n")
+        print("Example command to list all files and their indices:")
+        print("  >>> for i, path in enumerate(your_bundle_object.all_traj_paths):")
+        print("  ...     print(f'Index {i}: {path}')")
+        print("\nOnce you know the index, you can run:")
+        print("  # Show history for the first trajectory in the bundle (index 0)")
+        print("  >>> your_bundle_object.calculators[0].show_hopping_history()\n")
+        print("  # Show history for the third trajectory in the bundle (index 2)")
+        print("  >>> your_bundle_object.calculators[2].show_hopping_history()\n")
+        print("="*87)
+    
+    def save_trajectory(self,
+                        path_dir: str = 'trajectories',
+                        prefix: str = 'trajectory') -> None:
+        """Saves the unwrapped vacancy trajectories from all simulations into a structured directory.
+
+        This method iterates through each temperature group identified in the bundle.
+        For each temperature, it creates a corresponding subdirectory (e.g., 'trajectories/300K/').
+        Inside each subdirectory, it saves the trajectory from each individual simulation
+        as a sequentially numbered JSON file (e.g., 'trajectory_01.json', 'trajectory_02.json').
+
+        Args:
+            path_dir (str, optional):
+                The root directory where the temperature subdirectories will be created.
+                Defaults to 'trajectories'.
+            prefix (str, optional):
+                The prefix for the output JSON filenames. Defaults to 'trajectory'.
+        """
+        if not hasattr(self, 'calculators') or not self.calculators:
+            raise RuntimeError("Analysis has not been run. Please call the .calculate() method first.")
+
+        for i, (start, end) in enumerate(zip(self.index_calc_temp[:-1], self.index_calc_temp[1:])):
+            temp_str = f"{self.temperatures[i]:.0f}K"
+            path_dir_temp = os.path.join(path_dir, temp_str)
+            os.makedirs(path_dir_temp, exist_ok=True)
+
+            label = 0
+            for index in range(start, end):
+                label += 1
+                filename = f"{prefix}_{label:02d}.json"
+                output_path = os.path.join(path_dir_temp, filename)
+                self.calculators[index].save_trajectory(filename=output_path)
+
+        if self.verbose:
+            print(f"All vacancy trajectories have been saved in the '{path_dir}' directory.")
+            
+    def save_parameters(self,
+                        filename: str = "parameters.json") -> None:
+        """Saves all calculated physical parameters to a JSON file.
+
+        The output JSON includes a 'description' key that explains each parameter.
+
+        Args:
+            filename (str, optional): 
+                The name of the output JSON file. Defaults to 'parameters.json'.
+        """
+            
+        description = {
+            'D'         : 'Diffusivity (m2/s): (n_temperatures,)',
+            'D0'        : 'Pre-exponential factor for diffusivity (m2/s)',
+            'Ea_D'      : 'Activation barrier for diffusivity (eV)',
+            'D_rand'    : 'Random walk diffusivity (m2/s): (n_temperatures,)',
+            'D_rand0'   : 'Pre-exponential factor for random walk diffusivity (m2/s)',
+            'Ea_D_rand' : 'Activation barrier for random walk diffusivity (eV)',
+            'f'         : 'Correlation factor: (n_temperatures,)',
+            'f0'        : 'Pre-exponential factor for correlation factor',
+            'Ea_f'      : 'Activation barrier for correlation factor (eV)',
+            'tau'       : 'Residence time (ps): (n_temperatures,)',
+            'tau0'      : 'Pre-exponential factor for residence time (ps)',
+            'Ea_tau'    : 'Activation barrier for residence time (eV)',
+            'a'         : 'Effective hopping distance (Ang)',
+            'nu'        : 'Effective attempt frequency (THz): (n_temperatures,)',
+            'nu_path'   : 'Path-wise attempt frequency (THz): (n_temperatures, n_paths)',
+            'Ea_path'   : 'Path-wise hopping barrier (eV): (n_paths)',
+            'z_mean'    : 'Mean number of equivalent paths per path type: (n_temperatures,)',
+            'm_mean'    : 'Mean number of path types: (n_temperatures,)',
+            'P_site'    : 'Site occupation probability: (n_temperatures, n_sites)',
+            'P_esc'     : 'Escape probability: (n_temperature, n_paths)'
+        }
+        is_list = {
+            'D'         : True,
+            'D0'        : False,
+            'Ea_D'      : False,
+            'D_rand'    : True,
+            'D_rand0'   : False,
+            'Ea_D_rand' : False,
+            'f'         : True,
+            'f0'        : False,
+            'Ea_f'      : False,
+            'tau'       : True,
+            'tau0'      : False,
+            'Ea_tau'    : False,
+            'a'         : False,
+            'nu'        : True,
+            'nu_path'   : True,
+            'Ea_path'   : True,
+            'z_mean'    : True,
+            'm_mean'    : True,
+            'P_site'    : True,
+            'P_esc'     : True,
+        }
+        contents = {
+            'symbol': self.symbol,
+            'path': self.site.path_name,
+            'site': self.site.site_name,
+            'temperature': self.temperatures.tolist(),
+            'num_vacancies': self.num_vacancies,
+        }
+        
+        for param in description.keys():
+            if hasattr(self, param):
+                value = getattr(self, param)
+                if isinstance(value, (np.ndarray, np.generic)):
+                    value = value.tolist()
+                if is_list[param] and not isinstance(value, list):
+                    contents[param] = [value]
+                else:
+                    contents[param] = value
+            else:
+                contents[param] = None
+        contents['description'] = description
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(contents, f, indent=2)
+        
+        if self.verbose:
+            print(f"Parameters saved to '{filename}'")

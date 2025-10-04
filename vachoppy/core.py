@@ -722,7 +722,7 @@ def Calculator(path: str,
         num_dt_steps = round(original_t_interval / dt_ps)
         adjusted_t_interval = num_dt_steps * dt_ps
 
-        print(" "*4 + "Adjusting t_interval to the nearest multiple of 'dt'")
+        print(" "*4 + "Adjusting t_interval to the nearest multiple of dt")
         print("="*60)
         print(f"    - dt                  : {dt_ps:.4f} ps")
         print(f"    - Original t_interval : {original_t_interval:.4f} ps")
