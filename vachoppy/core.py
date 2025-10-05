@@ -589,23 +589,36 @@ class Site:
         initial and final sites, distance, coordination number, and fractional
         coordinates.
         """
-        print(f"Number of inequivalent sites for {self.symbol} : {len(self.site_name)}")
-        print(f"Number of inequivalent paths for {self.symbol} : {len(self.path_name)} (Rmax = {self.rmax:.2f} Å)")
-        print('')
-        print('Path information')
-        headers = ['name', 'init', 'final', 'a(Ang)', 'z', 'coord_init', 'coord_final']
+
+        print("\n" + "=" * 110)
+        print(f"{' ' * 45}Site Analysis Summary")
+        print("=" * 110)
+        
+        print(f"  - Structure File       : {self.structure_file}")
+        print(f"  - Diffusing Symbol     : {self.symbol}")
+        print(f"  - Inequivalent Sites   : {len(self.site_name)} found")
+        print(f"  - Inequivalent Paths   : {len(self.path_name)} found (with Rmax = {self.rmax:.2f} Å)")
+        
+        print("\n" + "-- Hopping Path Information --" + "\n")
+        headers = ['Name', 'Init Site', 'Final Site', 'a (Å)', 'z',
+                   'Initial Coord (Frac)', 'Final Coord (Frac)']
         data = [
             [
                 path['name'], 
                 path['site_init'], 
                 path['site_final'], 
-                f"{path['distance']:.5f}", 
+                f"{path['distance']:.4f}", 
                 path['z'],
-                f"[{path['coord_init'][0]:.5f} {path['coord_init'][1]:.5f} {path['coord_init'][2]:.5f}]", 
-                f"[{path['coord_final'][0]:.5f} {path['coord_final'][1]:.5f} {path['coord_final'][2]:.5f}]"
+                f"[{path['coord_init'][0]:.4f}, {path['coord_init'][1]:.4f}, {path['coord_init'][2]:.4f}]", 
+                f"[{path['coord_final'][0]:.4f}, {path['coord_final'][1]:.4f}, {path['coord_final'][2]:.4f}]"
             ] for path in self.path
         ]
-        print(tabulate(data, headers=headers, tablefmt="simple"))
+        
+        if not data:
+            print("No hopping paths were found within the specified rmax.")
+        else:
+            print(tabulate(data, headers=headers, tablefmt="simple", stralign='left', numalign='left'))
+        print("=" * 110 + "\n")
         
 
 def Calculator(path: str,
