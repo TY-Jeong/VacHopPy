@@ -18,8 +18,8 @@ from pymatgen.analysis.local_env import VoronoiNN
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 from vachoppy.utils import *
-from vachoppy.trajectory import *
 from vachoppy.vibration import *
+from vachoppy.trajectory import *
 
 
 BOLD = '\033[1m'

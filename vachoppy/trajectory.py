@@ -2275,16 +2275,16 @@ class Calculator_Single(Trajectory):
         print(f"  - Path to TRAJ bundle : {self.traj}")
         print(f"  - Lattice structure   : {self.site.structure_file}")
         print(f"  - t_interval          : {self.t_interval:.3f} ps ({self.frame_interval} frames)")
-        print(f"  - Temperatures (K)    : {self.temperature.tolist()}")
+        print(f"  - Temperatures (K)    : {self.temperatures.tolist()}")
         print(f"  - Num. of TRAJ files  : [1]")
         print("=" * 60)
         
         print("\n" + "="*16 + " Temperature-Dependent Data " + "="*16)
-        headers = ["Temp (K)", "D (m2/s)", "D_rand (m2/s)", "f", "tau (ps)", "z_mean"]
-        table_data = zip([self.temperature], [self.D], [self.D_rand], [self.f], [self.tau], [self.z_mean])
-        formats = [".1f", ".3e", ".3e", ".4f", ".4f", ".4f"]
+        headers = ["Temp (K)", "D (m2/s)", "D_rand (m2/s)", "f", "tau (ps)"]
+        table_data = zip([self.temperature], [self.D], [self.D_rand], [self.f], [self.tau])
+        formats = [".1f", ".3e", ".3e", ".4f", ".4f"]
         table_data = []
-        for row in zip([self.temperature], [self.D], [self.D_rand], [self.f], [self.tau], [self.z_mean]):
+        for row in zip([self.temperature], [self.D], [self.D_rand], [self.f], [self.tau]):
             formatted_row = [f"{value:{fmt}}" for value, fmt in zip(row, formats)]
             table_data.append(formatted_row)
         table = tabulate(table_data, headers=headers, 
@@ -2315,10 +2315,10 @@ class Calculator_Single(Trajectory):
     def show_hopping_history(self) -> None:
         """Prints a detailed, formatted table of the hopping sequence for each vacancy."""
         for i in range(self.num_vacancies):
-            print(f"File: {str(Path(self.traj).resolve())}")
-            print("=" * 117)
-            print(" "*44 + f"Hopping Sequence of Vacancy {i}")
-            print("=" * 117)
+            # print(f"File: {str(Path(self.traj).resolve())}")
+            print("=" * 116)
+            print(" "*43 + f"Hopping Sequence of Vacancy {i}")
+            print("=" * 116)
             
             header = ['Num', 'Time (ps)', 'Path', 'a (Ang)', 
                       'Initial Site (Fractional Coordinate)', 
@@ -2334,7 +2334,7 @@ class Calculator_Single(Trajectory):
                 ] for j, path in enumerate(self.hopping_history[i])
             ]
             print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
-            print("=" * 117 + "\n")
+            print("=" * 116 + "\n")
             
     def show_hopping_paths(self) -> None:
         """ Prints a summary table of all observed hopping path types and their counts."""
@@ -2362,9 +2362,9 @@ class Calculator_Single(Trajectory):
             }
             path_info.append(p)
             
-        print("=" * 110)
-        print(" " * 43 + "Hopping Path Information")
-        print("=" * 110)
+        print("=" * 116)
+        print(" " * 46 + "Hopping Path Information")
+        print("=" * 116)
         header = ['Name',
                   'a (Ang)',
                   'z',
@@ -2382,7 +2382,7 @@ class Calculator_Single(Trajectory):
             ] for p in path_info
         ]
         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
-        print("=" * 110 + "\n")
+        print("=" * 116 + "\n")
        
     def save_trajectory(self, filename: str = "trajectory.json") -> None:
         """Saves the unwrapped Cartesian trajectories of vacancies to a JSON file.
@@ -2649,8 +2649,9 @@ class Calculator_Bundle(TrajBundle):
         path_order_map = {path: i for i, path in enumerate(self.all_traj_paths)}
         successful_results = sorted(successful_results, key=lambda res: path_order_map[res[0]])
         self.calculators = [calc for _, calc in successful_results]
-        print(f"\nAnalysis complete: {len(successful_results)} successful, " +
-              f"{len(results) - len(successful_results)} failed.")
+        if verbose:
+            print(f"\nAnalysis complete: {len(successful_results)} successful, " +
+                f"{len(results) - len(successful_results)} failed.")
         
         # Count the number of calc at each temperature
         calc_temps = np.array([calc.temperature for calc in self.calculators])
@@ -2988,7 +2989,6 @@ class Calculator_Bundle(TrajBundle):
             self.a_path.append(path['distance'])
             self.z_path.append(path['z'])
         
- 
     def _fit_correlation_factor(self):
         """Performs an Arrhenius fit on the correlation factor data."""
         self.Ea_f, self.f0, self.f_R2 = self._Arrhenius_fit(
@@ -3144,6 +3144,7 @@ class Calculator_Bundle(TrajBundle):
              
     def plot_D_rand(self, 
                     title: Optional[str] = None, 
+                    disp: bool = True,
                     save: bool = True, 
                     filename: str = "D_rand.png", 
                     dpi: int = 300) -> None:
@@ -3185,13 +3186,13 @@ class Calculator_Bundle(TrajBundle):
                 verticalalignment='bottom', horizontalalignment='left',
                 bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
         
-        if save:
-            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
-        plt.show()
+        if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        if disp: plt.show()
         
     def plot_f(self, 
                title: Optional[str] = None, 
-               inset_arrhenius: bool = False, 
+               inset_arrhenius: bool = False,
+               disp: bool = True,
                save: bool = True, 
                filename: str = 'f.png', 
                dpi: int = 300) -> None:
@@ -3271,13 +3272,13 @@ class Calculator_Bundle(TrajBundle):
                 verticalalignment='bottom', horizontalalignment='left',
                 bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
         
-        if save:
-            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
-        plt.show()
+        if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        if disp: plt.show()
         plt.close(fig)
         
     def plot_D(self, 
                title: Optional[str] = None, 
+               disp: bool = True,
                save: bool = True, 
                filename: str = "D.png", 
                dpi: int = 300) -> None:
@@ -3319,12 +3320,12 @@ class Calculator_Bundle(TrajBundle):
                 verticalalignment='bottom', horizontalalignment='left',
                 bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
         
-        if save:
-            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
-        plt.show()
+        if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        if disp: plt.show()
         
     def plot_tau(self, 
-                 title: Optional[str] = None, 
+                 title: Optional[str] = None,
+                 disp: bool = True,
                  save: bool = True, 
                  filename: str = 'tau.png', 
                  dpi: int = 300) -> None:
@@ -3392,14 +3393,14 @@ class Calculator_Bundle(TrajBundle):
             ax.set_title(title, fontsize=12, pad=10)
             
         fig.tight_layout()
-        if save:
-            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
-        plt.show()
+        if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        if disp: plt.show()
         plt.close(fig)
     
     def plot_counts(self,
                     title: str = None,
-                    save: bool = True, 
+                    disp: bool = True,
+                    save: bool = True,
                     filename: str = 'counts.png', 
                     dpi: int = 300) -> None:
         """
@@ -3450,10 +3451,8 @@ class Calculator_Bundle(TrajBundle):
         ax.set_ylim(top=ax.get_ylim()[1] * 1.1)
         
         fig.tight_layout()
-        if save:
-            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
-        
-        plt.show()
+        if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        if disp: plt.show()
         plt.close(fig)
        
     def summary(self):
@@ -3477,12 +3476,12 @@ class Calculator_Bundle(TrajBundle):
         if self.calculators and len(self.temperatures) > 0:
             print("\n" + "="*16 + " Temperature-Dependent Data " + "="*16)
             
-            headers = ["Temp (K)", "D (m2/s)", "D_rand (m2/s)", "f", "tau (ps)", "z_mean"]
-            table_data = zip(self.temperatures, self.D, self.D_rand, self.f, self.tau, self.z_mean)
+            headers = ["Temp (K)", "D (m2/s)", "D_rand (m2/s)", "f", "tau (ps)"]
+            table_data = zip(self.temperatures, self.D, self.D_rand, self.f, self.tau)
             
-            formats = [".1f", ".3e", ".3e", ".4f", ".4f", ".4f"]
+            formats = [".1f", ".3e", ".3e", ".4f", ".4f"]
             table_data = []
-            for row in zip(self.temperatures, self.D, self.D_rand, self.f, self.tau, self.z_mean):
+            for row in zip(self.temperatures, self.D, self.D_rand, self.f, self.tau):
                 formatted_row = [f"{value:{fmt}}" for value, fmt in zip(row, formats)]
                 table_data.append(formatted_row)
     
@@ -3761,6 +3760,7 @@ class Calculator_Bundle(TrajBundle):
     
     def plot_nu(self,
                 title: Optional[str] = None,
+                disp: bool = True,
                 save: bool = True,
                 filename: str = "attempt_frequency.png",
                 dpi: int = 300) -> None:
@@ -3773,12 +3773,14 @@ class Calculator_Bundle(TrajBundle):
                                "Please run the .calculate_attempt_frequency() method first.")
         
         self.attempt_frequency.plot_nu(title=title,
+                                       disp=disp,
                                        save=save,
                                        filename=filename,
                                        dpi=dpi)
         
     def plot_z(self,
                title: Optional[str] = None,
+               disp: bool = True,
                save: bool = True,
                filename: str = "coordination_number.png",
                dpi: int = 300) -> None:
@@ -3791,6 +3793,7 @@ class Calculator_Bundle(TrajBundle):
                                "Please run the .calculate_attempt_frequency() method first.")
             
         self.attempt_frequency.plot_z(title=title,
+                                      disp=disp,
                                       save=save,
                                       filename=filename,
                                       dpi=dpi)

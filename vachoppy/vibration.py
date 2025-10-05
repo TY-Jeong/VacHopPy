@@ -243,7 +243,7 @@ class Vibration:
         
         if self.verbose:
             print("="*52)
-            print(f"{BOLD}       High-Frequency Filtering Results (IQR){RESET}")
+            print(f"       High-Frequency Filtering Results (IQR)")
             print("="*52)
             print(f"  - Cutoff Frequency              : {upper_bound:.2f} THz")
             print(f"  - Removed Outlier Frequencies   : {removed_count} (out of {len(frequencies)})")
@@ -274,9 +274,9 @@ class Vibration:
         self.mu_displacements, self.sigma_displacements = norm.fit(self.displacements)
         self.site_radius = 2 * self.sigma_displacements
         
-        
     def plot_displacements(self, 
-                           bins: int = 50, 
+                           bins: int = 50,
+                           disp: bool = True,
                            save: bool = True,
                            title: str = "Displacement Distribution",
                            filename: str = "displacement.png",
@@ -303,12 +303,13 @@ class Vibration:
         plt.ylabel("Probability Density", fontsize=12)
         plt.legend()
         plt.grid(True, linestyle='--')
-        if save:
-            plt.savefig(filename, dpi=dpi)
-        plt.show()
+        
+        if save: plt.savefig(filename, dpi=dpi)
+        if disp: plt.show()
         
     def plot_frequencies(self,
                          bins: int = 50,
+                         disp: bool = True,
                          save: bool = True,
                          title: str = "Frequency Distribution",
                          filename: str = "frequency.png",
@@ -338,9 +339,8 @@ class Vibration:
         plt.ylabel('Probability Density', fontsize=12)
         plt.legend()
         plt.grid(True, linestyle='--')
-        if save:
-            plt.savefig(filename, dpi=dpi)
-        plt.show()
+        if save: plt.savefig(filename, dpi=dpi)
+        if disp: plt.show()
     
     @monitor_performance
     def calculate(self, 
@@ -423,10 +423,10 @@ class Vibration:
     def summary(self):
         if self.verbose:
             print("="*52)
-            print(f"{BOLD}       Vibrational Analysis Results Summary{RESET}")
+            print(f"       Vibrational Analysis Results Summary")
             print("="*52)
             print(f"  - Mean Vibrational Amplitude (σ) : {self.sigma_displacements:.3f} Ang")
             print(f"  - Determined Site Radius (2 x σ) : {self.site_radius:.3f} Ang")
             print(f"  - Total Vibrational Frequencies  : {len(self.frequencies)} found")
-            print(f"  - {BOLD}Mean Vibrational Frequency     : {self.mean_frequency:.3f} THz{RESET}")
+            print(f"  - Mean Vibrational Frequency     : {self.mean_frequency:.3f} THz")
             print("="*52 + "\n")

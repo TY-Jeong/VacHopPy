@@ -134,9 +134,9 @@ class AttemptFrequency:
         Prints a comprehensive summary of the attempt frequency analysis results,
         including temperature-dependent data and path-wise details in tables.
         """
-        print("\n" + "="*52)
-        print(f"        Attempt Frequency Analysis Summary")
-        print("="*52)
+        print("="*60)
+        print(f"            Attempt Frequency Analysis Summary")
+        print("="*60)
 
         print("\n" + "-- Temperature-Dependent Effective Parameters --" + "\n")
         headers_temp = ["Temp (K)", "nu (THz)", "z"]
@@ -164,13 +164,14 @@ class AttemptFrequency:
             formatted_data = [[name, f"{count:.0f}", f"{nu:.4f}"] for name, count, nu in table_data_path]
             print(tabulate(formatted_data, headers=headers_path, tablefmt="simple", stralign='left', numalign='left'))
             print("-" * 40)
-
-        print(f"\nNOTE: Path-wise attempt frequencies (`nu_path`) can be unreliable for paths")
-        print("      with low hop counts, as they are highly sensitive to statistical noise.")
-        print("="*52 + "\n")
+        print(f"============================================================")
+        print(f"\nNOTE: nu_paths can be unreliable for paths with low hop counts,")
+        print(f"        as they are sensitive to statistical noise.")
+        print("="*60 + "\n")
 
     def plot_nu(self,
                 title: Optional[str] = None,
+                disp: bool = True,
                 save: bool = True,
                 filename: str = "attempt_frequency.png",
                 dpi: int = 300) -> None:
@@ -199,13 +200,13 @@ class AttemptFrequency:
             ax.set_ylim(new_bottom, new_top)
         
         fig.tight_layout()
-        if save:
-            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
-        plt.show()
+        if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        if disp: plt.show()
         plt.close(fig)
 
     def plot_z(self,
                title: Optional[str] = None,
+               disp: bool = True,
                save: bool = True,
                filename: str = "coordination_number.png",
                dpi: int = 300) -> None:
@@ -233,9 +234,8 @@ class AttemptFrequency:
             ax.set_ylim(new_bottom, new_top)
         
         fig.tight_layout()
-        if save:
-            fig.savefig(filename, dpi=dpi, bbox_inches="tight")
-        plt.show()
+        if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        if disp: plt.show()
         plt.close(fig)
         
     def update_json(self, filename: Optional[str] = None) -> None:
