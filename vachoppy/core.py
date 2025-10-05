@@ -453,14 +453,14 @@ class Site:
             The 3x3 lattice matrix of the crystal structure.
     """
     def __init__(self,
-                 structure: str,
+                 structure_file: str,
                  symbol: str,
                  format: str = None,
                  rmax: float = 3.25,
                  eps: float = 1.0e-3,
                  verbose: bool = False):
         
-        self.structure_file = structure
+        self.structure_file = structure_file
         self.symbol = symbol
         self.format = format
         self.rmax = rmax

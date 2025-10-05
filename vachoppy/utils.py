@@ -22,6 +22,7 @@ GREEN = '\033[92m' # Green color
 RED = '\033[91m'   # Red color
 RESET = '\033[0m'  # Reset to default color
 
+
 def monitor_performance(func):
     """
     A decorator that measures and prints the execution time 
@@ -440,7 +441,11 @@ class Snapshots:
             
         if self.verbose: print(f"Saving {self.num_steps} snapshot files to '{path_dir}' (format: {format})...")
         
-        for i in tqdm(range(self.num_steps), desc="Saving Snapshots", disable=not self.verbose):
+        for i in tqdm(range(self.num_steps), 
+                      desc=f'{RED}{BOLD}Progress{RESET}',
+                      bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, Fore.RESET),
+                      ascii=False,
+                      disable=not self.verbose):
             atoms = Atoms(symbols=full_symbol_list, scaled_positions=self.pos[i], cell=self.lattice, pbc=True)
             filename = f"{prefix}_{i:0{self.digit}d}"
             snapshot_path = os.path.join(path_dir, filename)
