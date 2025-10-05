@@ -8,7 +8,12 @@ import tracemalloc
 import numpy as np
 
 from tqdm.auto import tqdm
+from tabulate import tabulate
 from colorama import Fore, Style
+from typing import List, Union
+
+from ase import Atoms
+from ase.io import write
 
 BOLD = '\033[1m'
 CYAN = '\033[36m'
@@ -275,3 +280,202 @@ def show_traj(traj: str) -> None:
             print("  - forces:             Not found")    
             
         print("="*40)
+
+
+class Snapshots:
+    """
+    Generates step-wise structure files from a set of HDF5 trajectory files.
+
+    This class reads HDF5 trajectory files, reconstructs the full trajectory,
+    and calculates averaged atomic positions for specified time intervals.
+    The results are stored in memory and can be saved to files using the
+    `save_snapshots` method.
+
+    Args:
+        traj_files (Union[str, List[str]]):
+            A path to a single HDF5 trajectory file or a list of paths.
+        t_interval (float):
+            The time interval in picoseconds (ps) for averaging snapshots.
+            Must be a multiple of the simulation's `dt`.
+        eps (float, optional):
+            A tolerance for floating-point comparisons (e.g., for temperature).
+            Defaults to 1.0e-3.
+        verbose (bool, optional):
+            Verbosity flag. Defaults to True.
+    """
+    def __init__(self,
+                 traj_files: Union[str, List[str]],
+                 t_interval: float,
+                 eps: float = 1.0e-3,
+                 verbose: bool = True):
+
+        if isinstance(traj_files, str):
+            self.traj_files = [traj_files]
+        elif isinstance(traj_files, list) and traj_files:
+            self.traj_files = traj_files
+        else:
+            raise ValueError("Input 'traj_files' must be a non-empty string or a list of strings.")
+
+        self.t_interval = t_interval
+        self.eps = eps
+        self.verbose = verbose
+        
+        self.total_frames: int = None
+        self.dt: float = None
+        self.lattice: np.ndarray = None
+        self.atom_counts: dict = None
+        self.num_atoms: int = None
+        self.pos: np.ndarray = None
+        self.num_steps: int = None
+        self.digit: str = None
+        self.frame_interval: int = None
+        self._process_trajectories()
+
+    def _process_trajectories(self):
+        """Main workflow to validate, load, average, and wrap trajectory data."""
+        full_pos_unwrapped = self._validate_and_load_trajectories()
+
+        val = self.t_interval * 1000 / self.dt
+        if not np.isclose(val, round(val), atol=self.eps):
+            raise ValueError(f"The t_interval ({self.t_interval} ps) must be a multiple "
+                             f"of the simulation timestep ({self.dt / 1000.0} ps).")
+        self.frame_interval = round(val)
+
+        if self.frame_interval == 0:
+            raise ValueError("The t_interval is too small, resulting in zero frames per snapshot.")
+            
+        self.num_steps = self.total_frames // self.frame_interval
+        num_frames_to_use = self.num_steps * self.frame_interval
+        self.digit = len(str(self.num_steps - 1)) if self.num_steps > 0 else 1
+
+        pos_sliced = full_pos_unwrapped[:num_frames_to_use]
+        
+        pos_reshaped = pos_sliced.reshape(self.num_steps, self.frame_interval, self.num_atoms, 3)
+        pos_averaged = np.average(pos_reshaped, axis=1)
+        
+        self.pos = pos_averaged - np.floor(pos_averaged)
+        if self.verbose: print(f"Trajectory processed into {self.num_steps} snapshots.")
+
+    def _validate_and_load_trajectories(self) -> np.ndarray:
+        if self.verbose: print("Validating and loading HDF5 trajectory files...")
+        ref_meta = None
+        positions_by_symbol = {}
+        
+        for traj_file in self.traj_files:
+            if not os.path.isfile(traj_file):
+                raise FileNotFoundError(f"Input file '{traj_file}' not found.")
+            
+            with h5py.File(traj_file, 'r') as f:
+                meta_str = f.attrs.get('metadata')
+                if not meta_str:
+                    raise ValueError(f"File '{traj_file}' is missing 'metadata' attribute.")
+                
+                meta = json.loads(meta_str)
+                symbol = meta.get('symbol')
+                
+                if ref_meta is None:
+                    ref_meta = meta
+                    self.dt = ref_meta['dt']
+                    self.total_frames = ref_meta['nsw']
+                    self.atom_counts = ref_meta['atom_counts']
+                    self.lattice = np.array(ref_meta['lattice'], dtype=np.float64)
+                    self.temperature = ref_meta.get('temperature')
+                else:
+                    for key in ['nsw', 'atom_counts']:
+                        if meta[key] != ref_meta[key]:
+                            raise ValueError(f"Metadata mismatch in '{traj_file}': '{key}' differs from reference file.")
+                    for key in ['dt', 'temperature']:
+                        if key in meta and key in ref_meta and not np.isclose(meta.get(key), ref_meta.get(key), atol=self.eps):
+                             raise ValueError(f"Metadata mismatch in '{traj_file}': '{key}' differs from reference file.")
+                    if not np.allclose(meta['lattice'], ref_meta['lattice'], atol=self.eps):
+                        raise ValueError(f"Metadata mismatch in '{traj_file}': 'lattice' differs from reference file.")
+
+                positions_by_symbol[symbol] = f['positions'][:].astype(np.float64)
+                
+                if positions_by_symbol[symbol].shape[1] != self.atom_counts[symbol]:
+                     raise ValueError(f"Atom count for '{symbol}' in '{traj_file}' does not match metadata.")
+
+        if set(self.atom_counts.keys()) != set(positions_by_symbol.keys()):
+            missing = set(self.atom_counts.keys()) - set(positions_by_symbol.keys())
+            raise ValueError(f"Trajectory files for the following symbols are missing: {missing}")
+
+        full_pos_list = []
+        for symbol in sorted(self.atom_counts.keys()):
+            full_pos_list.append(positions_by_symbol[symbol])
+        
+        full_pos_unwrapped = np.concatenate(full_pos_list, axis=1)
+        self.num_atoms = full_pos_unwrapped.shape[1]
+        
+        if self.verbose: print("All files validated and loaded successfully.")
+        
+        return full_pos_unwrapped
+
+    def save_snapshots(self,
+                       path_dir: str = 'snapshots',
+                       format: str = 'vasp',
+                       prefix: str = 'POSCAR'):
+        """Saves the averaged snapshots as a series of structure files using ASE.
+
+        This method uses ASE (Atomic Simulation Environment) to write the
+        structure of each snapshot to a separate file. The output format,
+        directory, and filename prefix can be specified.
+
+        Args:
+            path_dir (str, optional):
+                The directory where output files will be saved. It will be
+                created if it does not exist. Defaults to 'snapshots'.
+            format (str, optional):
+                The output file format supported by `ase.io.write`.
+                Defaults to 'vasp'.
+            prefix (str, optional):
+                The prefix for the output filenames (e.g., 'POSCAR', 'snapshot').
+                Defaults to 'POSCAR'.
+        """
+        if not os.path.isdir(path_dir):
+            os.makedirs(path_dir, exist_ok=True)
+            if self.verbose: print(f"Created output directory: '{path_dir}'")
+            
+        sorted_symbols = sorted(self.atom_counts.keys())
+        full_symbol_list = [sym for sym in sorted_symbols for _ in range(self.atom_counts[sym])]
+            
+        if self.verbose: print(f"Saving {self.num_steps} snapshot files to '{path_dir}' (format: {format})...")
+        
+        for i in tqdm(range(self.num_steps), desc="Saving Snapshots", disable=not self.verbose):
+            atoms = Atoms(symbols=full_symbol_list, scaled_positions=self.pos[i], cell=self.lattice, pbc=True)
+            filename = f"{prefix}_{i:0{self.digit}d}"
+            snapshot_path = os.path.join(path_dir, filename)
+            write(snapshot_path, atoms, format=format)
+
+        desc_path = os.path.join(path_dir, "description.txt")
+        table_data = []
+        headers = ["Filename", "Time (ps)", "Original Frame Range"]
+        
+        for i in range(self.num_steps):
+            filename = f"{prefix}_{i:0{self.digit}d}"
+            time_ps = (i + 1) * self.t_interval
+            frame_start = i * self.frame_interval
+            frame_end = frame_start + self.frame_interval - 1
+            table_data.append([filename, f"{time_ps:.2f}", f"{frame_start} - {frame_end}"])
+            
+        with open(desc_path, 'w') as f:
+            f.write("="*60 + "\n")
+            f.write("          Snapshot Analysis Description\n")
+            f.write("="*60 + "\n\n")
+            
+            f.write("-- Simulation Parameters --\n")
+            f.write(f"  - Source Files        : {', '.join(self.traj_files)}\n")
+            f.write(f"  - Temperature         : {self.temperature:.1f} K\n")
+            f.write(f"  - Timestep (dt)       : {self.dt:.3f} fs\n")
+            f.write(f"  - Total Frames (NSW)  : {self.total_frames}\n")
+            f.write(f"  - Atom Counts         : {json.dumps(self.atom_counts)}\n\n")
+
+            f.write("-- Snapshot Parameters --\n")
+            f.write(f"  - Snapshot Interval   : {self.t_interval:.3f} ps\n")
+            f.write(f"  - Frames per Snapshot : {self.frame_interval}\n")
+            f.write(f"  - Total Snapshots     : {self.num_steps}\n\n")
+
+            f.write("-- File Details --\n")
+            table = tabulate(table_data, headers=headers, tablefmt="simple", numalign="center")
+            f.write(table)
+            
+        if self.verbose: print(f"Snapshot descriptions saved to '{desc_path}'")
