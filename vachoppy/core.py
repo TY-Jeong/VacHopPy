@@ -32,7 +32,7 @@ RESET = '\033[0m'
 @monitor_performance
 def parse_md(filename: str,
              format: str,
-             temp: float,
+             temperature: float,
              dt: float = 1.0,
              label: str = None,
              chunk_size: int = 5000,
@@ -55,7 +55,7 @@ def parse_md(filename: str,
             Path to the MD trajectory file (e.g., 'vasprun.xml', 'OUTCAR').
         format (str):
             File format string supported by ASE (e.g., 'vasp-xml', 'extxyz').
-        temp (float):
+        temperature (float):
             Simulation temperature in Kelvin.
         dt (float, optional):
             Timestep in femtoseconds. Defaults to 1.0.
@@ -192,7 +192,7 @@ def parse_md(filename: str,
                 cond = {
                     "symbol": sym, 
                     "nsw": num_frames,
-                    "temperature": temp,  
+                    "temperature": temperature,  
                     "dt": dt, 
                     "atom_counts": atom_counts, 
                     "lattice": lattice
@@ -221,7 +221,7 @@ def parse_lammps(lammps_data:str,
                  atom_style_data:str,
                  atom_style_dump:str,
                  atom_symbols:dict,
-                 temp:float,
+                 temperature:float,
                  dt:float=1.0,
                  label:str=None,
                  chunk_size=5000,
@@ -252,7 +252,7 @@ def parse_lammps(lammps_data:str,
         atom_symbols (dict):
             A dictionary mapping atom type IDs (int) to chemical symbols (str),
             e.g., {1: 'Ti', 2: 'O'}.
-        temp (float):
+        temperature (float):
             Simulation temperature in Kelvin.
         dt (float, optional):
             Timestep in femtoseconds. Defaults to 1.0.
@@ -328,7 +328,7 @@ def parse_lammps(lammps_data:str,
             cond = {
                 "symbol": sym, 
                 "nsw": num_frames,
-                "temperature": temp,  
+                "temperature": temperature,  
                 "dt": dt, 
                 "atom_counts": atom_counts, 
                 "lattice": lattice
