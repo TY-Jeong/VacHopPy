@@ -29,7 +29,7 @@ class MSDCalculator:
     by discarding the large position array after the MSD calculation is complete.
 
     Args:
-        traj_file (str): 
+        path_traj (str): 
             Path to the HDF5 trajectory file.
         symbol (str): 
             The chemical symbol of the target diffusing species to analyze.
@@ -50,7 +50,7 @@ class MSDCalculator:
             Verbosity flag. Defaults to True.
     """
     def __init__(self,
-                 traj_file: str,
+                 path_traj: str,
                  symbol: str,
                  skip: float = 0.0,
                  segment_length: Optional[float] = None,
@@ -58,7 +58,7 @@ class MSDCalculator:
                  end: Optional[float] = None,
                  verbose: bool = True):
         
-        self.traj_file = traj_file
+        self.path_traj = path_traj
         self.symbol = symbol
         self.skip = skip
         self.segment_length = segment_length
@@ -81,10 +81,10 @@ class MSDCalculator:
 
     def _read_and_prepare(self):
         """Reads the HDF5 file, validates metadata, and loads atomic positions."""
-        if not os.path.isfile(self.traj_file):
-            raise FileNotFoundError(f"Input file not found: {self.traj_file}")
+        if not os.path.isfile(self.path_traj):
+            raise FileNotFoundError(f"Input file not found: {self.path_traj}")
             
-        with h5py.File(self.traj_file, 'r') as f:
+        with h5py.File(self.path_traj, 'r') as f:
             meta = json.loads(f.attrs['metadata'])
             self.dt = meta['dt']
             self.nsw = meta['nsw']
@@ -93,7 +93,7 @@ class MSDCalculator:
             
             full_atom_counts = meta['atom_counts']
             if self.symbol not in full_atom_counts:
-                raise ValueError(f"Symbol '{self.symbol}' not found in {self.traj_file}. "
+                raise ValueError(f"Symbol '{self.symbol}' not found in {self.path_traj}. "
                                  f"Available symbols: {list(full_atom_counts.keys())}")
 
             if meta.get('symbol') == self.symbol:
@@ -162,14 +162,20 @@ class MSDCalculator:
 
         if len(time_fit_fs) < 2:
             if self.verbose:
-                print(f"Warning: Fitting range for {os.path.basename(self.traj_file)} is too small. Cannot calculate diffusivity.")
+                print(f"Warning: Fitting range for {os.path.basename(self.path_traj)} is too small. Cannot calculate diffusivity.")
             self.diffusivity, self.intercept = np.nan, np.nan
             return
 
         slope, self.intercept = np.polyfit(time_fit_fs, msd_fit, 1)
         self.diffusivity = slope * (1e-5 / 6.0) # in m^2/s
 
-    def plot_msd(self, ax=None, **kwargs):
+    def plot_msd(self,
+                 disp: bool = True,
+                 save: bool = True,
+                 filename: str = 'msd.png',
+                 dpi: int = 300,
+                 ax=None, 
+                 **kwargs):
         """
         Plots the calculated MSD vs. time on a given matplotlib axis.
 
@@ -185,10 +191,13 @@ class MSDCalculator:
         """
         if self.msd is None: self._calculate_msd()
         
+        fig = None
         if ax is None:
             fig, ax = plt.subplots(figsize=(6, 5))
             ax.set_xlabel("Time (ps)", fontsize=13)
             ax.set_ylabel(r"MSD (Å$^2$)", fontsize=13)
+        else:
+            fig = ax.get_figure()
         
         line, = ax.plot(self.timestep, self.msd, **kwargs)
         
@@ -203,20 +212,60 @@ class MSDCalculator:
             end_time = self.end if self.end is not None else self.timestep[-1]
             ax.axvline(self.start, color='grey', linestyle=':', lw=1)
             ax.axvline(end_time, color='grey', linestyle=':', lw=1)
-        
+            
+        if save: 
+            if fig: fig.tight_layout()
+            plt.savefig(filename, dpi=dpi)
+        if disp: 
+            if fig: fig.tight_layout()
+            plt.show()
+        if fig: plt.close(fig)
         return line
+
+    def summary(self):
+        """Prints a formatted summary of the MSD analysis results."""
+        if not hasattr(self, 'diffusivity') or self.diffusivity is None:
+            self.calculate()
+            
+        header_width = 60
+        title = "MSD Analysis Summary (Single)"
+        padding = (header_width - len(title)) // 2
+        
+        print("\n" + "=" * header_width)
+        print(" " * padding + title)
+        print("=" * header_width)
+        
+        print("\n-- Input Parameters --")
+        print(f"  - Trajectory File : {os.path.basename(self.path_traj)}")
+        print(f"  - Target Symbol   : {self.symbol}")
+        print(f"  - Temperature     : {self.temperature:.1f} K")
+        print(f"  - Skip Time       : {self.skip:.2f} ps")
+        print(f"  - Segment Length  : {'Full' if self.segment_length is None else f'{self.segment_length:.2f} ps'}")
+
+        print("\n-- Fitting Range --")
+        end_time = self.end if self.end is not None else self.timestep[-1]
+        print(f"  - Start Time      : {self.start:.2f} ps")
+        print(f"  - End Time        : {end_time:.2f} ps")
+        
+        print("\n-- Results --")
+        if not np.isnan(self.diffusivity):
+            print(f"  - Diffusivity (D) : {self.diffusivity:.3e} m^2/s")
+        else:
+            print("  - Diffusivity (D) : Not calculated (check warnings).")
+            
+        print("=" * header_width + "\n")
 
 
 def _run_single_msd_task(args):
     """[Parallel Worker] Initializes and runs an MSDCalculator for a single file."""
-    traj_file, symbol, skip, segment_length, start, end = args
+    path_traj, symbol, skip, segment_length, start, end = args
     try:
-        calc = MSDCalculator(traj_file, symbol, skip, segment_length, start, end, verbose=False)
+        calc = MSDCalculator(path_traj, symbol, skip, segment_length, start, end, verbose=False)
         calc.calculate()
         return calc
     except Exception as e:
-        if "verbose" not in str(e): # Avoid printing verbose flag errors
-             print(f"Warning: Failed to process {traj_file}. Error: {e}")
+        if "verbose" not in str(e):
+             print(f"Warning: Failed to process {path_traj}. Error: {e}")
         return None
 
 
@@ -226,7 +275,7 @@ class MSDEnsemble:
     to calculate temperature-dependent diffusivity and Arrhenius parameters.
     """
     def __init__(self,
-                 path: str,
+                 path_traj: str,
                  symbol: str,
                  skip: float = 0.0,
                  segment_length: Optional[Union[float, List[float]]] = None,
@@ -235,7 +284,7 @@ class MSDEnsemble:
                  verbose: bool = True,
                  **kwargs):
         
-        self.path = path
+        self.path_traj = path_traj
         self.symbol = symbol
         self.skip = skip
         self.segment_length = segment_length
@@ -246,15 +295,22 @@ class MSDEnsemble:
         
         bundle_keys = ['prefix', 'depth', 'eps']
         bundle_kwargs = {key: kwargs[key] for key in bundle_keys if key in kwargs}
-        self.bundle = TrajBundle(path=self.path, symbol=self.symbol, verbose=False, **bundle_kwargs)
+        self.bundle = TrajBundle(path_traj=self.path_traj, 
+                                 symbol=self.symbol, 
+                                 verbose=False, 
+                                 **bundle_kwargs)
 
         self.temperatures = np.array(self.bundle.temperatures, dtype=np.float64)
-        self.all_traj_paths = [path for temp_paths in self.bundle.traj for path in temp_paths]
+        self.all_traj_paths = [
+            path for temp_paths in self.bundle.traj for path in temp_paths
+        ]
         
         if isinstance(self.segment_length, (list, np.ndarray)):
             if len(self.segment_length) != len(self.temperatures):
-                raise ValueError(f"Length of `segment_length` ({len(self.segment_length)}) "
-                                 f"must match the number of temperatures ({len(self.temperatures)}).")
+                raise ValueError(
+                    f"Length of `segment_length` ({len(self.segment_length)}) "
+                    f"must match the number of temperatures ({len(self.temperatures)})."
+                )
                 
         self.calculators: List[MSDCalculator] = []
         self.diffusivities: np.ndarray = None
@@ -262,8 +318,8 @@ class MSDEnsemble:
         self.D0: float = None
         self.R2: float = None
     
-    # @monitor_performance
-    def calculate(self, n_jobs: int = -1):
+    @ monitor_performance
+    def calculate(self, n_jobs: int = -1, verbose=True):
         """
         Runs the full analysis pipeline in parallel for all trajectories.
 
@@ -272,8 +328,11 @@ class MSDEnsemble:
         and performs an Arrhenius fit if multiple temperatures are present.
 
         Args:
-            n_jobs (int, optional): Number of CPU cores for parallel processing.
+            n_jobs (int, optional): 
+                Number of CPU cores for parallel processing.
                 -1 uses all available cores. Defaults to -1.
+            verbose (bool, optional): 
+                Controls verbosity of the monitor_performance decorator.
         """
         tasks = []
         for i, temp_group in enumerate(self.bundle.traj):
@@ -282,44 +341,76 @@ class MSDEnsemble:
             else:
                 seg_len_for_temp = self.segment_length
 
-            for traj_file in temp_group:
+            for path_traj in temp_group:
                 tasks.append(
-                    (traj_file, self.symbol, self.skip, seg_len_for_temp, self.start, self.end)
+                    (path_traj, self.symbol, self.skip, 
+                     seg_len_for_temp, self.start, self.end)
                 )
         
         results = Parallel(n_jobs=n_jobs)(
             delayed(_run_single_msd_task)(task)
             for task in tqdm(tasks, 
-                             desc=f'{RED}{BOLD}Progress{RESET}',
-                             bar_format='{l_bar}%s{bar:20}%s{r_bar}' % (GREEN, RESET),
-                             ascii=False,
-                             disable=not self.verbose)
+                             desc=f'Compute MSD',
+                             bar_format='{l_bar}{bar:30}{r_bar}',
+                             ascii=True)
         )
         
         successful_results = [res for res in results if res is not None]
         path_order = {path: i for i, path in enumerate(self.all_traj_paths)}
-        successful_results.sort(key=lambda calc: path_order.get(calc.traj_file, -1))
+        successful_results.sort(key=lambda calc: path_order.get(calc.path_traj, -1))
         self.calculators = successful_results
+        
+        if self.verbose: 
+            print(f"\nAnalysis complete: {len(successful_results)} successful, " +
+                  f"{len(results) - len(successful_results)} failed.")
         
         self._aggregate_results()
         
-        if len(self.temperatures) >= 2:
-            self._fit_arrhenius()
+        if len(self.temperatures) >= 2: self._fit_arrhenius()
 
     def _aggregate_results(self):
         """Aggregates diffusivity results from all calculators, grouped by temperature."""
-        calc_temps = np.array([calc.temperature for calc in self.calculators])
-        diffs = np.array([calc.diffusivity for calc in self.calculators])
-        
         temp_avg_D = []
-        for T in self.temperatures:
-            mask = np.isclose(calc_temps, T)
-            if np.any(mask):
-                temp_avg_D.append(np.nanmean(diffs[mask]))
-            else:
+        for temp in self.temperatures:
+            calcs_for_temp = [calc for calc in self.calculators 
+                              if np.isclose(calc.temperature, temp)]
+            if not calcs_for_temp:
                 temp_avg_D.append(np.nan)
+                continue
+
+            all_msds = [calc.msd for calc in calcs_for_temp]
+            max_len = max(len(msd) for msd in all_msds)
+            
+            msd_sum = np.zeros(max_len, dtype=np.float64)
+            frame_counts = np.zeros(max_len, dtype=int)
+
+            for msd in all_msds:
+                msd_len = len(msd)
+                msd_sum[:msd_len] += msd
+                frame_counts[:msd_len] += 1
+            
+            mean_msd = np.divide(msd_sum, frame_counts, where=frame_counts!=0)
+            
+            dt = calcs_for_temp[0].dt
+            timestep = np.arange(max_len) * dt / 1000.0
+            
+            start_idx = int(round(self.start / (dt / 1000.0)))
+            end_idx = int(round(self.end / (dt / 1000.0))) if self.end is not None else len(mean_msd)
+            end_idx = min(end_idx, len(mean_msd))
+
+            time_fit_fs = timestep[start_idx:end_idx] * 1000.0
+            msd_fit = mean_msd[start_idx:end_idx]
+
+            if len(time_fit_fs) < 2:
+                temp_avg_D.append(np.nan)
+                continue
+
+            slope, _ = np.polyfit(time_fit_fs, msd_fit, 1)
+            diffusivity = slope * (1e-5 / 6.0)
+            temp_avg_D.append(diffusivity)
+            
         self.diffusivities = np.array(temp_avg_D, dtype=np.float64)
-        
+
     def _fit_arrhenius(self):
         """Performs an Arrhenius fit on the temperature-dependent diffusivity data."""
         kb = 8.61733326e-5
@@ -347,7 +438,12 @@ class MSDEnsemble:
         if ss_total < 1e-12: self.R2 = 1.0
         else: self.R2 = 1 - np.sum((y - y_pred)**2) / ss_total
         
-    def plot_msd(self, **kwargs):
+    def plot_msd(self, 
+                 disp: bool = True,
+                 save: bool = True,
+                 filename: str = 'msd.png',
+                 dpi: int = 300,
+                 **kwargs):
         """
         Plots the temperature-averaged Mean Squared Displacement (MSD) for each
         unique temperature in the ensemble.
@@ -359,22 +455,36 @@ class MSDEnsemble:
         cmap = plt.get_cmap("viridis", len(self.temperatures))
 
         for i, temp in enumerate(self.temperatures):
-            calcs_for_temp = [calc for calc in self.calculators if np.isclose(calc.temperature, temp)]
+            calcs_for_temp = [
+                calc for calc in self.calculators 
+                if np.isclose(calc.temperature, temp)
+            ]
             if not calcs_for_temp: continue
 
-            timestep = calcs_for_temp[0].timestep
-            all_msds_for_temp = [calc.msd for calc in calcs_for_temp]
-            mean_msd = np.mean(np.array(all_msds_for_temp), axis=0)
+            all_msds = [calc.msd for calc in calcs_for_temp]
+            max_len = max(len(msd) for msd in all_msds)
+            msd_sum = np.zeros(max_len)
+            frame_counts = np.zeros(max_len, dtype=int)
+            
+            for msd in all_msds:
+                msd_len = len(msd)
+                msd_sum[:msd_len] += msd
+                frame_counts[:msd_len] += 1
+                
+            mean_msd = np.divide(msd_sum, frame_counts, where=frame_counts!=0)
+            timestep = np.arange(max_len) * calcs_for_temp[0].dt / 1000.0
 
             ax.plot(timestep, mean_msd, color=cmap(i), label=f"{temp:.0f} K")
             
             if self.diffusivities is not None and not np.isnan(self.diffusivities[i]):
                 slope = self.diffusivities[i] * 6 / 1e-5
-                intercept = np.mean([c.intercept for c in calcs_for_temp if c.intercept is not None])
+                intercept = np.mean(
+                    [c.intercept for c in calcs_for_temp 
+                     if c.intercept is not None and not np.isnan(c.intercept)]
+                )
                 
                 dt_ps = calcs_for_temp[0].dt / 1000.0
                 start_idx = int(round(self.start / dt_ps))
-                
                 end_ps_val = self.end if self.end is not None else timestep[-1]
                 end_idx = int(round(end_ps_val / dt_ps))
                 end_idx = min(end_idx, len(timestep))
@@ -392,9 +502,17 @@ class MSDEnsemble:
         ax.legend(title="Temperature", fontsize=9)
         ax.grid(True, linestyle='--')
         plt.tight_layout()
-        plt.show()
+        
+        if save: plt.savefig(filename, dpi=dpi)
+        if disp: plt.show()
+        plt.close(fig)
 
-    def plot_D(self, **kwargs):
+    def plot_D(self, 
+               disp: bool = True,
+               save: bool = True,
+               filename: str = 'D_atom.png',
+               dpi: int = 300,
+               **kwargs):
         """Plots the Arrhenius plot of D vs. 1/T."""
         if len(self.temperatures) < 2:
             print("Warning: Cannot create Arrhenius plot with less than 2 temperatures.")
@@ -428,13 +546,15 @@ class MSDEnsemble:
         ax.grid(True, which='both', linestyle='--')
         ax.legend()
         plt.tight_layout()
-        plt.show()
+        
+        if save: plt.savefig(filename, dpi=dpi)
+        if disp: plt.show()
         
     def summary(self):
         """Prints a summary of the ensemble analysis."""
-        print("\n" + "="*60)
-        print(f"{' ' * 15}MSD Ensemble Analysis Summary")
-        print("="*60)
+        print("="*50)
+        print(f"{' ' * 10}MSD Ensemble Analysis Summary")
+        print("="*50)
         
         headers = ["Temp (K)", "Avg. Diffusivity (m^2/s)"]
         table_data = []
@@ -448,7 +568,7 @@ class MSDEnsemble:
             print(f"  - Activation Energy (Ea) : {self.Ea:.3f} eV")
             print(f"  - Pre-factor (D0)        : {self.D0:.3e} m^2/s")
             print(f"  - R-squared              : {self.R2:.4f}")
-        print("="*60)
+        print("="*50)
         
     def save_parameters(self, 
                         filename: str = "einstein.json") -> None:
@@ -499,7 +619,7 @@ class MSDEnsemble:
             print(f"Einstein relation parameters saved to '{filename}'")
         
 
-def Einstein(path: str,
+def Einstein(path_traj: str,
              symbol: str,
              skip: float = 0.0,
              segment_length: Optional[Union[float, List[float]]] = None,
@@ -513,7 +633,7 @@ def Einstein(path: str,
     for a single file path. This function serves as the main user entry point.
 
     Args:
-        path (str):
+        path_traj (str):
             Path to a directory containing trajectory files or to a single file.
         symbol (str):
             The chemical symbol of the target diffusing species to analyze.
@@ -534,12 +654,12 @@ def Einstein(path: str,
     Returns:
         Union[MSDEnsemble, MSDCalculator]: An initialized analysis object.
     """
-    p = Path(path)
+    p = Path(path_traj)
     if p.is_dir():
-        return MSDEnsemble(path, symbol, skip, segment_length, start, end, **kwargs)
+        return MSDEnsemble(path_traj, symbol, skip, segment_length, start, end, **kwargs)
     elif p.is_file():
         if isinstance(segment_length, (list, np.ndarray)):
             raise TypeError("For a single file analysis, `segment_length` must be a float or None.")
-        return MSDCalculator(path, symbol, skip, segment_length, start, end, **kwargs)
+        return MSDCalculator(path_traj, symbol, skip, segment_length, start, end, **kwargs)
     else:
-        raise FileNotFoundError(f"Path not found: {path}")
+        raise FileNotFoundError(f"Path not found: {path_traj}")

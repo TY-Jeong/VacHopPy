@@ -1,3 +1,11 @@
+import os
+import sys
+import json
+import h5py
+import numpy as np
+from pathlib import Path
+from typing import List, Union, Optional
+
 from vachoppy.core import *
 from vachoppy.einstein import *
 from vachoppy.vibration import *
@@ -6,32 +14,23 @@ from vachoppy.trajectory import *
 from vachoppy.utils import *
 from vachoppy.fingerprint import *
 
-import os
-import sys
-import json
-import h5py
-import numpy as np
-
-from pathlib import Path
-from typing import List, Union, Optional
-
-
+   
 @ monitor_performance
-def cli_trajectory(traj_file: str,
-                    structure_file: str,
-                    symbol: str,
-                    verbose: bool = True,
-                    **kwargs) -> 'Calculator_Single':
+def cli_trajectory(path_traj: str,
+                   path_structure: str,
+                   symbol: str,
+                   verbose: bool = True,
+                   **kwargs) -> None:
     """[CLI Method] This method is for vacancy trajectory analysis."""
     STEP_FLAG = 1
-    p = Path(traj_file)
+    p = Path(path_traj)
     if not p.is_file():
-        raise ValueError(f"Error: '{traj_file}' is not a regular file.")
+        raise ValueError(f"Error: '{path_traj}' is not a regular file.")
     
     site_keys = ['format', 'rmax', 'eps']
     site_kwargs = {key: kwargs[key] for key in site_keys if key in kwargs}
     site_kwargs['verbose'] = False
-    site = Site(structure_file, symbol, **site_kwargs)
+    site = Site(path_structure, symbol, **site_kwargs)
     
     calc_keys = ['t_interval', 'eps', 'use_incomplete_encounter']
     calc_kwargs = {key: kwargs[key] for key in calc_keys if key in kwargs}
@@ -40,69 +39,7 @@ def cli_trajectory(traj_file: str,
     t_interval = kwargs.get('t_interval', None)
     if t_interval is None:
         print(f"[STEP{STEP_FLAG}] Automatic t_interval Estimation:"); STEP_FLAG += 1
-    calc = Calculator(traj_file, site, **calc_kwargs)
-    
-    calc.calculate()
-    
-    print(f"\n\n[STEP{STEP_FLAG}] Summary of Hopping Paths:"); STEP_FLAG += 1
-    calc.show_hopping_paths()
-    
-    print(f"\n[STEP{STEP_FLAG}] Summary of Hopping Histories:"); STEP_FLAG += 1
-    calc.show_hopping_history()
-    filename = 'trajectory.json'
-    calc.save_trajectory(filename=filename)
-    
-    plot_keys = ['vacancy_indices', 'filename']
-    plot_kwargs = {key: kwargs[key] for key in plot_keys if key in kwargs}
-    plot_kwargs['unwrap'] = kwargs.get('unwrap', True)
-    plot_kwargs['save'] = kwargs.get('save_plot', True)
-    plot_kwargs['disp'] = False
-    calc.plot_vacancy_trajectory(np.arange(calc.num_vacancies), **plot_kwargs)
-    
-    print(f"Results are saved in '{filename}'.")
-    print(f"Trajectory is saved in 'trajectory.html'.\n")
-    
-    try:
-        import platform
-        import subprocess
-        
-        if platform.system() == 'Windows':
-            os.startfile('trajectory.html')
-        elif platform.system() == 'Darwin':  # macOS
-            subprocess.run(['open', 'trajectory.html'])
-        else:  # Linux
-            subprocess.run(['xdg-open', 'ttrajectory.html'])
-            
-    except Exception as e:
-        print("Could not open the image automatically. " + 
-                f"Please open '{'trajectory.png'}'")
-  
-      
-@ monitor_performance
-def cli_trajectory(traj_file: str,
-                    structure_file: str,
-                    symbol: str,
-                    verbose: bool = True,
-                    **kwargs) -> 'Calculator_Single':
-    """[CLI Method] This method is for vacancy trajectory analysis."""
-    STEP_FLAG = 1
-    p = Path(traj_file)
-    if not p.is_file():
-        raise ValueError(f"Error: '{traj_file}' is not a regular file.")
-    
-    site_keys = ['format', 'rmax', 'eps']
-    site_kwargs = {key: kwargs[key] for key in site_keys if key in kwargs}
-    site_kwargs['verbose'] = False
-    site = Site(structure_file, symbol, **site_kwargs)
-    
-    calc_keys = ['t_interval', 'eps', 'use_incomplete_encounter']
-    calc_kwargs = {key: kwargs[key] for key in calc_keys if key in kwargs}
-    calc_kwargs['verbose'] = False
-    
-    t_interval = kwargs.get('t_interval', None)
-    if t_interval is None:
-        print(f"[STEP{STEP_FLAG}] Automatic t_interval Estimation:"); STEP_FLAG += 1
-    calc = Calculator(traj_file, site, **calc_kwargs)
+    calc = Calculator(path_traj, site, **calc_kwargs)
     
     calc.calculate()
     
@@ -141,23 +78,23 @@ def cli_trajectory(traj_file: str,
         
 
 @ monitor_performance
-def cli_parameters(path: str,
-                    structure_file: str,
-                    symbol: str,
-                    neb_csv: str = None,
-                    dir_imgs: str = 'imgs',
-                    verbose: bool = True,
-                    **kwargs) -> None:
+def cli_analyze(path_traj: str,
+                path_structure: str,
+                symbol: str,
+                neb_csv: str = None,
+                dir_imgs: str = 'imgs',
+                verbose: bool = True,
+                **kwargs) -> None:
     """[CLI Method] This method is for hopping parameter extraction."""
     STEP_FLAG = 1
-    p = Path(path)
+    p = Path(path_traj)
     if not p.is_dir():
-        raise ValueError(f"Error: '{path}' is not a regular directory.")
+        raise ValueError(f"Error: '{path_traj}' is not a regular directory.")
     
     site_keys = ['format', 'rmax', 'eps']
     site_kwargs = {key: kwargs[key] for key in site_keys if key in kwargs}
     site_kwargs['verbose'] = False
-    site = Site(structure_file, symbol, **site_kwargs)
+    site = Site(path_structure, symbol, **site_kwargs)
     
     calc_keys = ['depth', 't_interval', 'sampling_size', 'eps', 'use_incomplete_encounter']
     calc_kwargs = {key: kwargs[key] for key in calc_keys if key in kwargs}
@@ -166,58 +103,63 @@ def cli_parameters(path: str,
     t_interval = kwargs.get('t_interval', None)
     if t_interval is None:
         print(f"[STEP{STEP_FLAG}] Automatic t_interval Estimation:"); STEP_FLAG += 1
-    calc = Calculator(path, site, **calc_kwargs)
+    calc = Calculator(path_traj, site, **calc_kwargs)
+    if t_interval is None: print('\n')
     
-    print(f"\n\n[STEP{STEP_FLAG}] Vacancy Trajectory Identification:"); STEP_FLAG += 1
-    calc.calculate(verbose=False)
+    print(f"[STEP{STEP_FLAG}] Vacancy Trajectory Identification:"); STEP_FLAG += 1
+    n_jobs = kwargs.get('n_jobs', -1)
+    calc.calculate(n_jobs=n_jobs, verbose=False)
     print('\n')
     filename: str = "parameters.json"
     calc.save_parameters(filename)
     print(f"[STEP{STEP_FLAG}] Hopping Parameter Calculation:"); STEP_FLAG += 1
     calc.summary()
     
+    if neb_csv is not None:
+        print(f"\n\n[STEP{STEP_FLAG}] Attempt Frequency Calculation:"); STEP_FLAG += 1
+        calc.calculate_attempt_frequency(neb_csv=neb_csv, filename=filename)
+        calc.attempt_frequency.summary()
+        
     if dir_imgs is not None:
         if not os.path.isdir(dir_imgs): os.makedirs(dir_imgs)
         calc.plot_D_rand(disp=True, filename=os.path.join(dir_imgs, 'D_rand.png'))
         calc.plot_f(disp=True, filename=os.path.join(dir_imgs, 'f.png'))
         calc.plot_D(disp=False, filename=os.path.join(dir_imgs, 'D.png'))
-        calc.plot_tau(disp=False, filename=os.path.join(dir_imgs, 'tau.png'))
+        calc.plot_tau(disp=True, filename=os.path.join(dir_imgs, 'tau.png'))
         calc.plot_counts(disp=True, filename=os.path.join(dir_imgs, 'counts.png'))
-    
-    if neb_csv is not None:
-        print(f"\n\n[STEP{STEP_FLAG}] Attempt Frequency Calculation:"); STEP_FLAG += 1
-        calc.calculate_attempt_frequency(neb_csv=neb_csv, filename=filename)
-        calc.attempt_frequency.summary()
-        if dir_imgs is not None:
+        if neb_csv is not None:
             calc.plot_nu(disp=True, filename=os.path.join(dir_imgs, 'nu.png'))
             calc.plot_z(disp=False, filename=os.path.join(dir_imgs, 'z.png'))
     
-    print(f"Results are saved in '{filename}'.\n")      
+    print(f"Results are saved in '{filename}'.")      
     if dir_imgs is not None:
         print(f"Images are saved in '{dir_imgs}'.")
+    print('')
     
     
 @ monitor_performance
-def cli_vibration(traj_file:str,
-                   structure_file: str,
+def cli_vibration(path_traj:str,
+                   path_structure: str,
                    symbol: str,
                    dir_imgs: str = 'imgs',
                    verbose: bool = True,
                    **kwargs):
     """[CLI Method] This method is for atomic vibration analysis"""
     STEP_FLAG = 1
-    p = Path(traj_file)
+    p = Path(path_traj)
     if not p.is_file():
-        raise ValueError(f"Error: '{traj_file}' is not a regular file.")
+        raise ValueError(f"Error: '{path_traj}' is not a regular file.")
     
     site_keys = ['format', 'rmax', 'eps']
     site_kwargs = {key: kwargs[key] for key in site_keys if key in kwargs}
     site_kwargs['verbose'] = False
-    site = Site(structure_file, symbol, **site_kwargs)
+    site = Site(path_structure, symbol, **site_kwargs)
     
     vib_keys = ['sampling_size', 'filter_high_freq', 'verbose']
     vib_kwargs = {key: kwargs[key] for key in vib_keys if key in kwargs}
-    vib = Vibration(traj_file, site, **vib_kwargs)
+    sampling_size = kwargs.get('sampling_size', 5000)
+    print(f"[STEP{STEP_FLAG}] Atomic Vibration Analysis (Using initial {sampling_size} frames):")
+    vib = Vibration(path_traj, site, **vib_kwargs)
     
     cal_keys = ['n_jobs', 'jump_detection_radius']
     cal_kwargs = {key: kwargs[key] for key in cal_keys if key in kwargs}
@@ -231,29 +173,26 @@ def cli_vibration(traj_file:str,
         
         
 @ monitor_performance
-def cli_einstein(path: str,
-                  symbol: str,
-                  segment_length: Optional[Union[float, List[float]]] = None,
-                  dir_imgs: str = 'imgs',
-                  verbose=True,
-                  **kwargs):
+def cli_msd(path_traj: str,
+            symbol: str,
+            segment_length: Optional[Union[float, List[float]]] = None,
+            dir_imgs: str = 'imgs',
+            verbose=True,
+            **kwargs):
     """[CLI method] This method runs einstein.Einstein. """
     STEP_FLAG = 1
-    p = Path(path)
+    p = Path(path_traj)
     
     if p.is_dir():
         ein_keys = ['skip', 'start', 'end', 'n_jobs', 'prefix', 'depth', 'eps']
         
         ein_kwargs = {key: kwargs[key] for key in ein_keys if key in kwargs}
         ein_kwargs['verbose'] = False
-        ein = Einstein(path, symbol, segment_length=segment_length, **ein_kwargs)
-        
-        cal_keys = ['n_jobs']
-        cal_kwargs = {key: kwargs[cal_keys] for key in cal_keys if key in kwargs}
-        cal_kwargs['verbose'] = False
+        ein = Einstein(path_traj, symbol, segment_length=segment_length, **ein_kwargs)
         
         print(f"[STEP{STEP_FLAG}] MSD Calculation Based on Einstein Relation:"); STEP_FLAG += 1
-        ein.calculate(**cal_kwargs)
+        n_jobs_val = kwargs.get('n_jobs', -1)
+        ein.calculate(n_jobs=n_jobs_val)
         
         print(f"\n\n[STEP{STEP_FLAG}] Summary of MSD Analysis:"); STEP_FLAG += 1
         ein.summary()
@@ -271,7 +210,7 @@ def cli_einstein(path: str,
         ein_keys = ['skip', 'start', 'end']
         ein_kwargs = {key: kwargs[key] for key in ein_keys if key in kwargs}
         ein_kwargs['verbose'] = False
-        ein = Einstein(path, symbol, segment_length=segment_length, **ein_kwargs)
+        ein = Einstein(path_traj, symbol, segment_length=segment_length, **ein_kwargs)
         ein.calculate()
         
         ein.summary()
@@ -283,73 +222,103 @@ def cli_einstein(path: str,
 
 
 @ monitor_performance
-def cli_fingerprint(traj_files: Union[str, List[str]],
-                    t_interval: float,
-                    reference_structure: str,
-                    verbose=True,
-                    **kwargs):
+def cli_distance(path_traj: Union[str, List[str]],
+                 t_interval: float,
+                 reference_structure: str,
+                 verbose: bool = True,
+                 **kwargs):
     """[CLI method] This method displays a fingerprint trace."""
-    fin_keys = ['Rmax', 'delta', 'sigma', 'atom_pairs',
-                'n_jobs', 'windwo_size', 'threshold_std']
-    fin_kwargs = {key: kwargs[key] for key in fin_keys if key in kwargs}
-    fin_kwargs['verbose'] = True
+    dist_keys = ['Rmax', 'delta', 'sigma', 'dirac', 'atom_pairs',
+                'n_jobs', 'window_size', 'threshold_std']
+    dist_kwargs = {key: kwargs[key] for key in dist_keys if key in kwargs}
+    dist_kwargs['verbose'] = True
     
-    plot_fingerprint_trace(
-        traj_files,
+    plot_cosine_distance(
+        path_traj,
         t_interval,
         reference_structure,
-        **fin_kwargs
+        **dist_kwargs
     )
+    print('')
+    
+    
+@ monitor_performance
+def cli_fingerprint(path_structure: str, 
+                    verbose: bool = True,
+                    **kwargs):
+    from ase.io import read
+    from itertools import combinations_with_replacement
+
+    atom_pairs = kwargs.get('atom_pairs', None)
+    if atom_pairs is None:
+        if verbose: print("Argument 'atom_pairs' not provided: Auto-generating all unique pairs...")
+        try:
+            atoms = read(path_structure)
+            atom_species = sorted(list(set(atoms.get_chemical_symbols())))
+            atom_pairs = list(combinations_with_replacement(atom_species, 2))
+            if verbose: print(f"-> Generated pairs: {atom_pairs}\n")
+        except Exception as e:
+            raise IOError(f"Failed to read reference structure '{path_structure}' to auto-generate pairs. Error: {e}")
+
+    fp_keys = ['Rmax', 'delta', 'sigma', 'dirac']
+    fp_kwargs = {key: kwargs[key] for key in fp_keys if key in kwargs}
+    fp_kwargs['verbose'] = True
+    
+    _ = get_fingerprint(path_structure=path_structure,
+                        filename='fingerprint.txt',
+                        atom_pairs=atom_pairs,
+                        disp=True,
+                        **fp_kwargs)
     print('')
     
     
 @monitor_performance
 def cli_convert(filename: str,
-                 format: str,
-                 temperature: float,
-                 dt: float = 1.0,
-                 **kwargs) -> None:
+                format: str,
+                temperature: float,
+                dt: float = 1.0,
+                **kwargs) -> None:
     """[CLI method] This method converts a MD result to HDF5 files"""
     
     if format != "lammps-dump-text":
         md_keys = ['label', 'chunk_size', 'dtype', 'verbose']
         md_kwargs = {key: kwargs[key] for key in md_keys if key in kwargs}
-        parse_md(filename, format, temperature, dt, **md_kwargs)
-        
+        parse_md(filename, format, temperature, dt, **md_kwargs)      
     else:
         required_keys = [
             'lammps_data',
+            'atom_style_dump',
             'atom_style_data',
-            'atom_style_data',
-            'atom_style_data'
+            'atom_symbols'
         ]
+        if not all(key in kwargs for key in required_keys):
+            raise ValueError(f"For lammps format, these args are required: {required_keys}")
+        
         for key in required_keys:
             if key not in kwargs:
                 raise ValueError(f"This command requires the '{key}' argument.")
         
-        extra_keys = ['laebl', 'chunk_size', 'dtype', 'verbose']
-        md_kwargs = required_keys + extra_keys
-        md_kwargs = {key: kwargs[key] for key in md_keys if key in kwargs}
+        lammps_keys = required_keys + ['label', 'chunk_size', 'dtype', 'verbose']
+        lammps_kwargs = {key: kwargs.get(key) for key in lammps_keys}
         parse_lammps(lammps_dump=filename, 
-                     temperature=temperature, dt=dt, **md_kwargs)
-    
+                     temperature=temperature, dt=dt, **lammps_kwargs)
     print('')
     
     
 @monitor_performance
-def cli_concat(traj_file1: str,
-                traj_file2: str,
-                **kwargs):
+def cli_concat(path_traj1: str,
+               path_traj2: str,
+               **kwargs):
     """[CLI method] This method concatenates two successive HDFT trajectory files"""
     con_keys = ['label', 'chunk_size', 'eps', 'verbose']
     con_kwargs = {key: kwargs[key] for key in con_keys if key in kwargs}
-    concat_traj(traj_file1, traj_file2, **con_kwargs)
+    concat_traj(path_traj1, path_traj2, **con_kwargs)
     print('')
     
     
 @ monitor_performance
-def cli_show_traj(traj:str):
+def cli_show(path_traj:str):
     """[CLI method] This method displays metadata of a HDF5 file"""
-    show_traj(traj)
+    show_traj(path_traj)
     print('')
     

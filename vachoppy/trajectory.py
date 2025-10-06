@@ -65,7 +65,7 @@ class Trajectory:
     It provides methods for interactive and static visualization of the results.
 
     Args:
-        traj (str): 
+        path_traj (str): 
             Path to the HDF5 trajectory file.
         site (Site): 
             An instance of the `Site` class containing pre-analyzed
@@ -104,17 +104,17 @@ class Trajectory:
     """
 
     def __init__(self,
-                 traj: str,
+                 path_traj: str,
                  site,
                  t_interval: float,
                  force_margin: float = 0.05,
                  cos_margin: float = 0.1,
                  verbose: bool = True):
         
-        self._validate_traj(traj)
+        self._validate_traj(path_traj)
         self.cmap = self._custrom_cmap()
         
-        self.traj = traj
+        self.path_traj = path_traj
         self.site = site
         self.force_margin = force_margin
         self.cos_margin = cos_margin
@@ -441,8 +441,9 @@ class Trajectory:
                                 step_final: int = None,
                                 unwrap: bool = False,
                                 alpha: float = 0.6,
+                                disp: bool = True,
                                 save: bool = False,
-                                filename: str = "traj.html") -> None:
+                                filename: str = "trajectory.html") -> None:
         """
         Generates an interactive 3D plot of specified vacancy trajectories using Plotly.
 
@@ -602,10 +603,9 @@ class Trajectory:
         
         if save:
             fig.write_html(filename)
-            if self.verbose:
-                print(f"'{filename}' created.")
-        else:
-            fig.show()
+            if self.verbose: print(f"'{filename}' created.")
+                
+        if disp: fig.show()
         
     def animation(self,
                   index: list | str = 'all',
@@ -660,9 +660,9 @@ class Trajectory:
         
         files = []
         for step in tqdm(step_indices,
-                         bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, RESET),
-                         ascii=False,
-                         desc=f'{RED}{BOLD}Progress{RESET}'):
+                         bar_format='{l_bar}{bar:30}{r_bar}',
+                         ascii=True,
+                         desc=f'Make Animation'):
             
             fig = plt.figure(figsize=(8, 8))
             ax = fig.add_subplot(111, projection='3d')
@@ -850,7 +850,7 @@ class Trajectory:
                 showlegend=False
             ))
     
-    def _validate_traj(self, traj: str) -> None:
+    def _validate_traj(self, path_traj: str) -> None:
         """
         Validates the structure and content of the HDF5 trajectory file.
 
@@ -859,7 +859,7 @@ class Trajectory:
         attributes ('symbol', 'nsw', 'dt', 'temperature', 'atom_counts', 'lattice').
 
         Args:
-            traj (str): The file path to validate.
+            path_traj (str): The file path to validate.
 
         Raises:
             ValueError: If the file extension is not '.h5' or if required
@@ -867,31 +867,31 @@ class Trajectory:
             FileNotFoundError: If the trajectory file does not exist.
             IOError: If the file cannot be read as an HDF5 file.
         """
-        if not traj.endswith('.h5'):
-            raise ValueError(f"Error: Trajectory file must have a .h5 extension, but got '{traj}'.")
+        if not path_traj.endswith('.h5'):
+            raise ValueError(f"Error: Trajectory file must have a .h5 extension, but got '{path_traj}'.")
 
-        if not os.path.isfile(traj):
-            raise FileNotFoundError(f"Error: Input file '{traj}' not found.")
+        if not os.path.isfile(path_traj):
+            raise FileNotFoundError(f"Error: Input file '{path_traj}' not found.")
         
         try:
-            with h5py.File(traj, "r") as f:
+            with h5py.File(path_traj, "r") as f:
                 required_datasets = ["positions", "forces"]
                 for dataset in required_datasets:
                     if dataset not in f:
-                        raise ValueError(f"Error: Required dataset '{dataset}' not found in '{traj}'.")
+                        raise ValueError(f"Error: Required dataset '{dataset}' not found in '{path_traj}'.")
 
                 metadata_str = f.attrs.get("metadata")
                 if not metadata_str:
-                    raise ValueError(f"Error: Required attribute 'metadata' not found in '{traj}'.")
+                    raise ValueError(f"Error: Required attribute 'metadata' not found in '{path_traj}'.")
                 
                 cond = json.loads(metadata_str)
                 required_keys = ["symbol", "nsw", "dt", "temperature", "atom_counts", "lattice"]
                 for key in required_keys:
                     if key not in cond:
-                        raise ValueError(f"Error: Required key '{key}' not found in metadata of '{traj}'.")
+                        raise ValueError(f"Error: Required key '{key}' not found in metadata of '{path_traj}'.")
 
         except (IOError, OSError) as e:
-            raise IOError(f"Error: Failed to read '{traj}' as an HDF5 file. Reason: {e}")
+            raise IOError(f"Error: Failed to read '{path_traj}' as an HDF5 file. Reason: {e}")
           
     def _read_cond(self) -> None:
         """Reads simulation conditions from the HDF5 file's metadata.
@@ -908,7 +908,7 @@ class Trajectory:
             ZeroDivisionError: If the timestep `dt` is zero.
         """
         eps = self.site.eps
-        with h5py.File(self.traj, "r") as f:
+        with h5py.File(self.path_traj, "r") as f:
             cond = json.loads(f.attrs.get("metadata"))
 
             self.total_frames = cond.get("nsw")
@@ -921,12 +921,12 @@ class Trajectory:
             if self.symbol != self.site.symbol:
                 raise ValueError(
                     f"Symbol mismatch: Expected '{self.site.symbol}' from site object, "
-                    f"but found '{self.symbol}' in '{self.traj}'."
+                    f"but found '{self.symbol}' in '{self.path_traj}'."
                 )
 
             if not np.all(np.abs(self.lattice_parameter - self.site.lattice_parameter) <= eps):
                 raise ValueError(
-                    f"Lattice parameter mismatch between site object and trajectory file '{self.traj}'."
+                    f"Lattice parameter mismatch between site object and trajectory file '{self.path_traj}'."
                 )
             
             if self.dt <= 0:
@@ -1003,7 +1003,7 @@ class Trajectory:
             cos_margin (float, optional): The required difference between the cosine
                 of the angle to the initial site and the final site to reject a hop.
         """
-        with h5py.File(self.traj, 'r') as f:
+        with h5py.File(self.path_traj, 'r') as f:
             pos_data = f['positions']
             force_data = f['forces']
             
@@ -1815,7 +1815,7 @@ class TrajBundle:
     simulations (e.g., same timestep, atom counts, lattice).
 
     Args:
-        path (str): 
+        path_traj (str): 
             The root directory to search for trajectory files.
         symbol (str): 
             The chemical symbol of the target element to filter files.
@@ -1845,7 +1845,7 @@ class TrajBundle:
             to be consistent across all files.
     """
     def __init__(self,
-                 path: str,
+                 path_traj: str,
                  symbol: str,
                  prefix: str = "TRAJ",
                  depth: int = 2,
@@ -1853,14 +1853,14 @@ class TrajBundle:
                  verbose: bool = False):
         
         self.eps = eps
-        self.path = Path(path)
+        self.path_traj = Path(path_traj)
         self.depth = depth
         self.symbol = symbol
         self.prefix = prefix
         self.verbose = verbose
         
-        if not self.path.is_dir():
-            raise NotADirectoryError(f"Error: Invalid directory: '{path}'")
+        if not self.path_traj.is_dir():
+            raise NotADirectoryError(f"Error: Invalid directory: '{path_traj}'")
         if self.depth < 1:
             raise ValueError("Error: depth must be 1 or greater.")
 
@@ -1943,7 +1943,7 @@ class TrajBundle:
         for i in range(self.depth):
             dir_prefix = '*/' * i
             pattern = f"{dir_prefix}{self.prefix}*.h5"
-            glob_iterators.append(self.path.glob(pattern))    
+            glob_iterators.append(self.path_traj.glob(pattern))    
         candidate_files = itertools.chain.from_iterable(glob_iterators)
         
         found_paths = []
@@ -1982,7 +1982,7 @@ class TrajBundle:
         if not found_paths:
             raise FileNotFoundError(
                 f"Error: No valid trajectory files found for symbol '{self.symbol}' "
-                f"in path '{self.path}' with depth {self.depth}."
+                f"in path '{self.path_traj}' with depth {self.depth}."
             )
             
         sorted_files = sorted(found_paths, key=lambda item: item[1])
@@ -2049,7 +2049,7 @@ class Calculator_Single(Trajectory):
     diffusivity, and residence time, from the pre-computed results.
 
     Args:
-        traj (str): 
+        path_traj (str): 
             Path to the HDF5 trajectory file.
         site (Site): 
             An initialized Site object containing lattice structure and path info.
@@ -2092,7 +2092,7 @@ class Calculator_Single(Trajectory):
     """
     @monitor_performance
     def __init__(self,
-                 traj: str,
+                 path_traj: str,
                  site,
                  t_interval: float,
                  eps: float = 1.0e-3,
@@ -2108,7 +2108,7 @@ class Calculator_Single(Trajectory):
         self.tau = None
         
         # Trajectory
-        super().__init__(traj=traj, 
+        super().__init__(path_traj=path_traj, 
                          site=site, 
                          t_interval=t_interval, 
                          verbose=False)
@@ -2272,8 +2272,8 @@ class Calculator_Single(Trajectory):
             
         print("=" * 60)
         print("Summary for Trajectory dataset")
-        print(f"  - Path to TRAJ bundle : {self.traj}")
-        print(f"  - Lattice structure   : {self.site.structure_file}")
+        print(f"  - Path to TRAJ file   : {self.path_traj}")
+        print(f"  - Lattice structure   : {self.site.path_structure}")
         print(f"  - t_interval          : {self.t_interval:.3f} ps ({self.frame_interval} frames)")
         print(f"  - Temperatures (K)    : {self.temperatures.tolist()}")
         print(f"  - Num. of TRAJ files  : [1]")
@@ -2315,7 +2315,6 @@ class Calculator_Single(Trajectory):
     def show_hopping_history(self) -> None:
         """Prints a detailed, formatted table of the hopping sequence for each vacancy."""
         for i in range(self.num_vacancies):
-            # print(f"File: {str(Path(self.traj).resolve())}")
             print("=" * 116)
             print(" "*43 + f"Hopping Sequence of Vacancy {i}")
             print("=" * 116)
@@ -2401,7 +2400,7 @@ class Calculator_Single(Trajectory):
                 trajectories[i].append(coord.tolist())
                 
         contents = {
-            'traj': str(Path(self.traj).resolve()),
+            'traj': str(Path(self.path_traj).resolve()),
             'symbol': self.symbol,
             't_interval': self.t_interval,
             'temperature': self.temperature,
@@ -2523,7 +2522,7 @@ class Calculator_Bundle(TrajBundle):
     computational pipeline.
 
     Args:
-        path (str): 
+        path_traj (str): 
             The root directory to search for trajectory files.
         site (Site): 
             An initialized Site object with lattice and path information.
@@ -2541,7 +2540,7 @@ class Calculator_Bundle(TrajBundle):
             Verbosity flag. Defaults to True.
     """
     def __init__(self,
-                 path: str,
+                 path_traj: str,
                  site,
                  t_interval: float,
                  prefix: str = "TRAJ",
@@ -2559,7 +2558,7 @@ class Calculator_Bundle(TrajBundle):
         self.eps = eps
         self.symbol = self.site.symbol
         
-        super().__init__(path, 
+        super().__init__(path_traj, 
                          self.symbol, 
                          prefix=prefix, 
                          depth=depth, 
@@ -2635,11 +2634,11 @@ class Calculator_Bundle(TrajBundle):
         6. Calculates the effective hopping distance from the fit results.
         """
         results = Parallel(n_jobs=n_jobs)(
-            delayed(self._run_single_task)(traj) 
-            for traj in tqdm(self.all_traj_paths,
-                             desc=f'{RED}{BOLD}Progress{RESET}',
-                             bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, Fore.RESET),
-                             ascii=False) 
+            delayed(self._run_single_task)(path_traj) 
+            for path_traj in tqdm(self.all_traj_paths,
+                                  desc=f'Analyze Trajectory',
+                                  bar_format='{l_bar}{bar:30}{r_bar}',
+                                  ascii=True) 
         )
         
         # Successfully terminated calculators
@@ -2685,7 +2684,7 @@ class Calculator_Bundle(TrajBundle):
     # Internal Helper Methods
     # ===================================================================
          
-    def _run_single_task(self, traj) -> Tuple[str, Optional['Calculator_Single']]:
+    def _run_single_task(self, path_traj) -> Tuple[str, Optional['Calculator_Single']]:
         """
         Worker function to run analysis on a single trajectory file.
         
@@ -2698,18 +2697,18 @@ class Calculator_Bundle(TrajBundle):
         """
         try:
             calc = Calculator_Single(
-                traj=traj,
+                path_traj=path_traj,
                 site=self.site,
                 t_interval=self.t_interval,
                 eps=self.eps,
                 use_incomplete_encounter=self.use_incomplete_encounter,
                 verbose=False
             )
-            return (traj, calc)
+            return (path_traj, calc)
         
         except Exception as e:
-            print(f"\nWarning: Failed to analyze '{traj}'. Reason: {e}. Skipped.")
-            return (traj, None)
+            print(f"\nWarning: Failed to analyze '{path_traj}'. Reason: {e}. Skipped.")
+            return (path_traj, None)
 
     def _get_path_key(self, path):
         """Generates a unique, hashable key for a given migration path.
@@ -3466,8 +3465,8 @@ class Calculator_Bundle(TrajBundle):
         
         print("=" * 60)
         print("Summary for Trajectory dataset")
-        print(f"  - Path to TRAJ bundle : {self.path} (depth={self.depth})")
-        print(f"  - Lattice structure   : {self.site.structure_file}")
+        print(f"  - Path to TRAJ bundle : {self.path_traj} (depth={self.depth})")
+        print(f"  - Lattice structure   : {self.site.path_structure}")
         print(f"  - t_interval          : {self.t_interval:.3f} ps ({self.frame_interval} frames)")
         print(f"  - Temperatures (K)    : {self.temperatures.tolist()}")
         print(f"  - Num. of TRAJ files  : {self.num_calc_temp.tolist()}")
@@ -3591,7 +3590,7 @@ class Calculator_Bundle(TrajBundle):
         print("The order of files in this list matches the order of the `.calculators` list.\n")
         print("Example command to list all files and their indices:")
         print("  >>> for i, path in enumerate(your_bundle_object.all_traj_paths):")
-        print("  ...     print(f'Index {i}: {path}')")
+        print("  ...     print(f'Index {i}: {path_traj}')")
         print("\nOnce you know the index, you can run:")
         print("  # Show history for the first trajectory in the bundle (index 0)")
         print("  >>> your_bundle_object.calculators[0].show_hopping_history()\n")

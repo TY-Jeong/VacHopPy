@@ -3,7 +3,6 @@ import h5py
 import json
 import itertools
 import numpy as np
-import MDAnalysis as mda
 
 from tqdm.auto import tqdm
 from pathlib import Path
@@ -20,7 +19,6 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from vachoppy.utils import *
 from vachoppy.vibration import *
 from vachoppy.trajectory import *
-
 
 BOLD = '\033[1m'
 CYAN = '\033[36m'
@@ -95,7 +93,7 @@ def parse_md(filename: str,
         prev_positions = None
         generator = iread(filename, index=':', format=format)
         
-        pbar = tqdm(desc=f"{RED}{BOLD}Progress{RESET}", unit=" frames")
+        pbar = tqdm(desc=f"Extract Trejaectory", unit=" frames")
         
         while True:
             chunk_atoms = list(itertools.islice(generator, chunk_size))
@@ -272,6 +270,15 @@ def parse_lammps(lammps_data:str,
         ValueError: If an atom type is missing from `atom_symbols` or if
                     force data is not found in the trajectory.
     """
+    try:
+        import MDAnalysis as mda
+    except ImportError:
+        raise ImportError(
+            "This feature requires the MDAnalysis library. "
+            "Please install it using 'pip install MDAnalysis'."
+        )
+    
+    
     h5_files = {}
     h5_datasets = {}
 
@@ -336,11 +343,11 @@ def parse_lammps(lammps_data:str,
             h5_file.attrs['metadata'] = json.dumps(cond)
 
         pbar = tqdm(
-            desc=f"{RED}{BOLD}Progress{RESET}", 
+            desc=f"Extract Trajectory", 
             unit=" frames", 
             total=num_frames,
-            ascii=False,
-            bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, Fore.RESET)
+            ascii=True,
+            bar_format='{l_bar}{bar:30}{r_bar}'
         )
         prev_positions = None
         for start_frame in range(0, num_frames, chunk_size):
@@ -418,7 +425,7 @@ class Site:
     diffusion simulations.
 
     Args:
-        structure (str): 
+        path_structure (str): 
             Path to the crystallographic structure file.
         symbol (str): 
             The atomic symbol of the diffusing species to analyze.
@@ -453,34 +460,34 @@ class Site:
             The 3x3 lattice matrix of the crystal structure.
     """
     def __init__(self,
-                 structure_file: str,
+                 path_structure: str,
                  symbol: str,
                  format: str = None,
                  rmax: float = 3.25,
                  eps: float = 1.0e-3,
                  verbose: bool = False):
         
-        self.structure_file = structure_file
+        self.path_structure = path_structure
         self.symbol = symbol
         self.format = format
         self.rmax = rmax
         self.eps = eps
         self.verbose = verbose
         
-        if not os.path.isfile(self.structure_file):
-            raise FileNotFoundError(f"Error: Input file '{self.structure_file}' not found.")
+        if not os.path.isfile(self.path_structure):
+            raise FileNotFoundError(f"Error: Input file '{self.path_structure}' not found.")
         
         try:
             if self.format is None:
-                atoms = read(self.structure_file)
+                atoms = read(self.path_structure)
             else:
-                atoms = read(self.structure_file, format=self.format)
+                atoms = read(self.path_structure, format=self.format)
             self.structure = AseAtomsAdaptor.get_structure(atoms)
         except Exception as e:
-            raise IOError(f"Failed to read or convert '{self.structure_file}'. Error: {e}")
+            raise IOError(f"Failed to read or convert '{self.path_structure}'. Error: {e}")
         
         if not any(site.specie.symbol == self.symbol for site in self.structure):
-            raise ValueError(f"Error: Symbol '{self.symbol}' not found in '{self.structure_file}'.")
+            raise ValueError(f"Error: Symbol '{self.symbol}' not found in '{self.path_structure}'.")
         
         self.path = []
         self.path_name = []
@@ -594,7 +601,7 @@ class Site:
         print(f"{' ' * 45}Site Analysis Summary")
         print("=" * 110)
         
-        print(f"  - Structure File       : {self.structure_file}")
+        print(f"  - Structure File       : {self.path_structure}")
         print(f"  - Diffusing Symbol     : {self.symbol}")
         print(f"  - Inequivalent Sites   : {len(self.site_name)} found")
         print(f"  - Inequivalent Paths   : {len(self.path_name)} found (with Rmax = {self.rmax:.2f} Å)")
@@ -621,23 +628,23 @@ class Site:
         print("=" * 110 + "\n")
         
 
-def Calculator(path: str,
+def Calculator(path_traj: str,
                site, # : Site
                **kwargs) -> Union[Calculator_Bundle, Calculator_Single]:
     """
     A factory function that returns the appropriate calculator instance.
 
-    Based on whether the input path is a directory or a file, this function
+    Based on whether the input path_traj is a directory or a file, this function
     instantiates and returns either a `Calculator_Bundle` object for analyzing
     multiple trajectories or a `Calculator_Single` object for a single trajectory.
 
     This simplifies the user API by providing a single entry point.
 
     Args:
-        path (str): 
+        path_traj (str): 
             The path to a trajectory file or a directory containing them.
         site (Site): 
-            An initialized Site object with lattice and path information.
+            An initialized Site object with lattice and hopping path information.
         t_interval (float, optional): 
             The time interval in picoseconds (ps). If None, t_interval will be
             automatically set. Defaults to None.
@@ -660,25 +667,25 @@ def Calculator(path: str,
 
     Returns:
         Union[Calculator_Bundle, Calculator_Single]: An instance of either
-            `Calculator_Bundle` if the path is a directory, or `Calculator_Single`
-            if the path is a file.
+            `Calculator_Bundle` if the path_traj is a directory, or `Calculator_Single`
+            if the path_traj is a file.
 
     Raises:
-        FileNotFoundError: If the specified path does not exist.
-        ValueError: If the path exists but is not a regular file or directory.
+        FileNotFoundError: If the specified path_traj does not exist.
+        ValueError: If the path_traj exists but is not a regular file or directory.
     """
-    p = Path(path)
+    p = Path(path_traj)
     if not p.exists():
-        raise FileNotFoundError(f"Error: The path '{path}' was not found.")
+        raise FileNotFoundError(f"Error: The path '{path_traj}' was not found.")
     
     t_interval = kwargs.pop('t_interval', None)
     
     # Helper function for t_interval estimation
-    def _get_t_interval(traj: str) -> float:
+    def _get_t_interval(path_traj: str) -> float:
         vib_init_keys = ['sampling_size', 'filter_high_freq']
         vib_init_kwargs = {key: kwargs.get(key) for key in vib_init_keys if key in kwargs}
         vib_params = {
-            'traj': traj,
+            'path_traj': path_traj, 
             'site': site,
             'verbose': False
         }
@@ -691,7 +698,7 @@ def Calculator(path: str,
             print(" "*13 + f"-> t_interval : {estimated_interval:.3f} ps")
             return estimated_interval
         else:
-            raise ValueError(f"Could not estimate t_interval from '{traj}' as mean frequency is zero.")
+            raise ValueError(f"Could not estimate t_interval from '{path_traj}' as mean frequency is zero.")
         
     # Helper function to get dt
     def _get_dt(traj: str) -> float:
@@ -706,9 +713,9 @@ def Calculator(path: str,
     if p.is_file():
         representative_traj = str(p.resolve())
     elif p.is_dir():
-        bundle = TrajBundle(path=path, symbol=site.symbol, **bundle_init_kwargs)
+        bundle = TrajBundle(path_traj=path_traj, symbol=site.symbol, **bundle_init_kwargs)
         if not bundle.traj or not bundle.traj[0]:
-            raise FileNotFoundError(f"No valid trajectory files found in '{path}' to use for analysis.")
+            raise FileNotFoundError(f"No valid trajectory files found in '{path_traj}' to use for analysis.")
         representative_traj = bundle.traj[0][0]
         
     dt_fs = _get_dt(representative_traj)
@@ -748,7 +755,7 @@ def Calculator(path: str,
         bundle_kwargs = {key: kwargs.get(key) for key in bundle_keys if key in kwargs}
         
         return Calculator_Bundle(
-            path=path,
+            path_traj=path_traj,
             site=site,
             t_interval=t_interval,
             **bundle_kwargs
@@ -758,11 +765,11 @@ def Calculator(path: str,
         single_kwargs = {key: kwargs[key] for key in single_keys if key in kwargs}
         
         return Calculator_Single(
-            traj=path,
+            path_traj=path_traj,
             site=site,
             t_interval=t_interval,
             **single_kwargs
         )
     else:
-        raise ValueError(f"Error: The path '{path}' is not a regular file or directory.")
+        raise ValueError(f"Error: The path '{path_traj}' is not a regular file or directory.")
     

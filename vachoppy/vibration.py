@@ -131,7 +131,7 @@ class Vibration:
             The calculated site radius used for atom assignment.
     """
     def __init__(self,
-                 traj: str,
+                 path_traj: str,
                  site,
                  sampling_size: int = 5000,
                  filter_high_freq : bool = True,
@@ -139,7 +139,7 @@ class Vibration:
         """Initializes the Vibration analysis object.
 
         Args:
-            traj (str): 
+            path_traj (str): 
                 Path to the HDF5 trajectory file.
             site (Site): 
                 A Vachoppy `Site` object containing lattice site information.
@@ -152,12 +152,12 @@ class Vibration:
             verbose (bool, optional): 
                 Verbosity flag. Defaults to True.
         """
-        self.traj = traj
+        self.path_traj = path_traj
         self.site = site
         self.filter_high_freq = filter_high_freq
         self.verbose = verbose
         
-        self._validate_traj(self.traj)
+        self._validate_traj(self.path_traj)
         self.site_positions = np.array([s['coord'] for s in self.site.lattice_sites])
         
         self.dt = None
@@ -175,7 +175,7 @@ class Vibration:
         self.frequencies = None
         self.mean_frequency = None
         
-    def _validate_traj(self, traj: str) -> None:
+    def _validate_traj(self, path_traj: str) -> None:
         """
         Validates the structure and content of the HDF5 trajectory file.
 
@@ -184,7 +184,7 @@ class Vibration:
         attributes ('symbol', 'nsw', 'dt', 'temperature', 'atom_counts', 'lattice').
 
         Args:
-            traj (str): The file path to validate.
+            path_traj (str): The file path to validate.
 
         Raises:
             ValueError: If the file extension is not '.h5' or if required
@@ -192,35 +192,35 @@ class Vibration:
             FileNotFoundError: If the trajectory file does not exist.
             IOError: If the file cannot be read as an HDF5 file.
         """
-        if not traj.endswith('.h5'):
-            raise ValueError(f"Error: Trajectory file must have a .h5 extension, but got '{traj}'.")
+        if not path_traj.endswith('.h5'):
+            raise ValueError(f"Error: Trajectory file must have a .h5 extension, but got '{path_traj}'.")
 
-        if not os.path.isfile(traj):
-            raise FileNotFoundError(f"Error: Input file '{traj}' not found.")
+        if not os.path.isfile(path_traj):
+            raise FileNotFoundError(f"Error: Input file '{path_traj}' not found.")
         
         try:
-            with h5py.File(traj, "r") as f:
+            with h5py.File(path_traj, "r") as f:
                 required_datasets = ["positions", "forces"]
                 for dataset in required_datasets:
                     if dataset not in f:
-                        raise ValueError(f"Error: Required dataset '{dataset}' not found in '{traj}'.")
+                        raise ValueError(f"Error: Required dataset '{dataset}' not found in '{path_traj}'.")
 
                 metadata_str = f.attrs.get("metadata")
                 if not metadata_str:
-                    raise ValueError(f"Error: Required attribute 'metadata' not found in '{traj}'.")
+                    raise ValueError(f"Error: Required attribute 'metadata' not found in '{path_traj}'.")
                 
                 cond = json.loads(metadata_str)
                 required_keys = ["symbol", "nsw", "dt", "temperature", "atom_counts", "lattice"]
                 for key in required_keys:
                     if key not in cond:
-                        raise ValueError(f"Error: Required key '{key}' not found in metadata of '{traj}'.")
+                        raise ValueError(f"Error: Required key '{key}' not found in metadata of '{path_traj}'.")
 
         except (IOError, OSError) as e:
-            raise IOError(f"Error: Failed to read '{traj}' as an HDF5 file. Reason: {e}")
+            raise IOError(f"Error: Failed to read '{path_traj}' as an HDF5 file. Reason: {e}")
         
     def _read_traj(self, sampling_size: int) -> None:
         """Reads metadata and a chunk of trajectory data from the HDF5 file."""
-        with h5py.File(self.traj, 'r') as f:
+        with h5py.File(self.path_traj, 'r') as f:
             cond = json.loads(f.attrs['metadata'])
             self.dt = cond.get('dt')
             self.symbol = cond.get('symbol')
@@ -260,11 +260,16 @@ class Vibration:
         results = Parallel(n_jobs=n_jobs, verbose=0)(
             delayed(_worker_get_displacements)(task) 
             for task in tqdm(tasks, 
-                             desc=f"{RED}{BOLD}Amplitude {RESET}",
-                             bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, Fore.RESET),
-                             ascii=False,
+                             desc=f"Compute Displacement",
+                             bar_format='{l_bar}{bar:30}{r_bar}',
+                             ascii=True,
                              disable=not self.verbose)
         )
+        """
+        Compute Displacement
+        Capture Vibrations
+        Compute Frequenciy
+        """
         all_displacements_cart = list(itertools.chain.from_iterable(results))
         
         if not all_displacements_cart:
@@ -383,9 +388,9 @@ class Vibration:
         site_assignments_list = Parallel(n_jobs=n_jobs, verbose=0)(
             delayed(_worker_assign_sites)(task) 
             for task in tqdm(site_assign_tasks, 
-                             desc=f'{RED}{BOLD}Assignment{RESET}',
-                             bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, Fore.RESET),
-                             ascii=False,
+                             desc=f'Capture Vibrations  ',
+                             bar_format='{l_bar}{bar:30}{r_bar}',
+                             ascii=True,
                              disable=not self.verbose)
         )
         site_assignments = np.array(site_assignments_list)
@@ -399,14 +404,13 @@ class Vibration:
         results = Parallel(n_jobs=n_jobs, verbose=0)(
             delayed(_worker_get_frequencies)(task) 
             for task in tqdm(freq_tasks, 
-                             desc=f"{RED}{BOLD}Frequency {RESET}",
-                             bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, Fore.RESET),
-                             ascii=False,
+                             desc=f"Compute Frequenciy  ",
+                             bar_format='{l_bar}{bar:30}{r_bar}',
+                             ascii=True,
                              disable=not self.verbose)
         )
         frequencies = list(itertools.chain.from_iterable(results))
-        if self.verbose:
-            print("")
+        if self.verbose: print("")
         
         if self.filter_high_freq:
             frequencies = self._filter_frequencies_iqr(frequencies)

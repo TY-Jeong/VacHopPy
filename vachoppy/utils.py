@@ -58,8 +58,8 @@ def monitor_performance(func):
 
 
 @monitor_performance
-def concat_traj(traj1:str,
-                traj2:str,
+def concat_traj(path_traj1:str,
+                path_traj2:str,
                 label:str="CONCAT",
                 chunk_size:int=10000,
                 eps:float=1.0e-4,
@@ -68,9 +68,9 @@ def concat_traj(traj1:str,
     Concatenates two HDF5 trajectory files after checking for consistency.
 
     Args:
-        traj1 (str):
+        path_traj1 (str):
             Path to the first HDF5 trajectory file.
-        traj2 (str):
+        path_traj2 (str):
             Path to the second HDF5 trajectory file.
         label (str, optional):
             A label for the output concatenated file, resulting in a filename
@@ -91,13 +91,13 @@ def concat_traj(traj1:str,
         FileNotFoundError: If `traj1` or `traj2` is not found.
         ValueError: If the metadata of the two files is inconsistent.
     """
-    if not os.path.exists(traj1):
-        raise FileNotFoundError(f"Input file not found: {traj1}")
-    if not os.path.exists(traj2):
-        raise FileNotFoundError(f"Input file not found: {traj2}")
+    if not os.path.exists(path_traj1):
+        raise FileNotFoundError(f"Input file not found: {path_traj1}")
+    if not os.path.exists(path_traj2):
+        raise FileNotFoundError(f"Input file not found: {path_traj2}")
     
     # Check consistency
-    with h5py.File(traj1, "r") as f1, h5py.File(traj2, "r") as f2:
+    with h5py.File(path_traj1, "r") as f1, h5py.File(path_traj2, "r") as f2:
         cond1 = json.loads(f1.attrs["metadata"])
         cond2 = json.loads(f2.attrs["metadata"])
         
@@ -109,7 +109,7 @@ def concat_traj(traj1:str,
         else:
             raise ValueError(
                 f"Mismatch in chemical symbol: Cannot concatenate. "
-                f"'{traj1}' has '{symbol1}', but '{traj2}' has '{symbol2}'."
+                f"'{path_traj1}' has '{symbol1}', but '{path_traj2}' has '{symbol2}'."
             )
             
         # Check composition (atom_counts)
@@ -122,7 +122,7 @@ def concat_traj(traj1:str,
             expr2 = "".join(f"{k}{v}" for k, v in sorted(comp2.items()))
             raise ValueError(
                 f"Mismatch in composition: Cannot concatenate. "
-                f"'{traj1}' has '{expr1}', but '{traj2}' has '{expr2}'."
+                f"'{path_traj1}' has '{expr1}', but '{path_traj2}' has '{expr2}'."
             )
         
         # Check temperature
@@ -133,7 +133,7 @@ def concat_traj(traj1:str,
         else:
             raise ValueError(
                 f"Mismatch in temperature: Cannot concatenate. "
-                f"'{traj1}' is at {temp1} K, but '{traj2}' is at {temp2} K."
+                f"'{path_traj1}' is at {temp1} K, but '{path_traj2}' is at {temp2} K."
             )
         
         # Check time step (assuming 'potim' is the time step)
@@ -144,7 +144,7 @@ def concat_traj(traj1:str,
         else:
             raise ValueError(
                 f"Mismatch in time step: Cannot concatenate. "
-                f"'{traj1}' has {dt1} fs/step, but '{traj2}' has {dt2} fs/step."
+                f"'{path_traj1}' has {dt1} fs/step, but '{path_traj2}' has {dt2} fs/step."
             )
         
         # Check lattice
@@ -155,7 +155,7 @@ def concat_traj(traj1:str,
         else:
             raise ValueError(
                 f"Mismatch in lattice vectors: Cannot concatenate. "
-                f"The lattice parameters of '{traj1}' and '{traj2}' differ."
+                f"The lattice parameters of '{path_traj1}' and '{path_traj2}' differ."
             )
             
         # Concatenate two traj files
@@ -186,11 +186,11 @@ def concat_traj(traj1:str,
             )
 
             pbar = tqdm(
-                desc=f"{RED}{BOLD}Progress{RESET}", 
+                desc=f"Concatenate Files", 
                 unit=" frames", 
                 total=total_frames,
-                ascii=False,
-                bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, Fore.RESET)
+                ascii=True,
+                bar_format='{l_bar}{bar:30}{r_bar}'
             )
 
             # Copy from the first file
@@ -208,22 +208,21 @@ def concat_traj(traj1:str,
                 pbar.update(end - i)
             pbar.close()
             
-    if verbose:
-        print(f"Successfully created concatenated file: '{out_file}'")
+    if verbose: print(f"Successfully created concatenated file: '{out_file}'")
 
 
-def cut_traj(traj) -> None:
+def cut_traj(path_traj) -> None:
     # will be updated
-    if not os.path.exists(traj):
-        raise FileNotFoundError(f"Input file not found: {traj}")
+    if not os.path.exists(path_traj):
+        raise FileNotFoundError(f"Input file not found: {path_traj}")
     pass
 
 
-def show_traj(traj: str) -> None:
+def show_traj(path_traj: str) -> None:
     """Displays metadata and dataset info from a trajectory HDF5 file.
     
     Args:
-        traj (str):
+        path_traj (str):
             Path to the HDF5 trajectory file to inspect.
 
     Returns:
@@ -233,19 +232,19 @@ def show_traj(traj: str) -> None:
     Raises:
         FileNotFoundError: If the input HDF5 file is not found.
     """
-    if not os.path.exists(traj):
-        raise FileNotFoundError(f"Input file not found: {traj}")
+    if not os.path.exists(path_traj):
+        raise FileNotFoundError(f"Input file not found: {path_traj}")
     
-    with h5py.File(traj, "r") as f:
+    with h5py.File(path_traj, "r") as f:
         try:
             cond = json.loads(f.attrs["metadata"])
         except KeyError:
-            print(f"Error: Metadata attribute not found in '{traj}'.")
+            print(f"Error: Metadata attribute not found in '{path_traj}'.")
             return
         
-        print("="*40)
-        print(f"Trajectory File: {os.path.basename(traj)}")
-        print("="*40)
+        print("="*50)
+        print(f"  Trajectory File: {os.path.basename(path_traj)}")
+        print("="*50)
         
         print("\n[Simulation Parameters]")
         print(f"  - Atomic Symbol:      {cond.get('symbol', 'N/A')}")
@@ -263,7 +262,7 @@ def show_traj(traj: str) -> None:
             
         lattice = cond.get('lattice', [])
         if lattice:
-            print("\n[Lattice Vectors (Å)]")
+            print("\n[Lattice Vectors (Ang)]")
             for vector in lattice:
                 print(f"  [{vector[0]:>9.5f}, {vector[1]:>9.5f}, {vector[2]:>9.5f}]")
         
@@ -280,7 +279,7 @@ def show_traj(traj: str) -> None:
         else:
             print("  - forces:             Not found")    
             
-        print("="*40)
+        print("="*50)
 
 
 class Snapshots:
@@ -293,7 +292,7 @@ class Snapshots:
     `save_snapshots` method.
 
     Args:
-        traj_files (Union[str, List[str]]):
+        path_traj (Union[str, List[str]]):
             A path to a single HDF5 trajectory file or a list of paths.
         t_interval (float):
             The time interval in picoseconds (ps) for averaging snapshots.
@@ -305,17 +304,17 @@ class Snapshots:
             Verbosity flag. Defaults to True.
     """
     def __init__(self,
-                 traj_files: Union[str, List[str]],
+                 path_traj: Union[str, List[str]],
                  t_interval: float,
                  eps: float = 1.0e-3,
                  verbose: bool = True):
 
-        if isinstance(traj_files, str):
-            self.traj_files = [traj_files]
-        elif isinstance(traj_files, list) and traj_files:
-            self.traj_files = traj_files
+        if isinstance(path_traj, str):
+            self.path_traj = [path_traj]
+        elif isinstance(path_traj, list) and path_traj:
+            self.path_traj = path_traj
         else:
-            raise ValueError("Input 'traj_files' must be a non-empty string or a list of strings.")
+            raise ValueError("Input 'path_traj' must be a non-empty string or a list of strings.")
 
         self.t_interval = t_interval
         self.eps = eps
@@ -362,7 +361,7 @@ class Snapshots:
         ref_meta = None
         positions_by_symbol = {}
         
-        for traj_file in self.traj_files:
+        for traj_file in self.path_traj:
             if not os.path.isfile(traj_file):
                 raise FileNotFoundError(f"Input file '{traj_file}' not found.")
             
@@ -442,9 +441,9 @@ class Snapshots:
         if self.verbose: print(f"Saving {self.num_steps} snapshot files to '{path_dir}' (format: {format})...")
         
         for i in tqdm(range(self.num_steps), 
-                      desc=f'{RED}{BOLD}Progress{RESET}',
-                      bar_format='{l_bar}%s{bar:20}%s{r_bar}'%(Fore.GREEN, Fore.RESET),
-                      ascii=False,
+                      desc=f'Generate Snapshots',
+                      bar_format='{l_bar}{bar:30}{r_bar}',
+                      ascii=True,
                       disable=not self.verbose):
             atoms = Atoms(symbols=full_symbol_list, scaled_positions=self.pos[i], cell=self.lattice, pbc=True)
             filename = f"{prefix}_{i:0{self.digit}d}"
@@ -468,7 +467,7 @@ class Snapshots:
             f.write("="*60 + "\n\n")
             
             f.write("-- Simulation Parameters --\n")
-            f.write(f"  - Source Files        : {', '.join(self.traj_files)}\n")
+            f.write(f"  - Source Files        : {', '.join(self.path_traj)}\n")
             f.write(f"  - Temperature         : {self.temperature:.1f} K\n")
             f.write(f"  - Timestep (dt)       : {self.dt:.3f} fs\n")
             f.write(f"  - Total Frames (NSW)  : {self.total_frames}\n")

@@ -165,8 +165,8 @@ class AttemptFrequency:
             print(tabulate(formatted_data, headers=headers_path, tablefmt="simple", stralign='left', numalign='left'))
             print("-" * 40)
         print(f"============================================================")
-        print(f"\nNOTE: nu_paths can be unreliable for paths with low hop counts,")
-        print(f"        as they are sensitive to statistical noise.")
+        print(f"NOTE: nu_paths can be unreliable for paths with low hop counts,")
+        print(f"      as they are sensitive to statistical noise.")
         print("="*60 + "\n")
 
     def plot_nu(self,

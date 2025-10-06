@@ -36,7 +36,7 @@ class FingerPrint:
             Chemical symbol of the central atom type.
         B (str): 
             Chemical symbol of the neighboring atom type.
-        structure_file (str): 
+        path_structure (str): 
             Path to the crystallographic structure file (e.g., POSCAR, cif).
         Rmax (float, optional): 
             Cutoff radius in Angstroms for the calculation. Defaults to 10.
@@ -59,7 +59,7 @@ class FingerPrint:
     def __init__(self,
                  A: str,
                  B: str,
-                 structure_file: str,
+                 path_structure: str,
                  Rmax: float = 10.0,
                  delta: float = 0.08,
                  sigma: float = 0.03,
@@ -68,7 +68,7 @@ class FingerPrint:
         
         self.A = A
         self.B = B
-        self.structure_file = structure_file
+        self.path_structure = path_structure
         self.Rmax = Rmax
         self.delta = delta
         self.sigma = sigma
@@ -76,7 +76,7 @@ class FingerPrint:
         self.verbose = verbose
         
         self.R = np.arange(0, self.Rmax, self.delta)
-        self.structure = self._read_structure(structure_file)
+        self.structure = self._read_structure(path_structure)
         self.lattice = self.structure.get_cell()
         self.volume = self.structure.get_volume()
         
@@ -174,7 +174,7 @@ class FingerPrint:
         print("\n" + "="*50)
         print(f"           Atomic Fingerprint Summary")
         print("="*50)
-        print(f"  - Structure File : {self.structure_file}")
+        print(f"  - Structure File : {self.path_structure}")
         print(f"  - Central Atom A : {self.A} (Found {self.num_A})")
         print(f"  - Neighbor Atom B: {self.B} (Found {self.num_B})")
         print(f"  - Rmax           : {self.Rmax} Ang")
@@ -185,6 +185,7 @@ class FingerPrint:
 
     def plot_fingerprint(self, 
                          title: Optional[str] = None,
+                         disp: bool = True,
                          save: bool = True,
                          filename: str = None,
                          dpi: int = 300) -> None:
@@ -228,11 +229,9 @@ class FingerPrint:
         fig.tight_layout()
 
         if save:
-            if filename is None:
-                filename = f"FP_{self.A}-{self.B}.png"
+            if filename is None: filename = f"FP_{self.A}-{self.B}.png"
             plt.savefig(filename, dpi=dpi)
-            
-        plt.show()
+        if disp: plt.show()
         plt.close(fig)
         
         
@@ -269,14 +268,14 @@ def cosine_distance(fp1: np.ndarray, fp2: np.ndarray) -> float:
     return 0.5 * (1.0 - similarity)
 
 
-def get_fingerprint(structure_file: str, 
+def get_fingerprint(path_structure: str, 
                     filename: str, 
                     atom_pairs: List[Tuple[str, str]], 
                     Rmax: float = 10.0,
                     delta: float = 0.08,
                     sigma: float = 0.03,
                     dirac: str = 'g',
-                    disp_plot: bool = True,
+                    disp: bool = True,
                     verbose: bool = True) -> np.ndarray:
     """
     Calculates and concatenates fingerprints for multiple atom pairs, saves them to
@@ -293,7 +292,7 @@ def get_fingerprint(structure_file: str,
     concatenated along the x-axis.
 
     Args:
-        structure_file (str):
+        path_structure (str):
             Path to the crystallographic structure file (e.g., POSCAR, cif).
         filename (str):
             The name of the output file to save the fingerprint data.
@@ -306,7 +305,7 @@ def get_fingerprint(structure_file: str,
             Discretization step for the distance axis (r).
         sigma (float):
             Gaussian broadening width for interatomic distances.
-        disp_plot (bool, optional): 
+        disp (bool, optional): 
             If True, displays a plot of the fingerprints for all atom pairs. 
             Defaults to True.
         verbose (bool, optional):
@@ -321,7 +320,7 @@ def get_fingerprint(structure_file: str,
 
     if verbose: print(f"Calculating fingerprints for {len(atom_pairs)} pairs...")
     for i, (A, B) in enumerate(atom_pairs):
-        fp_instance = FingerPrint(A, B, structure_file, Rmax, delta, sigma, dirac, verbose=False)
+        fp_instance = FingerPrint(A, B, path_structure, Rmax, delta, sigma, dirac, verbose=False)
         fp_instance.calculate()
         
         all_fingerprints.append(fp_instance.fingerprint)
@@ -342,7 +341,7 @@ def get_fingerprint(structure_file: str,
 
     if verbose: print(f"Fingerprint data successfully saved to '{filename}'")
     
-    if disp_plot:
+    if disp:
         fig, ax = plt.subplots(figsize=(10, 5))
         for axis in ['top', 'bottom', 'left', 'right']:
             ax.spines[axis].set_linewidth(1.2)
@@ -373,11 +372,11 @@ def _worker_calculate_distance(args: tuple) -> List[float]:
     snapshot_index, snapshot_path, ref_fingerprint, atom_pairs, Rmax, delta, sigma, dirac, output_dir = args
     
     snapshot_fingerprint = get_fingerprint(
-        structure_file=snapshot_path,
+        path_structure=snapshot_path,
         filename=os.path.join(output_dir, f"fingerprint_{snapshot_index:04d}.txt"),
         atom_pairs=atom_pairs,
         Rmax=Rmax, delta=delta, sigma=sigma, dirac=dirac,
-        disp_plot=False,
+        disp=False,
         verbose=False
     )
 
@@ -385,23 +384,22 @@ def _worker_calculate_distance(args: tuple) -> List[float]:
     
     return [snapshot_index, dist]
 
-def plot_fingerprint_trace(traj_files: Union[str, List[str]],
-                           t_interval: float,
-                           reference_structure: str,
-                           atom_pairs: Optional[List[Tuple[str, str]]] = None,
-                           Rmax: float = 10.0,
-                           delta: float = 0.08,
-                           sigma: float = 0.03,
-                           dirac: str = 'g',
-                           prefix: str = 'cosine_distance_trace',
-                           dpi: int = 300,
-                           path_dir: str = 'fingerprint_trace',
-                           n_jobs: int = -1,
-                           find_fluctuations: bool = True,
-                           window_size: int = 50,
-                           threshold_std: float = None,
-                           verbose: bool = True,
-                           ) -> None:
+def plot_cosine_distance(path_traj: Union[str, List[str]],
+                         t_interval: float,
+                         reference_structure: str,
+                         atom_pairs: Optional[List[Tuple[str, str]]] = None,
+                         Rmax: float = 10.0,
+                         delta: float = 0.08,
+                         sigma: float = 0.03,
+                         dirac: str = 'g',
+                         prefix: str = 'cosine_distance_trace',
+                         dpi: int = 300,
+                         path_dir: str = 'fingerprint_trace',
+                         n_jobs: int = -1,
+                         find_fluctuations: bool = True,
+                         window_size: int = 50,
+                         threshold_std: float = None,
+                         verbose: bool = True) -> None:
     """
     Traces the change in atomic fingerprint over time against a reference structure.
 
@@ -411,7 +409,7 @@ def plot_fingerprint_trace(traj_files: Union[str, List[str]],
     Results (cosine distance vs. time) are saved to a text file and plotted.
 
     Args:
-        traj_files (Union[str, List[str]]):
+        path_traj (Union[str, List[str]]):
             Path to a single HDF5 trajectory file or a list of paths.
         t_interval (float):
             The time interval in picoseconds (ps) for averaging snapshots.
@@ -462,19 +460,19 @@ def plot_fingerprint_trace(traj_files: Union[str, List[str]],
         if verbose: print(f"Created output directory: '{path_dir}'")
 
     if atom_pairs is None:
-        if verbose: print("`atom_pairs` not provided. Auto-generating all unique pairs...")
+        if verbose: print("Argument 'atom_pairs' not provided: Auto-generating all unique pairs...")
         try:
             atoms = read(reference_structure)
             atom_species = sorted(list(set(atoms.get_chemical_symbols())))
             atom_pairs = list(combinations_with_replacement(atom_species, 2))
-            if verbose: print(f"    -> Generated pairs: {atom_pairs}")
+            if verbose: print(f"-> Generated pairs: {atom_pairs}\n")
         except Exception as e:
             raise IOError(f"Failed to read reference structure '{reference_structure}' to auto-generate pairs. Error: {e}")
     with tempfile.TemporaryDirectory() as temp_dir:
         snapshots = Snapshots(
-            traj_files=traj_files,
+            path_traj=path_traj,
             t_interval=t_interval,
-            verbose=False # 상세 출력은 생략
+            verbose=False
         )
         snapshots.save_snapshots(
             path_dir=temp_dir,
@@ -482,14 +480,14 @@ def plot_fingerprint_trace(traj_files: Union[str, List[str]],
             prefix='POSCAR'
         )
         ref_fingerprint = get_fingerprint(
-            structure_file=reference_structure,
+            path_structure=reference_structure,
             filename=os.path.join(path_dir, "fingerprint_ref.txt"),
             atom_pairs=atom_pairs,
             Rmax=Rmax, 
             delta=delta, 
             sigma=sigma,
             dirac=dirac,
-            disp_plot=False,
+            disp=False,
             verbose=False
         )
         
@@ -500,9 +498,9 @@ def plot_fingerprint_trace(traj_files: Union[str, List[str]],
         results = Parallel(n_jobs=n_jobs, verbose=0)(
             delayed(_worker_calculate_distance)(task)
             for task in tqdm(tasks,
-                             desc=f'{RED}{BOLD}Progress{RESET}',
-                             bar_format='{l_bar}%s{bar:35}%s{r_bar}' % (GREEN, RESET),
-                             ascii=False)
+                             desc=f'Compute Fingerprint',
+                             bar_format='{l_bar}{bar:30}{r_bar}',
+                             ascii=True)
         )
         
     results.sort(key=lambda x: x[0])
@@ -551,7 +549,7 @@ def plot_fingerprint_trace(traj_files: Union[str, List[str]],
     plt.savefig(out_png, dpi=dpi)
     plt.show()
     plt.close()
-    print(f"'{out_png}' created successfully.")
+    print(f"\n'{out_png}' created successfully.")
     
     output_txt = f'{prefix}.txt'
     with open(output_txt, 'w') as f:
