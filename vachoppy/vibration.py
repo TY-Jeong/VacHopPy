@@ -188,7 +188,7 @@ class Vibration:
 
         Raises:
             ValueError: If the file extension is not '.h5' or if required
-                metadata or datasets are missing.
+                        metadata or datasets are missing.
             FileNotFoundError: If the trajectory file does not exist.
             IOError: If the file cannot be read as an HDF5 file.
         """
@@ -265,11 +265,7 @@ class Vibration:
                              ascii=True,
                              disable=not self.verbose)
         )
-        """
-        Compute Displacement
-        Capture Vibrations
-        Compute Frequenciy
-        """
+        
         all_displacements_cart = list(itertools.chain.from_iterable(results))
         
         if not all_displacements_cart:

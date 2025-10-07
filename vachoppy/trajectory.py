@@ -2550,7 +2550,7 @@ class Calculator_Bundle(TrajBundle):
                  verbose: bool = True):
         
         self.kb = 8.61733326e-5
-        self.cmap = plt.get_cmap("Set1")
+        # self.cmap = plt.get_cmap("Set1")
         
         self.site = site
         self.t_interval = t_interval
@@ -3090,6 +3090,375 @@ class Calculator_Bundle(TrajBundle):
     # ===================================================================
     # Plotting Methods
     # ===================================================================
+    
+    # def _create_arrhenius_plot(self, 
+    #                            data: np.ndarray, 
+    #                            temperatures: np.ndarray, 
+    #                            slope: float, 
+    #                            intercept: float,
+    #                            ylabel: str, 
+    #                            title: Optional[str] = None, 
+    #                            figsize: Tuple[float, float] = (4.2, 4.0)) -> Tuple[plt.Figure, plt.Axes]:
+    #     """
+    #     Generic helper function to create a styled Arrhenius plot.
+
+    #     Args:
+    #         data (np.ndarray): The y-data for the scatter plot (e.g., diffusivity).
+    #         temperatures (np.ndarray): The temperature data points.
+    #         slope (float): The slope of the fit line on the ln(y) vs 1000/T plot.
+    #         intercept (float): The intercept of the fit line.
+    #         ylabel (str): The label for the y-axis.
+    #         title (str, optional): The title of the plot. Defaults to None.
+    #         figsize (Tuple[float, float], optional): The figure size. Defaults to (4.2, 4.0).
+
+    #     Returns:
+    #         A tuple containing the matplotlib Figure and Axes objects.
+    #     """
+    #     valid_mask = ~np.isnan(data)
+    #     temps_valid = temperatures[valid_mask]
+    #     data_valid = data[valid_mask]
+
+    #     fig, ax = plt.subplots(figsize=figsize)
+    #     for axis in ['top', 'bottom', 'left', 'right']:
+    #         ax.spines[axis].set_linewidth(1.2)
+
+    #     x_points = 1000 / temps_valid
+    #     y_points = np.log(data_valid)
+        
+    #     for i in range(len(temps_valid)):
+    #         ax.scatter(x_points[i], y_points[i], color=self.cmap(i),
+    #                    marker="s", s=50, label=f"{temps_valid[i]:.0f} K")
+
+    #     x_fit = np.linspace(np.min(x_points), np.max(x_points), 100)
+    #     ax.plot(x_fit, slope * x_fit + intercept, 'k:', linewidth=1.2)
+    #     ax.legend(title='Temperature')
+        
+    #     ax.set_xlabel('1000 / T (K⁻¹)', fontsize=11)
+    #     ax.set_ylabel(ylabel, fontsize=11)
+    #     if title is not None:
+    #         ax.set_title(title, fontsize=12, pad=10)
+        
+    #     fig.tight_layout()
+    #     return fig, ax
+             
+    # def plot_D_rand(self, 
+    #                 title: Optional[str] = None, 
+    #                 disp: bool = True,
+    #                 save: bool = True, 
+    #                 filename: str = "D_rand.png", 
+    #                 dpi: int = 300) -> None:
+    #     """
+    #     Generates and displays an Arrhenius plot for the random walk diffusivity.
+
+    #     Args:
+    #         title (str, optional): 
+    #             A custom title for the plot. Defaults to None.
+    #         save (bool, optional): 
+    #             If True, saves the figure. Defaults to True.
+    #         filename (str, optional): 
+    #             The filename for the saved figure. Defaults to "D_rand.png".
+    #         dpi (int, optional): 
+    #             The resolution for the saved figure. Defaults to 300.
+    #     """
+    #     if len(self.temperatures) < 2:
+    #         raise ValueError("At least two temperature points are required.")
+    #     if self.D_rand is None or self.Ea_D_rand is None:
+    #          raise RuntimeError("Please run analysis and fitting for 'D_rand' first.")
+         
+    #     slope = -self.Ea_D_rand / (self.kb * 1000) 
+    #     intercept = np.log(self.D_rand0)
+
+    #     fig, ax = self._create_arrhenius_plot(
+    #         data=self.D_rand,
+    #         temperatures=self.temperatures,
+    #         slope=slope,
+    #         intercept=intercept,
+    #         ylabel=r'ln $D_{rand}$ ($m^2/s$)',
+    #         title=title
+    #     )
+        
+    #     text_str = (f'$E_a = {self.Ea_D_rand:.2f}$ eV\n'
+    #                 f'$Drand_0 = {self.D_rand0:.1e}$ $m^2/s$\n'
+    #                 f'$R^2 = {self.D_rand_R2:.2f}$')
+        
+    #     ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
+    #             verticalalignment='bottom', horizontalalignment='left',
+    #             bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+        
+    #     if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+    #     if disp: plt.show()
+        
+    # def plot_f(self, 
+    #            title: Optional[str] = None, 
+    #            inset_arrhenius: bool = False,
+    #            disp: bool = True,
+    #            save: bool = True, 
+    #            filename: str = 'f.png', 
+    #            dpi: int = 300) -> None:
+    #     """
+    #     Plots the correlation factor (f) vs. temperature.
+
+    #     Optionally includes an inset plot showing the Arrhenius relationship for f.
+
+    #     Args:
+    #         title (str, optional): 
+    #             A custom title for the plot. Defaults to None.
+    #         inset_arrhenius (bool, optional): 
+    #             If True, includes the inset plot. Defaults to False.
+    #         save (bool, optional): 
+    #             If True, saves the figure. Defaults to True.
+    #         filename (str, optional): 
+    #             The filename for the saved figure. Defaults to "f.png".
+    #         dpi (int, optional): 
+    #             The resolution for the saved figure. Defaults to 300.
+    #     """
+    #     if len(self.temperatures) < 2:
+    #         raise ValueError("At least two temperature points are required.")
+    #     if self.f is None:
+    #         raise RuntimeError("Correlation factor has not been calculated. "
+    #                            "Please run _get_correlation_factor() first.")
+
+    #     f_data = np.asarray(self.f)
+    #     valid_mask = ~np.isnan(f_data)
+    #     temps_valid = self.temperatures[valid_mask]
+    #     f_valid = f_data[valid_mask]
+
+    #     fig, ax = plt.subplots(figsize=(4.2, 4.0))
+    #     for axis in ['top', 'bottom', 'left', 'right']:
+    #         ax.spines[axis].set_linewidth(1.2)
+
+    #     for i in range(len(temps_valid)):
+    #         ax.scatter(temps_valid[i], f_valid[i], color=self.cmap(i),
+    #                    marker='s', s=50, label=f"{temps_valid[i]:.0f} K")
+        
+    #     ax.set_ylim([0, 1])
+    #     ax.set_xlabel('Temperature (K)', fontsize=11)
+    #     ax.set_ylabel(r'$f$', fontsize=11)
+        
+    #     if title is not None:
+    #         ax.set_title(title, fontsize=12, pad=10)
+
+    #     if inset_arrhenius and len(f_valid) >= 2:
+    #         Ea_f, f0, r2_f = self._Arrhenius_fit(temps_valid, f_valid, self.kb)
+
+    #         axins = ax.inset_axes([1.05, 0.6, 0.4, 0.4])
+            
+    #         x_points_ins = 1000 / temps_valid
+    #         y_points_ins = np.log(f_valid)
+    #         slope_ins = -Ea_f / (self.kb * 1000)
+    #         intercept_ins = np.log(f0)
+            
+    #         x_fit_ins = np.linspace(np.min(x_points_ins), np.max(x_points_ins), 100)
+    #         axins.plot(x_fit_ins, slope_ins * x_fit_ins + intercept_ins, 'k:', lw=1.2)
+    #         axins.scatter(x_points_ins, y_points_ins, c=self.cmap(np.where(valid_mask)[0]), marker='s')
+            
+    #         axins.set_xlabel('1000/T (K⁻¹)', fontsize=9)
+    #         axins.set_ylabel(r'ln $f$', fontsize=9)
+    #         axins.tick_params(axis='both', which='major', labelsize=8)
+
+    #         axins.set_xticks([])
+    #         axins.set_yticks([])
+
+    #         # margin = np.abs(np.log(0.1))
+    #         # bottom, top = axins.get_ylim()
+    #         # axins.set_ylim(bottom - margin, top + margin) 
+
+    #         text_str = (f'$E_a = {Ea_f:.3f}$ eV\n'
+    #                     f'$f_0 = {f0:.3f}$\n'
+    #                     f'$R^2 = {r2_f:.4f}$')
+            
+    #         ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
+    #             verticalalignment='bottom', horizontalalignment='left',
+    #             bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+        
+    #     if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+    #     if disp: plt.show()
+    #     plt.close(fig)
+        
+    # def plot_D(self, 
+    #            title: Optional[str] = None, 
+    #            disp: bool = True,
+    #            save: bool = True, 
+    #            filename: str = "D.png", 
+    #            dpi: int = 300) -> None:
+    #     """
+    #     Generates and displays an Arrhenius plot for the tracer diffusivity.
+
+    #     Args:
+    #         title (str, optional): 
+    #             A custom title for the plot. Defaults to None.
+    #         save (bool, optional): 
+    #             If True, saves the figure. Defaults to True.
+    #         filename (str, optional): 
+    #             The filename for the saved figure. Defaults to "D.png".
+    #         dpi (int, optional): 
+    #             The resolution for the saved figure. Defaults to 300.
+    #     """
+    #     if len(self.temperatures) < 2:
+    #         raise ValueError("At least two temperature points are required.")
+    #     if self.D is None or self.Ea_D is None:
+    #          raise RuntimeError("Please run analysis and fitting for 'D' first.")
+         
+    #     slope = -self.Ea_D / (self.kb * 1000)
+    #     intercept = np.log(self.D0)
+        
+    #     fig, ax = self._create_arrhenius_plot(
+    #         data=self.D,
+    #         temperatures=self.temperatures,
+    #         slope=slope,
+    #         intercept=intercept,
+    #         ylabel=r'ln $D$ ($m^2/s$)',
+    #         title=title
+    #     )
+        
+    #     text_str = (f'$E_a = {self.Ea_D_rand:.2f}$ eV\n'
+    #                 f'$D_0 = {self.D_rand0:.1e}$ $m^2/s$\n'
+    #                 f'$R^2 = {self.D_rand_R2:.2f}$')
+        
+    #     ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
+    #             verticalalignment='bottom', horizontalalignment='left',
+    #             bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+        
+    #     if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+    #     if disp: plt.show()
+        
+    # def plot_tau(self, 
+    #              title: Optional[str] = None,
+    #              disp: bool = True,
+    #              save: bool = True, 
+    #              filename: str = 'tau.png', 
+    #              dpi: int = 300) -> None:
+    #     """
+    #     Plots the residence time (tau) vs. temperature using a bar chart.
+
+    #     Overlays the Arrhenius fit and displays the results. The y-axis is on a
+    #     logarithmic scale for better visualization.
+
+    #     Args:
+    #         title (str, optional): 
+    #             A custom title for the plot. Defaults to None.
+    #         save (bool, optional): 
+    #             If True, saves the figure. Defaults to True.
+    #         filename (str, optional): 
+    #             The filename for the saved figure. Defaults to "tau.png".
+    #         dpi (int, optional): 
+    #             The resolution for the saved figure. Defaults to 300.
+    #     """
+    #     if len(self.temperatures) < 2:
+    #         raise ValueError("At least two temperature points are required.")
+    #     if self.tau is None or self.tau0 is None or self.Ea_D_rand is None:
+    #         raise RuntimeError("Residence time and its fit parameters have not been "
+    #                            "calculated. Please run the analysis first.")
+        
+    #     valid_mask = ~np.isnan(self.tau)
+    #     temps_valid = self.temperatures[valid_mask]
+    #     tau_valid = self.tau[valid_mask]
+
+    #     if len(tau_valid) == 0:
+    #         print("Warning: No valid residence time data to plot.")
+    #         return
+        
+    #     fig, ax = plt.subplots(figsize=(4.5, 4.2))
+    #     for axis in ['top', 'bottom', 'left', 'right']:
+    #         ax.spines[axis].set_linewidth(1.2)
+
+    #     if len(temps_valid) > 1:
+    #         bar_width = np.mean(np.diff(temps_valid)) * 0.7
+    #     else:
+    #         bar_width = temps_valid[0] * 0.1
+
+    #     for i in range(len(temps_valid)):
+    #         ax.bar(temps_valid[i], tau_valid[i], width=bar_width,
+    #                edgecolor='k', color=self.cmap(i),
+    #                label=f"{temps_valid[i]:.0f} K")
+        
+    #     x_fit = np.linspace(np.min(temps_valid), np.max(temps_valid), 200)     
+    #     y_fit = self.tau0 * np.exp(self.Ea_D_rand / (self.kb * x_fit))
+    #     ax.plot(x_fit, y_fit, 'k:', linewidth=1.5)
+        
+    #     ax.set_xlabel('Temperature (K)', fontsize=11)
+    #     ax.set_ylabel(r'$\tau$ (ps)', fontsize=11)
+    #     ax.legend(title='Temperature')
+
+    #     text_str = (f'$E_a = {self.Ea_D_rand:.2f}$ eV\n'
+    #                 f'$\\tau_0 = {self.tau0:.1e}$ ps\n'
+    #                 f'$R^2 = {self.tau_R2:.2f}$')
+        
+    #     ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
+    #             verticalalignment='bottom', horizontalalignment='left',
+    #             bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+
+    #     if title is not None:
+    #         ax.set_title(title, fontsize=12, pad=10)
+            
+    #     fig.tight_layout()
+    #     if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+    #     if disp: plt.show()
+    #     plt.close(fig)
+    
+    # def plot_counts(self,
+    #                 title: str = None,
+    #                 disp: bool = True,
+    #                 save: bool = True,
+    #                 filename: str = 'counts.png', 
+    #                 dpi: int = 300) -> None:
+    #     """
+    #     Generates a bar plot showing the total counts for each migration path.
+
+    #     This plot visualizes the frequency of both predefined (known) and
+    #     dynamically discovered (unknown) hopping events across all temperatures.
+
+    #     Args:
+    #         title (str, optional): 
+    #             A custom title for the plot. Defaults to None.
+    #         save (bool, optional): 
+    #             If True, saves the figure. Defaults to True.
+    #         filename (str, optional): 
+    #             Filename for the saved plot. Defaults to 'counts.png'.
+    #         dpi (int, optional): 
+    #             Resolution for the saved figure. Defaults to 300.
+    #     """
+    #     if self.counts is None or self.counts_unknown is None:
+    #         raise RuntimeError("Path counts have not been calculated. "
+    #                            "Please run the .calculate() method first.")
+
+    #     name_all = self.site.path_name + [p['name'] for p in self.path_unknown]
+    #     counts_all = np.append(np.sum(self.counts, axis=0), self.counts_unknown)
+       
+    #     if len(name_all) == 0:
+    #         print("Warning: No path count data available to plot.")
+    #         return
+
+    #     fig, ax = plt.subplots(figsize=(10, 6))
+    #     for axis in ['top', 'bottom', 'left', 'right']:
+    #         ax.spines[axis].set_linewidth(1.2)
+            
+    #     x_pos = np.arange(len(name_all))
+    #     bars = ax.bar(x_pos, counts_all, color='steelblue', edgecolor='k', alpha=0.8)
+
+    #     ax.set_ylabel('Total Counts', fontsize=13)
+    #     ax.set_xlabel('Path Name', fontsize=13)
+    #     ax.set_xticks(x_pos)
+    #     ax.set_xticklabels(name_all, rotation=45, ha="right", rotation_mode="anchor")
+
+    #     if title is not None:
+    #         ax.set_title(title, fontsize=12, pad=10)
+            
+    #     ax.bar_label(bars, fmt='%d', padding=3, fontsize=10)
+    #     ax.yaxis.grid(True, linestyle='--', alpha=0.7)
+    #     ax.set_axisbelow(True)
+    #     ax.set_ylim(top=ax.get_ylim()[1] * 1.1)
+        
+    #     fig.tight_layout()
+    #     if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+    #     if disp: plt.show()
+    #     plt.close(fig)
+    
+    # Calculator_Bundle 클래스 내부
+
+    # ===================================================================
+    # Plotting Methods
+    # ===================================================================
      
     def _create_arrhenius_plot(self, 
                                data: np.ndarray, 
@@ -3098,23 +3467,11 @@ class Calculator_Bundle(TrajBundle):
                                intercept: float,
                                ylabel: str, 
                                title: Optional[str] = None, 
-                               figsize: Tuple[float, float] = (4.2, 4.0)) -> Tuple[plt.Figure, plt.Axes]:
+                               figsize: Tuple[float, float] = (7, 6)) -> Tuple[plt.Figure, plt.Axes]:
         """
         Generic helper function to create a styled Arrhenius plot.
-
-        Args:
-            data (np.ndarray): The y-data for the scatter plot (e.g., diffusivity).
-            temperatures (np.ndarray): The temperature data points.
-            slope (float): The slope of the fit line on the ln(y) vs 1000/T plot.
-            intercept (float): The intercept of the fit line.
-            ylabel (str): The label for the y-axis.
-            title (str, optional): The title of the plot. Defaults to None.
-            figsize (Tuple[float, float], optional): The figure size. Defaults to (4.2, 4.0).
-
-        Returns:
-            A tuple containing the matplotlib Figure and Axes objects.
         """
-        valid_mask = ~np.isnan(data)
+        valid_mask = ~np.isnan(data) & (data > 0)
         temps_valid = temperatures[valid_mask]
         data_valid = data[valid_mask]
 
@@ -3125,43 +3482,39 @@ class Calculator_Bundle(TrajBundle):
         x_points = 1000 / temps_valid
         y_points = np.log(data_valid)
         
-        for i in range(len(temps_valid)):
-            ax.scatter(x_points[i], y_points[i], color=self.cmap(i),
-                       marker="s", s=50, label=f"{temps_valid[i]:.0f} K")
+        cmap = plt.get_cmap("viridis", len(self.temperatures))
+        temp_color_map = {temp: cmap(i) for i, temp in enumerate(self.temperatures)}
 
-        x_fit = np.linspace(np.min(x_points), np.max(x_points), 100)
-        ax.plot(x_fit, slope * x_fit + intercept, 'k:', linewidth=1.2)
-        ax.legend(title='Temperature')
+        for i in range(len(temps_valid)):
+            temp = temps_valid[i]
+            ax.scatter(x_points[i], y_points[i], color=temp_color_map[temp],
+                       marker="o", s=60, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
+
+        if len(x_points) > 1:
+            x_fit = np.linspace(np.min(x_points), np.max(x_points), 100)
+            ax.plot(x_fit, slope * x_fit + intercept, 'k--', linewidth=1.5)
         
-        ax.set_xlabel('1000 / T (K⁻¹)', fontsize=11)
-        ax.set_ylabel(ylabel, fontsize=11)
-        if title is not None:
-            ax.set_title(title, fontsize=12, pad=10)
+        ax.legend(title='Temperature', fontsize=10)
+        ax.set_xlabel('1000 / T (K⁻¹)', fontsize=12)
+        ax.set_ylabel(ylabel, fontsize=12)
+        if title:
+            ax.set_title(title, fontsize=13, pad=10)
         
+        ax.grid(True, linestyle='--', alpha=0.7)
         fig.tight_layout()
         return fig, ax
              
     def plot_D_rand(self, 
-                    title: Optional[str] = None, 
+                    title: str = "Random Walk Diffusivity (Arrhenius Plot)", 
                     disp: bool = True,
                     save: bool = True, 
                     filename: str = "D_rand.png", 
                     dpi: int = 300) -> None:
         """
         Generates and displays an Arrhenius plot for the random walk diffusivity.
-
-        Args:
-            title (str, optional): 
-                A custom title for the plot. Defaults to None.
-            save (bool, optional): 
-                If True, saves the figure. Defaults to True.
-            filename (str, optional): 
-                The filename for the saved figure. Defaults to "D_rand.png".
-            dpi (int, optional): 
-                The resolution for the saved figure. Defaults to 300.
         """
         if len(self.temperatures) < 2:
-            raise ValueError("At least two temperature points are required.")
+            raise ValueError("At least two temperature points are required for an Arrhenius plot.")
         if self.D_rand is None or self.Ea_D_rand is None:
              raise RuntimeError("Please run analysis and fitting for 'D_rand' first.")
          
@@ -3169,133 +3522,82 @@ class Calculator_Bundle(TrajBundle):
         intercept = np.log(self.D_rand0)
 
         fig, ax = self._create_arrhenius_plot(
-            data=self.D_rand,
-            temperatures=self.temperatures,
-            slope=slope,
-            intercept=intercept,
-            ylabel=r'ln $D_{rand}$ ($m^2/s$)',
-            title=title
+            data=self.D_rand, temperatures=self.temperatures,
+            slope=slope, intercept=intercept,
+            ylabel=r'ln($D_{rand}$) (m$^2$/s)', title=title
         )
         
         text_str = (f'$E_a = {self.Ea_D_rand:.2f}$ eV\n'
-                    f'$Drand_0 = {self.D_rand0:.1e}$ $m^2/s$\n'
-                    f'$R^2 = {self.D_rand_R2:.2f}$')
+                    f'$D_0 = {self.D_rand0:.2e}$ m$^2$/s\n'
+                    f'$R^2 = {self.D_rand_R2:.3f}$')
         
-        ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
+        ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=10,
                 verticalalignment='bottom', horizontalalignment='left',
-                bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+                bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.7))
         
         if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
         if disp: plt.show()
+        plt.close(fig)
         
     def plot_f(self, 
-               title: Optional[str] = None, 
-               inset_arrhenius: bool = False,
+               title: str = "Correlation Factor vs. Temperature", 
                disp: bool = True,
                save: bool = True, 
                filename: str = 'f.png', 
                dpi: int = 300) -> None:
         """
         Plots the correlation factor (f) vs. temperature.
-
-        Optionally includes an inset plot showing the Arrhenius relationship for f.
-
-        Args:
-            title (str, optional): 
-                A custom title for the plot. Defaults to None.
-            inset_arrhenius (bool, optional): 
-                If True, includes the inset plot. Defaults to False.
-            save (bool, optional): 
-                If True, saves the figure. Defaults to True.
-            filename (str, optional): 
-                The filename for the saved figure. Defaults to "f.png".
-            dpi (int, optional): 
-                The resolution for the saved figure. Defaults to 300.
         """
-        if len(self.temperatures) < 2:
-            raise ValueError("At least two temperature points are required.")
         if self.f is None:
-            raise RuntimeError("Correlation factor has not been calculated. "
-                               "Please run _get_correlation_factor() first.")
+            raise RuntimeError("Correlation factor has not been calculated. Please run .calculate() first.")
 
-        f_data = np.asarray(self.f)
-        valid_mask = ~np.isnan(f_data)
+        valid_mask = ~np.isnan(self.f)
         temps_valid = self.temperatures[valid_mask]
-        f_valid = f_data[valid_mask]
+        f_valid = self.f[valid_mask]
 
-        fig, ax = plt.subplots(figsize=(4.2, 4.0))
+        fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
             ax.spines[axis].set_linewidth(1.2)
+        
+        cmap = plt.get_cmap("viridis", len(self.temperatures))
+        temp_color_map = {temp: cmap(i) for i, temp in enumerate(self.temperatures)}
 
         for i in range(len(temps_valid)):
-            ax.scatter(temps_valid[i], f_valid[i], color=self.cmap(i),
-                       marker='s', s=50, label=f"{temps_valid[i]:.0f} K")
+            temp = temps_valid[i]
+            ax.scatter(temp, f_valid[i], color=temp_color_map[temp],
+                       marker='s', s=60, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
         
         ax.set_ylim([0, 1])
-        ax.set_xlabel('Temperature (K)', fontsize=11)
-        ax.set_ylabel(r'$f$', fontsize=11)
+        ax.set_xlabel('Temperature (K)', fontsize=12)
+        ax.set_ylabel('Correlation Factor, $f$', fontsize=12)
+        if title: ax.set_title(title, fontsize=14, pad=10)
+        ax.legend(title='Temperature', fontsize=9)
+        ax.grid(True, linestyle='--', alpha=0.7)
         
-        if title is not None:
-            ax.set_title(title, fontsize=12, pad=10)
-
-        if inset_arrhenius and len(f_valid) >= 2:
-            Ea_f, f0, r2_f = self._Arrhenius_fit(temps_valid, f_valid, self.kb)
-
-            axins = ax.inset_axes([1.05, 0.6, 0.4, 0.4])
-            
-            x_points_ins = 1000 / temps_valid
-            y_points_ins = np.log(f_valid)
-            slope_ins = -Ea_f / (self.kb * 1000)
-            intercept_ins = np.log(f0)
-            
-            x_fit_ins = np.linspace(np.min(x_points_ins), np.max(x_points_ins), 100)
-            axins.plot(x_fit_ins, slope_ins * x_fit_ins + intercept_ins, 'k:', lw=1.2)
-            axins.scatter(x_points_ins, y_points_ins, c=self.cmap(np.where(valid_mask)[0]), marker='s')
-            
-            axins.set_xlabel('1000/T (K⁻¹)', fontsize=9)
-            axins.set_ylabel(r'ln $f$', fontsize=9)
-            axins.tick_params(axis='both', which='major', labelsize=8)
-
-            axins.set_xticks([])
-            axins.set_yticks([])
-
-            # margin = np.abs(np.log(0.1))
-            # bottom, top = axins.get_ylim()
-            # axins.set_ylim(bottom - margin, top + margin) 
-
-            text_str = (f'$E_a = {Ea_f:.3f}$ eV\n'
-                        f'$f_0 = {f0:.3f}$\n'
-                        f'$R^2 = {r2_f:.4f}$')
-            
-            ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
-                verticalalignment='bottom', horizontalalignment='left',
-                bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+        if self.Ea_f is not None:
+             text_str = (f'$E_a = {self.Ea_f:.3f}$ eV\n'
+                         f'$f_0 = {self.f0:.3f}$\n'
+                         f'$R^2 = {self.f_R2:.4f}$')
+             ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=10,
+                     verticalalignment='bottom', horizontalalignment='left',
+                     bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.7))
         
+        fig.tight_layout()
         if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
         if disp: plt.show()
         plt.close(fig)
         
     def plot_D(self, 
-               title: Optional[str] = None, 
+               title: str = "Diffusivity (Arrhenius Plot)", 
                disp: bool = True,
                save: bool = True, 
                filename: str = "D.png", 
                dpi: int = 300) -> None:
         """
-        Generates and displays an Arrhenius plot for the tracer diffusivity.
-
-        Args:
-            title (str, optional): 
-                A custom title for the plot. Defaults to None.
-            save (bool, optional): 
-                If True, saves the figure. Defaults to True.
-            filename (str, optional): 
-                The filename for the saved figure. Defaults to "D.png".
-            dpi (int, optional): 
-                The resolution for the saved figure. Defaults to 300.
+        Generates and displays an Arrhenius plot for the actual diffusivity (D).
         """
         if len(self.temperatures) < 2:
-            raise ValueError("At least two temperature points are required.")
+            raise ValueError("At least two temperature points are required for an Arrhenius plot.")
         if self.D is None or self.Ea_D is None:
              raise RuntimeError("Please run analysis and fitting for 'D' first.")
          
@@ -3303,52 +3605,35 @@ class Calculator_Bundle(TrajBundle):
         intercept = np.log(self.D0)
         
         fig, ax = self._create_arrhenius_plot(
-            data=self.D,
-            temperatures=self.temperatures,
-            slope=slope,
-            intercept=intercept,
-            ylabel=r'ln $D$ ($m^2/s$)',
-            title=title
+            data=self.D, temperatures=self.temperatures,
+            slope=slope, intercept=intercept,
+            ylabel=r'ln(D) (m$^2$/s)', title=title
         )
         
-        text_str = (f'$E_a = {self.Ea_D_rand:.2f}$ eV\n'
-                    f'$D_0 = {self.D_rand0:.1e}$ $m^2/s$\n'
-                    f'$R^2 = {self.D_rand_R2:.2f}$')
+        text_str = (f'$E_a = {self.Ea_D:.2f}$ eV\n'
+                    f'$D_0 = {self.D0:.2e}$ m$^2$/s\n'
+                    f'$R^2 = {self.D_R2:.3f}$')
         
-        ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
+        ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=10,
                 verticalalignment='bottom', horizontalalignment='left',
-                bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
+                bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.7))
         
         if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
         if disp: plt.show()
+        plt.close(fig)
         
     def plot_tau(self, 
-                 title: Optional[str] = None,
+                 title: str = "Residence Time vs. Temperature",
                  disp: bool = True,
                  save: bool = True, 
                  filename: str = 'tau.png', 
                  dpi: int = 300) -> None:
         """
-        Plots the residence time (tau) vs. temperature using a bar chart.
-
-        Overlays the Arrhenius fit and displays the results. The y-axis is on a
-        logarithmic scale for better visualization.
-
-        Args:
-            title (str, optional): 
-                A custom title for the plot. Defaults to None.
-            save (bool, optional): 
-                If True, saves the figure. Defaults to True.
-            filename (str, optional): 
-                The filename for the saved figure. Defaults to "tau.png".
-            dpi (int, optional): 
-                The resolution for the saved figure. Defaults to 300.
+        Plots the residence time (tau) vs. temperature using a bar and scatter plot.
+        Overlays the Arrhenius fit and displays the results.
         """
-        if len(self.temperatures) < 2:
-            raise ValueError("At least two temperature points are required.")
-        if self.tau is None or self.tau0 is None or self.Ea_D_rand is None:
-            raise RuntimeError("Residence time and its fit parameters have not been "
-                               "calculated. Please run the analysis first.")
+        if self.tau is None:
+            raise RuntimeError("Residence time has not been calculated. Please run .calculate() first.")
         
         valid_mask = ~np.isnan(self.tau)
         temps_valid = self.temperatures[valid_mask]
@@ -3358,102 +3643,92 @@ class Calculator_Bundle(TrajBundle):
             print("Warning: No valid residence time data to plot.")
             return
         
-        fig, ax = plt.subplots(figsize=(4.5, 4.2))
+        fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
             ax.spines[axis].set_linewidth(1.2)
+        
+        cmap = plt.get_cmap("viridis", len(self.temperatures))
+        temp_color_map = {temp: cmap(i) for i, temp in enumerate(self.temperatures)}
+        colors = [temp_color_map[t] for t in temps_valid]
 
         if len(temps_valid) > 1:
             bar_width = np.mean(np.diff(temps_valid)) * 0.7
         else:
             bar_width = temps_valid[0] * 0.1
 
-        for i in range(len(temps_valid)):
-            ax.bar(temps_valid[i], tau_valid[i], width=bar_width,
-                   edgecolor='k', color=self.cmap(i),
-                   label=f"{temps_valid[i]:.0f} K")
+        ax.bar(temps_valid, tau_valid, width=bar_width, color=colors,
+               edgecolor='k', alpha=0.6, zorder=2)
+               
+        ax.scatter(temps_valid, tau_valid, c=colors,
+                   marker='o', s=60, edgecolor='k', alpha=0.9, zorder=3)
         
-        x_fit = np.linspace(np.min(temps_valid), np.max(temps_valid), 200)     
-        y_fit = self.tau0 * np.exp(self.Ea_D_rand / (self.kb * x_fit))
-        ax.plot(x_fit, y_fit, 'k:', linewidth=1.5)
-        
-        ax.set_xlabel('Temperature (K)', fontsize=11)
-        ax.set_ylabel(r'$\tau$ (ps)', fontsize=11)
-        ax.legend(title='Temperature')
-
-        text_str = (f'$E_a = {self.Ea_D_rand:.2f}$ eV\n'
-                    f'$\\tau_0 = {self.tau0:.1e}$ ps\n'
-                    f'$R^2 = {self.tau_R2:.2f}$')
-        
-        ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=9,
-                verticalalignment='bottom', horizontalalignment='left',
-                bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
-
-        if title is not None:
-            ax.set_title(title, fontsize=12, pad=10)
+        if self.tau0 is not None and not np.isnan(self.tau0) and len(temps_valid) > 1:
+            x_fit = np.linspace(np.min(temps_valid) * 0.95, np.max(temps_valid) * 1.05, 200)     
+            y_fit = self.tau0 * np.exp(self.Ea_tau / (self.kb * x_fit))
+            ax.plot(x_fit, y_fit, 'k--', linewidth=1.5, label='Arrhenius Fit', zorder=4)
             
+            text_str = (f'$E_a = {self.Ea_tau:.2f}$ eV\n'
+                        f'$\\tau_0 = {self.tau0:.2e}$ ps\n'
+                        f'$R^2 = {self.tau_R2:.3f}$')
+            
+            ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=10,
+                    verticalalignment='bottom', horizontalalignment='left',
+                    bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.7))
+
+        ax.set_xlabel('Temperature (K)', fontsize=12)
+        ax.set_ylabel(r'Residence Time, $\tau$ (ps)', fontsize=12)
+        if title: ax.set_title(title, fontsize=13, pad=10)
+        ax.grid(True, which='both', linestyle='--', alpha=0.7)
+        ax.legend()
+        
         fig.tight_layout()
         if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
         if disp: plt.show()
         plt.close(fig)
     
     def plot_counts(self,
-                    title: str = None,
+                    title: str = "Total Hopping Counts per Path",
                     disp: bool = True,
                     save: bool = True,
                     filename: str = 'counts.png', 
                     dpi: int = 300) -> None:
         """
         Generates a bar plot showing the total counts for each migration path.
-
-        This plot visualizes the frequency of both predefined (known) and
-        dynamically discovered (unknown) hopping events across all temperatures.
-
-        Args:
-            title (str, optional): 
-                A custom title for the plot. Defaults to None.
-            save (bool, optional): 
-                If True, saves the figure. Defaults to True.
-            filename (str, optional): 
-                Filename for the saved plot. Defaults to 'counts.png'.
-            dpi (int, optional): 
-                Resolution for the saved figure. Defaults to 300.
         """
         if self.counts is None or self.counts_unknown is None:
-            raise RuntimeError("Path counts have not been calculated. "
-                               "Please run the .calculate() method first.")
+            raise RuntimeError("Path counts have not been calculated.")
 
         name_all = self.site.path_name + [p['name'] for p in self.path_unknown]
-        counts_all = np.append(np.sum(self.counts, axis=0), self.counts_unknown)
+        counts_all = np.append(np.sum(self.counts, axis=0), np.array(self.counts_unknown, dtype=int))
        
         if len(name_all) == 0:
             print("Warning: No path count data available to plot.")
             return
 
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(max(6, len(name_all) * 0.5), 6))
         for axis in ['top', 'bottom', 'left', 'right']:
             ax.spines[axis].set_linewidth(1.2)
             
         x_pos = np.arange(len(name_all))
         bars = ax.bar(x_pos, counts_all, color='steelblue', edgecolor='k', alpha=0.8)
 
-        ax.set_ylabel('Total Counts', fontsize=13)
-        ax.set_xlabel('Path Name', fontsize=13)
+        ax.set_ylabel('Total Counts', fontsize=12)
+        ax.set_xlabel('Path Name', fontsize=12)
         ax.set_xticks(x_pos)
-        ax.set_xticklabels(name_all, rotation=45, ha="right", rotation_mode="anchor")
-
-        if title is not None:
-            ax.set_title(title, fontsize=12, pad=10)
+        ax.set_xticklabels(name_all, rotation=45, ha="right")
+        if title: ax.set_title(title, fontsize=13, pad=10)
             
-        ax.bar_label(bars, fmt='%d', padding=3, fontsize=10)
+        ax.bar_label(bars, fmt='%d', padding=3, fontsize=9)
         ax.yaxis.grid(True, linestyle='--', alpha=0.7)
         ax.set_axisbelow(True)
-        ax.set_ylim(top=ax.get_ylim()[1] * 1.1)
+        ax.set_ylim(top=ax.get_ylim()[1] * 1.15)
         
         fig.tight_layout()
         if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
         if disp: plt.show()
         plt.close(fig)
-       
+
+
     def summary(self):
         """
         Prints a comprehensive summary of the analysis results, including
@@ -3758,7 +4033,7 @@ class Calculator_Bundle(TrajBundle):
             self.attempt_frequency.summary()
     
     def plot_nu(self,
-                title: Optional[str] = None,
+                title: Optional[str] = "Attempt Frequency vs. Temperature",
                 disp: bool = True,
                 save: bool = True,
                 filename: str = "attempt_frequency.png",
@@ -3778,7 +4053,7 @@ class Calculator_Bundle(TrajBundle):
                                        dpi=dpi)
         
     def plot_z(self,
-               title: Optional[str] = None,
+               title: Optional[str] = "Coordination Number vs. Temperature",
                disp: bool = True,
                save: bool = True,
                filename: str = "coordination_number.png",

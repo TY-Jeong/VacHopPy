@@ -124,12 +124,12 @@ def cli_analyze(path_traj: str,
         if not os.path.isdir(dir_imgs): os.makedirs(dir_imgs)
         calc.plot_D_rand(disp=True, filename=os.path.join(dir_imgs, 'D_rand.png'))
         calc.plot_f(disp=True, filename=os.path.join(dir_imgs, 'f.png'))
-        calc.plot_D(disp=False, filename=os.path.join(dir_imgs, 'D.png'))
+        calc.plot_D(disp=True, filename=os.path.join(dir_imgs, 'D.png'))
         calc.plot_tau(disp=True, filename=os.path.join(dir_imgs, 'tau.png'))
         calc.plot_counts(disp=True, filename=os.path.join(dir_imgs, 'counts.png'))
         if neb_csv is not None:
             calc.plot_nu(disp=True, filename=os.path.join(dir_imgs, 'nu.png'))
-            calc.plot_z(disp=False, filename=os.path.join(dir_imgs, 'z.png'))
+            calc.plot_z(disp=True, filename=os.path.join(dir_imgs, 'z.png'))
     
     print(f"Results are saved in '{filename}'.")      
     if dir_imgs is not None:
@@ -227,7 +227,7 @@ def cli_distance(path_traj: Union[str, List[str]],
                  reference_structure: str,
                  verbose: bool = True,
                  **kwargs):
-    """[CLI method] This method displays a fingerprint trace."""
+    """[CLI method] This method displays changes in cosine distance along time."""
     dist_keys = ['Rmax', 'delta', 'sigma', 'dirac', 'atom_pairs',
                 'n_jobs', 'window_size', 'threshold_std']
     dist_kwargs = {key: kwargs[key] for key in dist_keys if key in kwargs}
@@ -246,6 +246,8 @@ def cli_distance(path_traj: Union[str, List[str]],
 def cli_fingerprint(path_structure: str, 
                     verbose: bool = True,
                     **kwargs):
+    """[CLI method] This method displays a fingerprint plot."""
+    
     from ase.io import read
     from itertools import combinations_with_replacement
 

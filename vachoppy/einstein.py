@@ -579,8 +579,8 @@ class MSDEnsemble:
         to lists for JSON compatibility.
 
         Args:
-            filename (str, optional): The name of the output JSON file.
-                Defaults to "einstein.json".
+            filename (str, optional): 
+                The name of the output JSON file. Defaults to "einstein.json".
         """
         if self.diffusivities is None:
             raise RuntimeError("Cannot save parameters. Please run the .calculate() method first.")

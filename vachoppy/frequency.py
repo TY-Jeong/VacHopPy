@@ -155,7 +155,6 @@ class AttemptFrequency:
             table_data_temp.append(mean_row)
 
         print(tabulate(table_data_temp, headers=headers_temp, tablefmt="simple", stralign='left', numalign='left'))
-        # --- 수정 끝 ---
         print("\n" + "-- Path-Wise Parameters (per Temperature) --" + "\n")
         headers_path = ["Path Name", "Hop Count", "nu_path (THz)"]
         for i, temp in enumerate(self.temperatures):
@@ -170,7 +169,7 @@ class AttemptFrequency:
         print("="*60 + "\n")
 
     def plot_nu(self,
-                title: Optional[str] = None,
+                title: Optional[str] = "Attempt Frequency vs. Temperature",
                 disp: bool = True,
                 save: bool = True,
                 filename: str = "attempt_frequency.png",
@@ -178,15 +177,15 @@ class AttemptFrequency:
         """
         Plots the effective attempt frequency (nu) as a function of temperature.
         """
-        fig, ax = plt.subplots(figsize=(6, 5))
+        fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
             ax.spines[axis].set_linewidth(1.2)
         
         ax.plot(self.temperatures, self.nu, marker='s', linestyle='--', color='crimson')
         
-        ax.set_xlabel('Temperature (K)', fontsize=11)
-        ax.set_ylabel(r'Effective $\nu^*$ (THz)', fontsize=11)
-        ax.set_title(title, fontsize=12, pad=10)
+        ax.set_xlabel('Temperature (K)', fontsize=12)
+        ax.set_ylabel(r'Effective Attempt Frequency, $\nu_{eff}$ (THz)', fontsize=12)
+        ax.set_title(title, fontsize=13, pad=10)
         ax.grid(True, linestyle='--', alpha=0.7)
         ax.set_yscale('log')
         
@@ -205,7 +204,7 @@ class AttemptFrequency:
         plt.close(fig)
 
     def plot_z(self,
-               title: Optional[str] = None,
+               title: Optional[str] = "Coordination Number vs. Temperature",
                disp: bool = True,
                save: bool = True,
                filename: str = "coordination_number.png",
@@ -214,15 +213,15 @@ class AttemptFrequency:
         Plots the effective coordination number (z) as a function of temperature.
         Ensures the y-axis range is at least 2 for visual clarity.
         """
-        fig, ax = plt.subplots(figsize=(6, 5))
+        fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
             ax.spines[axis].set_linewidth(1.2)
 
         ax.plot(self.temperatures, self.z, marker='s', linestyle='--', color='darkblue')
         
-        ax.set_xlabel('Temperature (K)', fontsize=11)
-        ax.set_ylabel(r'Effective Coordination Number ($z_{eff}$)', fontsize=11)
-        ax.set_title(title, fontsize=12, pad=10)
+        ax.set_xlabel('Temperature (K)', fontsize=12)
+        ax.set_ylabel(r'Effective Coordination Number, $z_{eff}$', fontsize=12)
+        ax.set_title(title, fontsize=13, pad=10)
         ax.grid(True, linestyle='--', alpha=0.7)
         
         bottom, top = ax.get_ylim()
