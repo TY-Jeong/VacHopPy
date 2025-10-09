@@ -9,18 +9,10 @@ import numpy as np
 
 from tqdm.auto import tqdm
 from tabulate import tabulate
-from colorama import Fore, Style
 from typing import List, Union
 
 from ase import Atoms
 from ase.io import write
-
-BOLD = '\033[1m'
-CYAN = '\033[36m'
-MAGENTA = '\033[35m'
-GREEN = '\033[92m' # Green color
-RED = '\033[91m'   # Red color
-RESET = '\033[0m'  # Reset to default color
 
 
 def monitor_performance(func):

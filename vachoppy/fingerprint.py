@@ -14,12 +14,6 @@ from itertools import combinations_with_replacement
 from vachoppy.utils import Snapshots
 
 
-BOLD = '\033[1m'
-GREEN = '\033[92m'
-RED = '\033[91m'
-RESET = '\033[0m'
-
-
 class FingerPrint:
     """
     Calculates the atomic environment fingerprint between two atom types.

@@ -6,20 +6,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from tqdm.auto import tqdm
-from colorama import Fore, Style
 from scipy.stats import norm
 from scipy.spatial.distance import cdist
 from joblib import Parallel, delayed
 
 from vachoppy.utils import monitor_performance
 
-# color map for tqdm
-BOLD = '\033[1m'
-CYAN = '\033[36m'
-MAGENTA = '\033[35m'
-GREEN = '\033[92m' # Green color
-RED = '\033[91m'   # Red color
-RESET = '\033[0m'  # Reset to default color
 
 
 # ============================================

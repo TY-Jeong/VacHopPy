@@ -13,14 +13,19 @@ authors = [
   { name = "Taeyoung Jeong", email = "helianthus312@gmail.com" }
 ]
 dependencies = [
-  "numpy",
-  "lxml",
-  "tqdm",
-  "colorama",
+  "ase",
+  "h5py",
+  "joblib~=1.5",
   "matplotlib>=3.10.0",
-  "scipy",
-  "tabulate",
-  "pymatgen>=2024.6.10"
+  "mdanalysis~=2.9",
+  "numpy~=2.3",
+  "pandas~=2.3",
+  "Pillow~=11.3",
+  "plotly~=6.3",
+  "pymatgen>=2024.6.10",
+  "scipy~=1.16",
+  "tabulate~=0.9",
+  "tqdm~=4.67",
 ]
 keywords = ["vachoppy", "vacancy", "hopping"]
 classifiers = [
@@ -29,9 +34,6 @@ classifiers = [
   "Operating System :: OS Independent",
   "Topic :: Scientific/Engineering :: Physics"
 ]
-
-[project.optional-dependencies]
-parallel = ["mpi4py"]
 
 [project.scripts]
 vachoppy = "vachoppy.main:main"

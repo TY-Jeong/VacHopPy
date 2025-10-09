@@ -2,11 +2,6 @@ import argparse
 from typing import Tuple
 from vachoppy.cli import *
 
-BOLD = '\033[1m'
-CYAN = '\033[36m'
-GREEN = '\033[92m'
-RED = '\033[91m'
-RESET = '\033[0m'
 
 def _atom_pair_type(s: str) -> Tuple[str, str]:
     """Custom type for argparse to parse atom pairs like 'A-B'."""

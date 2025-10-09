@@ -3,20 +3,16 @@ import h5py
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm.auto import tqdm
-from typing import List, Union, Optional
-from joblib import Parallel, delayed, cpu_count
+
 from pathlib import Path
 from tabulate import tabulate
+from tqdm.auto import tqdm
+from typing import List, Union, Optional
+from joblib import Parallel, delayed
 
-from vachoppy.trajectory import TrajBundle
+from vachoppy.trajectory import TrajectoryBundle
 from vachoppy.utils import monitor_performance
 
-# ANSI color codes
-BOLD = '\033[1m'
-GREEN = '\033[92m'
-RED = '\033[91m'
-RESET = '\033[0m'
 
 class MSDCalculator:
     """
@@ -295,10 +291,10 @@ class MSDEnsemble:
         
         bundle_keys = ['prefix', 'depth', 'eps']
         bundle_kwargs = {key: kwargs[key] for key in bundle_keys if key in kwargs}
-        self.bundle = TrajBundle(path_traj=self.path_traj, 
-                                 symbol=self.symbol, 
-                                 verbose=False, 
-                                 **bundle_kwargs)
+        self.bundle = TrajectoryBundle(path_traj=self.path_traj, 
+                                       symbol=self.symbol, 
+                                       verbose=False, 
+                                       **bundle_kwargs)
 
         self.temperatures = np.array(self.bundle.temperatures, dtype=np.float64)
         self.all_traj_paths = [
@@ -324,7 +320,7 @@ class MSDEnsemble:
         Runs the full analysis pipeline in parallel for all trajectories.
 
         This method orchestrates the MSD and diffusivity calculation for each
-        trajectory file found by `TrajBundle`. It then aggregates the results
+        trajectory file found by `TrajectoryBundle`. It then aggregates the results
         and performs an Arrhenius fit if multiple temperatures are present.
 
         Args:
@@ -649,7 +645,7 @@ def Einstein(path_traj: str,
             End time in picoseconds (ps) for the linear fitting range. If None,
             the end of the trajectory/segment is used. Defaults to None.
         **kwargs:
-            Additional keyword arguments passed to `TrajBundle` (e.g., `prefix`, `depth`).
+            Additional keyword arguments passed to `TrajectoryBundle` (e.g., `prefix`, `depth`).
 
     Returns:
         Union[MSDEnsemble, MSDCalculator]: An initialized analysis object.

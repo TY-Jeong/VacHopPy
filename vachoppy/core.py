@@ -4,13 +4,11 @@ import json
 import itertools
 import numpy as np
 
-from tqdm.auto import tqdm
-from pathlib import Path
 from typing import Union
-from ase.io import read, iread
 from pathlib import Path
-from colorama import Fore
 from tabulate import tabulate
+from tqdm.auto import tqdm
+from ase.io import read, iread
 
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.analysis.local_env import VoronoiNN
@@ -20,12 +18,6 @@ from vachoppy.utils import *
 from vachoppy.vibration import *
 from vachoppy.trajectory import *
 
-BOLD = '\033[1m'
-CYAN = '\033[36m'
-MAGENTA = '\033[35m'
-GREEN = '\033[92m' 
-RED = '\033[91m' 
-RESET = '\033[0m'
 
 @monitor_performance
 def parse_md(filename: str,
@@ -630,13 +622,13 @@ class Site:
 
 def Calculator(path_traj: str,
                site, # : Site
-               **kwargs) -> Union[Calculator_Bundle, Calculator_Single]:
+               **kwargs) -> Union[CalculatorEnsemble, CalculatorSingle]:
     """
     A factory function that returns the appropriate calculator instance.
 
     Based on whether the input path_traj is a directory or a file, this function
-    instantiates and returns either a `Calculator_Bundle` object for analyzing
-    multiple trajectories or a `Calculator_Single` object for a single trajectory.
+    instantiates and returns either a `CalculatorEnsemble` object for analyzing
+    multiple trajectories or a `CalculatorSingle` object for a single trajectory.
 
     This simplifies the user API by providing a single entry point.
 
@@ -666,8 +658,8 @@ def Calculator(path_traj: str,
                 Verbosity flag. Defaults to True.
 
     Returns:
-        Union[Calculator_Bundle, Calculator_Single]: An instance of either
-            `Calculator_Bundle` if the path_traj is a directory, or `Calculator_Single`
+        Union[CalculatorEnsemble, CalculatorSingle]: An instance of either
+            `CalculatorEnsemble` if the path_traj is a directory, or `CalculatorSingle`
             if the path_traj is a file.
 
     Raises:
@@ -713,7 +705,7 @@ def Calculator(path_traj: str,
     if p.is_file():
         representative_traj = str(p.resolve())
     elif p.is_dir():
-        bundle = TrajBundle(path_traj=path_traj, symbol=site.symbol, **bundle_init_kwargs)
+        bundle = TrajectoryBundle(path_traj=path_traj, symbol=site.symbol, **bundle_init_kwargs)
         if not bundle.traj or not bundle.traj[0]:
             raise FileNotFoundError(f"No valid trajectory files found in '{path_traj}' to use for analysis.")
         representative_traj = bundle.traj[0][0]
@@ -754,7 +746,7 @@ def Calculator(path_traj: str,
         bundle_keys = ['prefix', 'depth', 'use_incomplete_encounter', 'eps', 'verbose']
         bundle_kwargs = {key: kwargs.get(key) for key in bundle_keys if key in kwargs}
         
-        return Calculator_Bundle(
+        return CalculatorEnsemble(
             path_traj=path_traj,
             site=site,
             t_interval=t_interval,
@@ -764,7 +756,7 @@ def Calculator(path_traj: str,
         single_keys = ['eps', 'use_incomplete_encounter', 'verbose']
         single_kwargs = {key: kwargs[key] for key in single_keys if key in kwargs}
         
-        return Calculator_Single(
+        return CalculatorSingle(
             path_traj=path_traj,
             site=site,
             t_interval=t_interval,

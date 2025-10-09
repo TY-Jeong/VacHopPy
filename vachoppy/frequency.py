@@ -3,9 +3,11 @@ import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from collections import Counter
-from tabulate import tabulate
+
 from typing import Optional
+from tabulate import tabulate
+from collections import Counter
+
 
 class AttemptFrequency:
     """
@@ -19,7 +21,7 @@ class AttemptFrequency:
         """
         Args:
             parameter_json (str): Path to the JSON file containing aggregated
-                parameters from a `Calculator_Bundle` analysis.
+                parameters from a `CalculatorEnsemble` analysis.
             neb_csv (str): Path to the CSV file containing NEB-calculated
                 activation barriers for each hopping path.
             verbose (bool, optional): Verbosity flag. Defaults to True.
