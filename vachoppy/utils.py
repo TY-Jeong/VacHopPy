@@ -1,3 +1,57 @@
+"""
+vachoppy.utils
+==============
+
+Provides utility functions and classes for managing, inspecting, and preparing
+trajectory and structural data for the `VacHopPy` analysis workflow.
+
+This module contains a collection of helper tools for common data-handling
+tasks. These tools operate on the standardized HDF5 trajectory files used
+by the package or help in generating data for other analyses.
+
+Main Components
+---------------
+- **Data Management Functions**:
+    - `concat_traj`: Joins two HDF5 trajectory files into a single, continuous file.
+    - `cut_traj`: Extracts a specific range of frames from a trajectory file (not yet implemented).
+    - `show_traj`: Prints a human-readable summary of a trajectory file's metadata.
+- **Data Processing Classes**:
+    - `Snapshots`: A class that reads one or more trajectories and generates
+      time-averaged structural snapshots at regular intervals.
+- **Performance Decorators**:
+    - `monitor_performance`: A decorator to measure the execution time and peak
+      memory usage of a function.
+
+Typical Usage
+-------------
+**1. Inspecting and Combining Files:**
+
+.. code-block:: python
+
+    from vachoppy.utils import show_traj, concat_traj
+
+    # Inspect two trajectory files
+    show_traj('run1.h5')
+    show_traj('run2.h5')
+
+    # Concatenate them into a new file
+    concat_traj('run1.h5', 'run2.h5', label='concat')
+
+**2. Generating Structural Snapshots:**
+
+.. code-block:: python
+
+    from vachoppy.utils import Snapshots
+
+    # Process a trajectory to get snapshots every 0.1 ps
+    snapshot_generator = Snapshots(path_traj='full_run.h5', t_interval=0.1)
+
+    # Save the snapshots as POSCAR files
+    snapshot_generator.save_snapshots(path_dir='snapshots_for_analysis')
+"""
+
+__all__ =['concat_traj', 'cut_traj', 'show_traj', 'Snapshots']
+
 import os
 import h5py
 import json

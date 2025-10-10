@@ -1,4 +1,53 @@
+"""
+vachoppy.core
+=============
+
+The core module of `VacHopPy`, providing the main user-facing classes and
+functions for setting up and running a complete vacancy diffusion analysis.
+
+Main Components
+---------------
+- **parse_md / parse_lammps**: Helper functions to convert raw trajectory
+  data from common MD codes (like VASP or LAMMPS) into the standardized HDF5
+  format used by the rest of the package.
+- **Site**: A fundamental class that must be initialized first. It reads a
+  crystal structure file to determine the symmetrically inequivalent sites
+  and potential hopping paths for a diffusing species.
+- **Calculator**: The primary factory function and user entry point. It takes a
+  `Site` object and a path to trajectory data, then automatically returns the
+  appropriate high-level analysis object (`CalculatorSingle` or
+  `CalculatorEnsemble`).
+
+Typical Workflow
+----------------
+A standard analysis using `vachoppy` follows these steps:
+
+.. code-block:: python
+
+    from vachoppy.core import Site, Calculator
+
+    # 1. Analyze the crystal structure to define sites and paths
+    site_info = Site(path_structure="path/to/POSCAR", symbol="O")
+
+    # 2. Use the Calculator factory to get the right analysis object
+    #    (This will return a CalculatorEnsemble for a directory)
+    calc = Calculator(
+        path_traj="path/to/trajectories/",
+        site=site_info,
+        t_interval=0.1  # Coarse-graining time in ps
+    )
+
+    # 3. Run the full analysis pipeline
+    calc.calculate()
+
+    # 4. View results
+    calc.summary()
+    calc.plot_D()
+"""
+
 from __future__ import annotations
+
+__all__ =['parse_md', 'parse_lammps', 'Site', 'Calculator']
 
 import os
 import h5py
@@ -17,7 +66,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.analysis.local_env import VoronoiNN
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
-from vachoppy.utils import *
+from vachoppy.utils import monitor_performance
 from vachoppy.vibration import *
 from vachoppy.trajectory import *
 
@@ -711,14 +760,14 @@ def Calculator(path_traj: str,
             constructor (`CalculatorEnsemble` or `CalculatorSingle`).
             Accepted arguments include:
             - `prefix` (str, optional): File prefix for directory scans.
-              Defaults to "TRAJ".
+            Defaults to "TRAJ".
             - `depth` (int, optional): Directory search depth. Defaults to 2.
             - `sampling_size` (int, optional): Frames for t_interval
-              estimation. Defaults to 5000.
+            estimation. Defaults to 5000.
             - `use_incomplete_encounter` (bool, optional): Flag for Encounter
-              analysis. Defaults to True.
+            analysis. Defaults to True.
             - `eps` (float, optional): Tolerance for float comparisons.
-              Defaults to 1.0e-3.
+            Defaults to 1.0e-3.
             - `verbose` (bool, optional): Verbosity flag. Defaults to True.
 
     Returns:
@@ -740,11 +789,12 @@ def Calculator(path_traj: str,
         >>> # For a directory of trajectories with auto t_interval estimation
         >>> calc_ensemble = Calculator("trajectories/", site=site_info)
     """
+    
     p = Path(path_traj)
     if not p.exists():
         raise FileNotFoundError(f"Error: The path '{path_traj}' was not found.")
     
-    t_interval = kwargs.pop('t_interval', None)
+    # t_interval = kwargs.pop('t_interval', None)
     
     # Helper function for t_interval estimation
     def _get_t_interval(path_traj: str) -> float:

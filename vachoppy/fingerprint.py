@@ -1,4 +1,69 @@
+"""
+vachoppy.fingerprint
+====================
+
+Provides tools for calculating and analyzing atomic environment fingerprints,
+which are based on the partial pair correlation function, g(r).
+
+This module offers a powerful way to characterize crystal structures and track
+their evolution over time. A "fingerprint" serves as a quantitative measure of
+the local atomic environment. The module supports two primary workflows:
+
+1.  **Static Analysis**: Calculating the fingerprint for a single, static
+    crystal structure to characterize its atomic arrangement.
+2.  **Dynamic Analysis**: Tracking how a system's fingerprint changes over the
+    course of a molecular dynamics trajectory by comparing it to a reference
+    structure.
+
+Main Components
+---------------
+- **FingerPrint**: The core class for calculating the g(r) fingerprint for a
+  single pair of atom types in a given crystal structure.
+- **get_fingerprint**: A convenience function that uses `FingerPrint` to
+  calculate and concatenate fingerprints for multiple atom pairs.
+- **cosine_distance**: A utility function to compute a scaled distance metric
+  (from 0 to 1) between two fingerprint vectors.
+- **plot_cosine_distance**: A high-level analysis function that takes an MD
+  trajectory, generates snapshots, and plots the cosine distance of each
+  snapshot's fingerprint to a reference, revealing structural changes over time.
+
+Typical Usage
+-------------
+**1. Static Fingerprint Calculation:**
+
+.. code-block:: python
+
+    from vachoppy.fingerprint import get_fingerprint
+
+    # Define atom pairs to analyze
+    pairs = [('Hf', 'Hf'), ('Hf', 'O'), ('O', 'O')]
+
+    # Calculate and save the combined fingerprint for a structure
+    get_fingerprint(
+        path_structure='path/to/hfo2.cif',
+        filename='hfo2_fingerprint.txt',
+        atom_pairs=pairs,
+        disp=True  # Also display a plot
+    )
+
+**2. Dynamic Trajectory Analysis:**
+
+.. code-block:: python
+
+    from vachoppy.fingerprint import plot_cosine_distance
+
+    # Trace the cosine distance of a trajectory relative to a reference
+    plot_cosine_distance(
+        path_traj='path/to/trajectory.h5',
+        t_interval=0.1,  # Generate a snapshot every 0.1 ps
+        reference_structure='path/to/initial_structure.cif',
+        # Atom pairs will be auto-generated if not specified
+    )
+"""
+
 from __future__ import annotations
+
+__all__ =['FingerPrint', 'cosine_distance', 'get_fingerprint', 'plot_cosine_distance']
 
 import os
 import tempfile
@@ -483,18 +548,15 @@ def plot_cosine_distance(path_traj: str | list[str],
                          window_size: int = 50,
                          threshold_std: float | None = None,
                          verbose: bool = True) -> None:
+    
     """Traces structural evolution by plotting fingerprint cosine distance over time.
 
-    This function provides a comprehensive workflow to analyze how a system's atomic
-    structure deviates from a reference state over a trajectory. It performs the
-    following steps:
-    1.  Generates structural snapshots from the trajectory at specified time intervals.
-    2.  Calculates the atomic fingerprint for each snapshot in parallel.
-    3.  Computes the cosine distance between each snapshot's fingerprint and that
-        of a reference structure.
-    4.  Optionally, analyzes the resulting time-series data to detect significant
-        fluctuations using a moving average filter.
-    5.  Saves the time-series data to a text file and generates a plot.
+    This function provides a comprehensive workflow to analyze how a system's
+    atomic structure deviates from a reference state over a trajectory. It
+    generates structural snapshots, calculates the fingerprint for each in
+    parallel, and computes the cosine distance to a reference fingerprint.
+    Optionally, it can analyze the resulting time-series data to detect
+    significant fluctuations. The final data is saved to a text file and plotted.
 
     Args:
         path_traj (str | list[str]):
@@ -557,6 +619,7 @@ def plot_cosine_distance(path_traj: str | list[str],
         ...     threshold_std=2.5
         ... )
     """
+    
     if not os.path.isdir(path_dir):
         os.makedirs(path_dir)
         if verbose: print(f"Created output directory: '{path_dir}'")

@@ -1,4 +1,56 @@
+"""
+vachoppy.einstein
+=================
+
+Provides tools for calculating diffusivity from molecular dynamics trajectories
+using the Einstein relation (MSD = 6Dt).
+
+This module contains the primary classes for Mean Squared Displacement (MSD)
+analysis. It is designed to handle both individual simulations and ensembles of
+simulations at various temperatures.
+
+Main Components
+---------------
+- **MSDCalculator**: A class for analyzing a single trajectory file. It calculates
+  the MSD over time and fits it to determine the diffusivity.
+- **MSDEnsemble**: A class that manages a collection of trajectories (typically
+  at different temperatures). It runs `MSDCalculator` for each, aggregates the
+  results, and performs Arrhenius analysis to find the activation energy for
+  diffusion.
+- **Einstein**: The main factory function and user entry point. It automatically
+  creates either an `MSDCalculator` or an `MSDEnsemble` object based on the
+  input path (file or directory), simplifying the analysis workflow.
+
+Typical Usage
+-------------
+The primary way to use this module is through the `Einstein` factory function:
+
+.. code-block:: python
+
+    from vachoppy import Einstein
+
+    # Analyze a single simulation at 1000 K
+    analyzer_single = Einstein(
+        path_traj='TRAJ_O_1000K.h5',
+        symbol='O',
+        skip=1.0  # Skip first 1 ps for equilibration
+    )
+    analyzer_single.calculate()
+    analyzer_single.summary()
+
+    # Analyze a multi-temperature ensemble
+    analyzer_ensemble = Einstein(
+        path_traj='path/to/all_trajectories/',
+        symbol='O',
+        skip=1.0
+    )
+    analyzer_ensemble.calculate()
+    analyzer_ensemble.plot_D() # Show Arrhenius plot
+"""
+
 from __future__ import annotations
+
+__all__ =['MSDCalculator', 'MSDEnsemble', 'Einstein']
 
 import os
 import h5py

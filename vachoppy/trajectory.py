@@ -1,4 +1,50 @@
+"""
+vachoppy.trajectory
+===================
+
+Provides the core classes for performing detailed vacancy trajectory analysis
+and calculating key diffusion properties.
+
+This module contains the main analysis engine of the `VacHopPy` package. It
+is built upon a hierarchy of classes that progressively analyze trajectory
+data, from identifying individual atomic hops to calculating ensemble-averaged
+physical quantities like diffusivity and correlation factors.
+
+While these classes can be used individually for advanced or custom workflows,
+they are typically orchestrated by the high-level factory function in the
+`vachoppy.core` module.
+
+Main Components
+---------------
+- **Trajectory**: The foundational analysis class. It reads a single trajectory,
+  determines the site occupation of each atom at each time step, and
+  reconstructs the raw vacancy movement paths.
+- **TrajectoryAnalyzer**: A post-processor that takes a `Trajectory` object and
+  quantifies the hopping events, calculating statistics like hop counts per
+  path and site residence times.
+- **Encounter**: A further analysis step that processes the results from
+  `TrajectoryAnalyzer` to identify atom-vacancy encounters and calculate the
+  correlation factor (f).
+- **TrajectoryBundle**: A utility class to discover, validate, and group a
+  collection of trajectory files, typically for a multi-temperature study.
+- **CalculatorSingle**: A high-level class that combines `Trajectory`,
+  `TrajectoryAnalyzer`, and `Encounter` to perform a full analysis on a
+  single simulation file.
+- **CalculatorEnsemble**: The top-level orchestrator that manages a `TrajectoryBundle`
+  and runs `CalculatorSingle` analyses in parallel to compute
+  temperature-dependent properties and perform Arrhenius fits.
+
+Typical Usage
+-------------
+Users typically do not interact with this module's classes directly. Instead,
+they should use the `vachoppy.core.Calculator` factory function, which
+automatically selects, instantiates, and runs the appropriate orchestrator class
+(`CalculatorSingle` or `CalculatorEnsemble`) from this module.
+"""
+
 from __future__ import annotations
+
+__all__ =['Trajectory', 'TrajectoryAnalyzer', 'Encounter', 'TrajectoryBundle', 'CalculatorSingle', 'CalculatorEnsemble']
 
 import os
 import h5py
@@ -80,9 +126,10 @@ class Trajectory:
         occupation (numpy.ndarray):
             A 2D array of shape (num_atoms, num_steps) storing the lattice site
             index occupied by each atom at each step.
-        hopping_sequence (dict):
-            A dictionary mapping each time step to the reconstructed vacancy hop
-            paths between sites.
+        hopping_history (list[dict]):
+            A chronological list of all validated hop events. Each entry contains
+            details such as the time step, hopping atom index, and the initial
+            and final site indices.
         vacancy_trajectory_index (dict):
             A dictionary mapping each time step to the indices of occupied
             vacancy sites.
@@ -2841,7 +2888,7 @@ class CalculatorEnsemble(TrajectoryBundle):
         2. Gathers and aggregates the results by temperature.
         3. Calculates temperature-averaged physical properties (D, f, tau, etc.).
         4. Performs Arrhenius fits for these properties if more than one temperature
-           is available.
+        is available.
         5. Calculates the effective hopping distance from the fit results.
 
         Args:
@@ -2849,8 +2896,14 @@ class CalculatorEnsemble(TrajectoryBundle):
                 Number of CPU cores for parallel analysis. -1 uses all available
                 cores. Defaults to -1.
             verbose (bool, optional):
-                Verbosity flag for the performance monitor decorator. Defaults to True.
+                Verbosity flag for the performance monitor decorator.
+                Defaults to True.
+        
+        Returns:
+            None: This method populates the instance's attributes with the
+                analysis results and does not return any value.
         """
+        
         results = Parallel(n_jobs=n_jobs)(
             delayed(self._run_single_task)(path_traj) 
             for path_traj in tqdm(self.all_traj_paths,

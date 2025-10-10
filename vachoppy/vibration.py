@@ -1,4 +1,55 @@
+"""
+vachoppy.vibration
+==================
+
+Provides the `Vibration` class for calculating the characteristic atomic
+vibrational frequency from a molecular dynamics trajectory.
+
+The primary purpose of this module is to determine a suitable time scale for
+coarse-graining the main trajectory analysis. The calculated mean vibrational
+frequency is the inverse of the `t_interval` parameter used throughout `vachoppy`.
+This allows for a clear, data-driven distinction between rapid atomic vibrations
+and slower, diffusive hopping events.
+
+Main Components
+---------------
+- **Vibration**: A class that analyzes atomic displacements within a short
+  trajectory segment. It uses a statistical approach and a Fast Fourier Transform
+  (FFT) to determine the mean vibrational frequency.
+
+Typical Usage
+-------------
+This class is often used to automatically estimate the `t_interval` parameter
+before running a full diffusion analysis.
+
+.. code-block:: python
+
+    from vachoppy.core import Site
+    from vachoppy.vibration import Vibration
+
+    # 1. First, set up the site information
+    site_info = Site(path_structure="path/to/POSCAR", symbol="O")
+
+    # 2. Initialize the Vibration class with a trajectory
+    vib_analyzer = Vibration(
+        path_traj="path/to/TRAJ_O.h5",
+        site=site_info
+    )
+
+    # 3. Run the frequency calculation
+    vib_analyzer.calculate()
+
+    # 4. Access the result to determine a suitable t_interval
+    if vib_analyzer.mean_frequency > 0:
+        estimated_t_interval = 1 / vib_analyzer.mean_frequency
+        print(f"Estimated t_interval: {estimated_t_interval:.3f} ps")
+
+    # This estimated_t_interval can then be passed to a Calculator object.
+"""
+
 from __future__ import annotations
+
+__all__ =['Vibration']
 
 import os
 import h5py
@@ -13,7 +64,6 @@ from scipy.spatial.distance import cdist
 from joblib import Parallel, delayed
 
 from vachoppy.utils import monitor_performance
-
 
 
 # ============================================
