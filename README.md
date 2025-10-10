@@ -24,7 +24,6 @@ The list of effective hopping parameters, which can be obtained using **VacHopPy
 
 
 
-
 <div align="center">
 
 | Symbol | Description                     |
@@ -40,7 +39,6 @@ The list of effective hopping parameters, which can be obtained using **VacHopPy
 </div>
 
 
-
 ## Installation
 
 This package can be easily installed via pip.
@@ -48,24 +46,6 @@ This package can be easily installed via pip.
 ```bash
 pip install vachoppy
 ```
-
-**VacHopPy** requires **Python 3.10 or higher** and the following Python packages:
-* ase
-* h5py
-* tqdm
-* numpy
-* scipy
-* joblib
-* pandas
-* Pillow
-* plotly
-* tabulate
-* mdanalysis
-* matplotlib >= 3.10.0
-* pymatgen >= 2024.6.10
-
-
-
 
 ## References
 If you used **VacHopPy** package, please cite [**this paper**](https://arxiv.org/abs/2503.23467)
