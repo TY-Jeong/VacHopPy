@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import json
 import numpy as np
@@ -10,22 +12,51 @@ from collections import Counter
 
 
 class AttemptFrequency:
-    """
-    Calculates path-wise and effective attempt frequencies from pre-computed
-    simulation parameters and NEB (Nudged Elastic Band) results.
+    """Calculates path-wise and effective attempt frequencies for diffusion.
+
+    This class integrates pre-computed simulation parameters (from `CalculatorEnsemble`)
+    with Nudged Elastic Band (NEB) results to calculate temperature-dependent
+    attempt frequencies (nu) and effective coordination numbers (z).
+
+    The main workflow is to initialize the class with the paths to the two required
+    input files. The entire calculation pipeline is executed upon initialization.
+    Results can then be inspected using the `.summary()` method or visualized with
+
+    the `.plot_nu()` and `.plot_z()` methods.
+
+    Args:
+        parameter_json (str):
+            Path to the JSON file containing aggregated parameters from a
+            `CalculatorEnsemble` analysis.
+        neb_csv (str):
+            Path to the CSV file containing NEB-calculated activation barriers
+            for each unique hopping path.
+        verbose (bool, optional):
+            Verbosity flag. Defaults to True.
+
+    Attributes:
+        nu (numpy.ndarray):
+            The effective attempt frequency (THz) for each temperature.
+        nu_path (numpy.ndarray):
+            The path-wise attempt frequency (THz) for each path at each temperature.
+        z (numpy.ndarray):
+            The effective coordination number for each temperature.
+        Ea_path (numpy.ndarray):
+            Activation energy (eV) for each unique path, loaded from the NEB file.
+        temperatures (numpy.ndarray):
+            An array of the unique temperatures (K) from the parameter file.
+
+    Raises:
+        FileNotFoundError:
+            If the `parameter_json` or `neb_csv` file is not found.
+        KeyError:
+            If the `parameter_json` file is missing required data fields.
     """
     def __init__(self,
                  parameter_json: str,
                  neb_csv: str,
                  verbose: bool = True):
-        """
-        Args:
-            parameter_json (str): Path to the JSON file containing aggregated
-                parameters from a `CalculatorEnsemble` analysis.
-            neb_csv (str): Path to the CSV file containing NEB-calculated
-                activation barriers for each hopping path.
-            verbose (bool, optional): Verbosity flag. Defaults to True.
-        """
+        
         self.parameter_json = parameter_json
         self.neb_csv = neb_csv
         self.verbose = verbose
@@ -171,13 +202,26 @@ class AttemptFrequency:
         print("="*60 + "\n")
 
     def plot_nu(self,
-                title: Optional[str] = "Attempt Frequency vs. Temperature",
+                title: str | None = "Attempt Frequency vs. Temperature",
                 disp: bool = True,
                 save: bool = True,
                 filename: str = "attempt_frequency.png",
                 dpi: int = 300) -> None:
-        """
-        Plots the effective attempt frequency (nu) as a function of temperature.
+        """Plots the effective attempt frequency (nu) as a function of temperature.
+
+        Args:
+            title (str | None, optional):
+                A custom title for the plot.
+                Defaults to "Attempt Frequency vs. Temperature".
+            disp (bool, optional):
+                If True, displays the plot interactively. Defaults to True.
+            save (bool, optional):
+                If True, saves the plot to a file. Defaults to True.
+            filename (str, optional):
+                The path and name of the file to save the plot.
+                Defaults to "attempt_frequency.png".
+            dpi (int, optional):
+                The resolution for the saved figure. Defaults to 300.
         """
         fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
@@ -206,14 +250,26 @@ class AttemptFrequency:
         plt.close(fig)
 
     def plot_z(self,
-               title: Optional[str] = "Coordination Number vs. Temperature",
+               title: str | None = "Coordination Number vs. Temperature",
                disp: bool = True,
                save: bool = True,
                filename: str = "coordination_number.png",
                dpi: int = 300) -> None:
-        """
-        Plots the effective coordination number (z) as a function of temperature.
-        Ensures the y-axis range is at least 2 for visual clarity.
+        """Plots the effective coordination number (z) as a function of temperature.
+
+        Args:
+            title (str | None, optional):
+                A custom title for the plot.
+                Defaults to "Coordination Number vs. Temperature".
+            disp (bool, optional):
+                If True, displays the plot interactively. Defaults to True.
+            save (bool, optional):
+                If True, saves the plot to a file. Defaults to True.
+            filename (str, optional):
+                The path to save the plot.
+                Defaults to "coordination_number.png".
+            dpi (int, optional):
+                The resolution for the saved figure. Defaults to 300.
         """
         fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
@@ -239,18 +295,17 @@ class AttemptFrequency:
         if disp: plt.show()
         plt.close(fig)
         
-    def update_json(self, filename: Optional[str] = None) -> None:
+    def update_json(self, filename: str | None = None) -> None:
         """Updates the source JSON file with newly calculated parameters.
 
-        This method reads the original parameter JSON file, updates the fields
-        calculated by this class (e.g., nu, z, Ea_path), and writes the
-        modified data back to a file. It ensures NumPy arrays are converted
-        to lists for JSON compatibility.
+        This method reads the original parameter JSON file, adds or updates fields
+        calculated by this class (e.g., nu, z, Ea_path), and writes the data
+        back to a file. NumPy arrays are converted to lists for JSON compatibility.
 
         Args:
-            filename (str, optional): The path to the output JSON file.
-                If None, the original input file (`self.parameter_json`)
-                will be overwritten. Defaults to None.
+            filename (str | None, optional):
+                The path to the output JSON file. If None, the original input
+                file (`self.parameter_json`) is overwritten. Defaults to None.
         """
         if filename is None:
             filename = self.parameter_json

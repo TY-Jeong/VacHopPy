@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import h5py
 import json
@@ -5,53 +7,96 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pathlib import Path
-from tabulate import tabulate
 from tqdm.auto import tqdm
-from typing import List, Union, Optional
+from tabulate import tabulate
+from matplotlib.axes import Axes
+from matplotlib.lines import Line2D
 from joblib import Parallel, delayed
+from typing import List, Union, Optional
 
 from vachoppy.trajectory import TrajectoryBundle
 from vachoppy.utils import monitor_performance
 
 
 class MSDCalculator:
-    """
-    Analyzes a single HDF5 trajectory to calculate Mean Squared Displacement (MSD)
-    and diffusivity for a specific atomic species.
+    """"Analyzes a trajectory to calculate Mean Squared Displacement and diffusivity.
+
+    This class reads a single HDF5 trajectory file for a specific atomic species
+    to calculate its Mean Squared Displacement (MSD) and subsequently its
+    diffusivity via the Einstein relation.
 
     The primary workflow is to initialize the class and then call the `.calculate()`
-    method. The results (MSD, diffusivity) are stored as attributes and can be
-    plotted using `.plot_msd()`. This class is designed to be memory-efficient
+    method. Results are stored as attributes and can be plotted using `.plot_msd()`
+    or summarized with `.summary()`. The class is designed to be memory-efficient
     by discarding the large position array after the MSD calculation is complete.
 
     Args:
-        path_traj (str): 
+        path_traj (str):
             Path to the HDF5 trajectory file.
-        symbol (str): 
+        symbol (str):
             The chemical symbol of the target diffusing species to analyze.
-        skip (float, optional): 
+        skip (float, optional):
             Initial time in picoseconds (ps) to skip for thermal equilibration.
             Defaults to 0.0.
-        segment_length (Optional[float], optional): 
-            The time length of each segment in picoseconds (ps) for statistical averaging.
-            If None, the entire trajectory after 'skip' is treated as a single segment.
-            Defaults to None.
-        start (float, optional): 
-            The start time in picoseconds (ps) for the linear fitting range of the MSD.
-            Defaults to 1.0.
-        end (Optional[float], optional): 
-            The end time in picoseconds (ps) for the linear fitting range.
-            If None, the end of the trajectory is used. Defaults to None.
-        verbose (bool, optional): 
+        segment_length (float | None, optional):
+            Time length in picoseconds (ps) for each segment used in statistical
+            averaging. If None, the entire trajectory after 'skip' is treated
+            as a single segment. Defaults to None.
+        start (float, optional):
+            Start time in picoseconds (ps) for the linear fitting range of
+            the MSD curve. Defaults to 1.0.
+        end (float | None, optional):
+            End time in picoseconds (ps) for the linear fitting range. If None,
+            the end of the trajectory is used. Defaults to None.
+        verbose (bool, optional):
             Verbosity flag. Defaults to True.
+
+    Attributes:
+        msd (numpy.ndarray):
+            The calculated Mean Squared Displacement values in Å².
+        timestep (numpy.ndarray):
+            The time values in picoseconds (ps) corresponding to each MSD point.
+        diffusivity (float):
+            The calculated diffusivity in m²/s, derived from the linear fit.
+        intercept (float):
+            The y-intercept of the linear fit of the MSD curve.
+        temperature (float):
+            Temperature in Kelvin, read from the trajectory file's metadata.
+        dt (float):
+            Timestep in femtoseconds (fs), read from metadata.
+        nsw (int):
+            Total number of steps in the trajectory, read from metadata.
+        lattice (numpy.ndarray):
+            The 3x3 lattice matrix, read from metadata.
+
+    Raises:
+        FileNotFoundError:
+            If the input trajectory file is not found.
+        ValueError:
+            If the specified `symbol` is not present in the trajectory file,
+            or if `segment_length` is too small.
+
+    Examples:
+        >>> msd_calc = MSDCalculator(
+        ...     path_traj='TRAJ_Li_1000K.h5',
+        ...     symbol='Li',
+        ...     skip=10.0,
+        ...     start=5.0,
+        ...     end=20.0
+        ... )
+        >>> msd_calc.calculate()
+        >>> msd_calc.summary()
+        # Access results directly:
+        # print(f"Calculated Diffusivity: {msd_calc.diffusivity:.3e} m^2/s")
     """
+    
     def __init__(self,
                  path_traj: str,
                  symbol: str,
                  skip: float = 0.0,
-                 segment_length: Optional[float] = None,
+                 segment_length: float | None = None,
                  start: float = 1.0,
-                 end: Optional[float] = None,
+                 end: float | None = None,
                  verbose: bool = True):
         
         self.path_traj = path_traj
@@ -170,20 +215,54 @@ class MSDCalculator:
                  save: bool = True,
                  filename: str = 'msd.png',
                  dpi: int = 300,
-                 ax=None, 
-                 **kwargs):
-        """
-        Plots the calculated MSD vs. time on a given matplotlib axis.
+                 ax: Axes | None = None,
+                 **kwargs) -> Line2D:
+        """Plots the calculated MSD versus time.
 
-        If a linear fit was performed, the fit line and range are also plotted.
+        This method visualizes the MSD curve. If diffusivity has been calculated,
+        it also overlays the linear fit and the fitting range boundaries. The plot
+        can be displayed interactively, saved to a file, or drawn on an existing
+        matplotlib Axes object for creating complex figures.
 
         Args:
-            ax (matplotlib.axes.Axes, optional): A matplotlib axes object to plot on.
-                If None, a new figure and axes are created. Defaults to None.
-            **kwargs: Additional keyword arguments passed to `ax.plot()`.
+            disp (bool, optional):
+                If True, displays the plot interactively (`plt.show()`).
+                Defaults to True.
+            save (bool, optional):
+                If True, saves the plot to a file. Defaults to True.
+            filename (str, optional):
+                The path and name of the file to save the plot.
+                Defaults to 'msd.png'.
+            dpi (int, optional):
+                The resolution in dots per inch for the saved figure.
+                Defaults to 300.
+            ax (Axes | None, optional):
+                A matplotlib Axes object to plot on. If None, a new figure and
+                axes are created automatically. This is useful for creating
+                subplots. Defaults to None.
+            **kwargs:
+                Additional keyword arguments to be passed directly to the
+                `ax.plot()` function for the main MSD curve (e.g., `label`,
+                `color`, `linewidth`).
 
         Returns:
-            matplotlib.lines.Line2D: The Line2D object for the plotted MSD curve.
+            Line2D:
+                The Line2D object for the plotted MSD curve, which can be used
+                for further customization (e.g., adding to a legend).
+
+        Examples:
+            >>> # Simple plot, shown and saved as 'msd.png'
+            >>> msd_calc.calculate()
+            >>> msd_calc.plot_msd(label='My System')
+
+            >>> # Plotting on an existing subplot figure
+            >>> import matplotlib.pyplot as plt
+            >>> fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+            >>> msd_calc_1.plot_msd(ax=ax1, disp=False, save=False, label='Run 1')
+            >>> msd_calc_2.plot_msd(ax=ax2, disp=False, save=False, label='Run 2')
+            >>> fig.suptitle("Comparison of MSD")
+            >>> fig.tight_layout()
+            >>> fig.savefig("msd_comparison.png")
         """
         if self.msd is None: self._calculate_msd()
         
@@ -247,8 +326,7 @@ class MSDCalculator:
         if not np.isnan(self.diffusivity):
             print(f"  - Diffusivity (D) : {self.diffusivity:.3e} m^2/s")
         else:
-            print("  - Diffusivity (D) : Not calculated (check warnings).")
-            
+            print("  - Diffusivity (D) : Not calculated (check warnings).")   
         print("=" * header_width + "\n")
 
 
@@ -266,17 +344,67 @@ def _run_single_msd_task(args):
 
 
 class MSDEnsemble:
-    """
-    Analyzes an ensemble of HDF5 trajectories, typically at different temperatures,
-    to calculate temperature-dependent diffusivity and Arrhenius parameters.
+    """Analyzes an ensemble of trajectories to find temperature-dependent diffusivity.
+
+    This class manages multiple `MSDCalculator` instances, typically for simulations
+    run at different temperatures. It calculates the diffusivity for each trajectory
+    (or temperature group) in parallel and then performs an Arrhenius fit to
+    determine the activation energy (Ea) and pre-exponential factor (D0).
+
+    The main workflow is to initialize the class, call `.calculate()` to run the
+    analysis, and then use plotting methods like `.plot_msd()` and `.plot_D()`
+    or `.summary()` to view the results.
+
+    Args:
+        path_traj (str):
+            Path to a directory containing HDF5 trajectory files.
+        symbol (str):
+            The chemical symbol of the target diffusing species to analyze.
+        skip (float, optional):
+            Initial time in picoseconds (ps) to skip for thermal equilibration.
+            Defaults to 0.0.
+        segment_length (float | list[float] | None, optional):
+            Time length in ps for statistical averaging segments. Can be a single
+            float for all temperatures or a list of floats corresponding to each
+            temperature. If None, the entire trajectory is used. Defaults to None.
+        start (float, optional):
+            Start time in picoseconds (ps) for the linear fitting range of
+            the MSD curve. Defaults to 1.0.
+        end (float | None, optional):
+            End time in picoseconds (ps) for the linear fitting range. If None,
+            the end of each trajectory is used. Defaults to None.
+        verbose (bool, optional):
+            Verbosity flag. Defaults to True.
+        **kwargs (Any):
+            Additional keyword arguments passed to the `TrajectoryBundle` class
+            for file discovery (e.g., `prefix`, `depth`).
+
+    Attributes:
+        diffusivities (numpy.ndarray):
+            An array of the average diffusivity (m²/s) for each temperature.
+        Ea (float):
+            Activation energy (eV) from the Arrhenius fit.
+        D0 (float):
+            Pre-exponential factor (m²/s) from the Arrhenius fit.
+        R2 (float):
+            The R-squared value indicating the goodness of the Arrhenius fit.
+        calculators (list[MSDCalculator]):
+            A list of the successfully completed `MSDCalculator` instances.
+        temperatures (numpy.ndarray):
+            An array of the unique temperatures found in the ensemble.
+
+    Raises:
+        ValueError:
+            If the length of `segment_length` (if provided as a list) does not
+            match the number of unique temperatures found.
     """
     def __init__(self,
                  path_traj: str,
                  symbol: str,
                  skip: float = 0.0,
-                 segment_length: Optional[Union[float, List[float]]] = None,
+                 segment_length: float | list[float] | None = None,
                  start: float = 1.0,
-                 end: Optional[float] = None,
+                 end: float | None = None,
                  verbose: bool = True,
                  **kwargs):
         
@@ -315,20 +443,22 @@ class MSDEnsemble:
         self.R2: float = None
     
     @ monitor_performance
-    def calculate(self, n_jobs: int = -1, verbose=True):
-        """
-        Runs the full analysis pipeline in parallel for all trajectories.
+    def calculate(self, n_jobs: int = -1, verbose=True) -> MSDEnsemble:
+        """Runs the full analysis pipeline in parallel for all trajectories.
 
-        This method orchestrates the MSD and diffusivity calculation for each
-        trajectory file found by `TrajectoryBundle`. It then aggregates the results
-        and performs an Arrhenius fit if multiple temperatures are present.
+            This method orchestrates the MSD calculation for each trajectory file,
+            aggregates the results by temperature, and performs an Arrhenius fit if
+            at least two temperatures are present.
 
-        Args:
-            n_jobs (int, optional): 
-                Number of CPU cores for parallel processing.
-                -1 uses all available cores. Defaults to -1.
-            verbose (bool, optional): 
-                Controls verbosity of the monitor_performance decorator.
+            Args:
+                n_jobs (int, optional):
+                    Number of CPU cores for parallel processing via joblib.
+                    -1 uses all available cores. Defaults to -1.
+
+            Returns:
+                MSDEnsemble:
+                    Returns the instance itself to allow for method chaining
+                    (e.g., `ensemble.calculate().summary()`).
         """
         tasks = []
         for i, temp_group in enumerate(self.bundle.traj):
@@ -438,11 +568,24 @@ class MSDEnsemble:
                  disp: bool = True,
                  save: bool = True,
                  filename: str = 'msd.png',
-                 dpi: int = 300,
-                 **kwargs):
-        """
-        Plots the temperature-averaged Mean Squared Displacement (MSD) for each
-        unique temperature in the ensemble.
+                 dpi: int = 300) -> None:
+        """Plots temperature-averaged MSD curves for each temperature.
+
+            This method visualizes the averaged MSD curve for each unique temperature
+            in the ensemble. The linear fit for each curve is also shown.
+
+            Args:
+                disp (bool, optional):
+                    If True, displays the plot interactively (`plt.show()`).
+                    Defaults to True.
+                save (bool, optional):
+                    If True, saves the plot to a file. Defaults to True.
+                filename (str, optional):
+                    The path and name of the file to save the plot.
+                    Defaults to 'msd_ensemble.png'.
+                dpi (int, optional):
+                    The resolution in dots per inch for the saved figure.
+                    Defaults to 300.
         """
         if not self.calculators:
             raise RuntimeError("Please call the .calculate() method first.")
@@ -507,9 +650,21 @@ class MSDEnsemble:
                disp: bool = True,
                save: bool = True,
                filename: str = 'D_atom.png',
-               dpi: int = 300,
-               **kwargs):
-        """Plots the Arrhenius plot of D vs. 1/T."""
+               dpi: int = 300) -> None:
+        """Plots the Arrhenius plot of diffusivity (D) vs. inverse temperature (1/T).
+        
+        Args:
+            disp (bool, optional):
+                If True, displays the plot interactively (`plt.show()`).
+                Defaults to True.
+            save (bool, optional):
+                If True, saves the plot to a file. Defaults to True.
+            filename (str, optional):
+                The path and name of the file to save the plot.
+                Defaults to 'D_arrhenius.png'.
+            dpi (int, optional):
+                The resolution for the saved figure. Defaults to 300.
+        """
         if len(self.temperatures) < 2:
             print("Warning: Cannot create Arrhenius plot with less than 2 temperatures.")
             return
@@ -546,8 +701,12 @@ class MSDEnsemble:
         if save: plt.savefig(filename, dpi=dpi)
         if disp: plt.show()
         
-    def summary(self):
-        """Prints a summary of the ensemble analysis."""
+    def summary(self) -> None:
+        """Prints a formatted summary of the ensemble analysis results.
+
+        The summary includes a table of average diffusivities per temperature
+        and the results of the Arrhenius fit if applicable.
+        """
         print("="*50)
         print(f"{' ' * 10}MSD Ensemble Analysis Summary")
         print("="*50)
@@ -566,17 +725,25 @@ class MSDEnsemble:
             print(f"  - R-squared              : {self.R2:.4f}")
         print("="*50)
         
-    def save_parameters(self, 
-                        filename: str = "einstein.json") -> None:
-        """Saves the calculated diffusivity data and Arrhenius fit results to a JSON file.
+    def save_parameters(self, filename: str = "einstein.json") -> None:
+        """Saves calculated diffusivities and Arrhenius parameters to a JSON file.
 
-        The output JSON includes a 'description' key that explains each parameter,
-        making the file self-documenting. It automatically converts NumPy arrays
-        to lists for JSON compatibility.
+        The output JSON is self-documenting, including a 'description' key that
+        explains each saved parameter. NumPy arrays are converted to lists for
+        JSON compatibility.
 
         Args:
-            filename (str, optional): 
-                The name of the output JSON file. Defaults to "einstein.json".
+            filename (str, optional):
+                The name of the output JSON file.
+                Defaults to "einstein_ensemble.json".
+
+        Raises:
+            RuntimeError: If `.calculate()` has not been run successfully.
+
+        Examples:
+            >>> ensemble = MSDEnsemble(...)
+            >>> ensemble.calculate()
+            >>> ensemble.save_parameters("results.json")
         """
         if self.diffusivities is None:
             raise RuntimeError("Cannot save parameters. Please run the .calculate() method first.")
@@ -618,37 +785,64 @@ class MSDEnsemble:
 def Einstein(path_traj: str,
              symbol: str,
              skip: float = 0.0,
-             segment_length: Optional[Union[float, List[float]]] = None,
+             segment_length: float | list[float] | None = None,
              start: float = 1.0,
-             end: Optional[float] = None,
+             end: float | None = None,
              **kwargs) -> Union[MSDEnsemble, MSDCalculator]:
-    """
-    Factory function for Einstein relation analysis.
+    """Creates an appropriate MSD analysis object based on the input path.
 
-    Creates an `MSDEnsemble` for a directory path or an `MSDCalculator`
-    for a single file path. This function serves as the main user entry point.
+    This factory function serves as the main user entry point for Einstein
+    relation analysis. It intelligently selects the correct calculator class:
+    - `MSDEnsemble`: If `path_traj` is a directory (for multi-temperature analysis).
+    - `MSDCalculator`: If `path_traj` is a single file.
 
     Args:
         path_traj (str):
-            Path to a directory containing trajectory files or to a single file.
+            Path to a directory containing HDF5 trajectory files or to a single
+            HDF5 trajectory file.
         symbol (str):
             The chemical symbol of the target diffusing species to analyze.
         skip (float, optional):
-            Initial time in picoseconds (ps) to skip for equilibration. Defaults to 0.0.
-        segment_length (Optional[Union[float, List[float]]], optional):
-            Time length of each segment in picoseconds (ps) for statistical averaging.
-            If a list, must match the number of temperatures. If None, the entire
-            trajectory is used as one segment. Defaults to None.
+            Initial time in picoseconds (ps) to skip for equilibration.
+            Defaults to 0.0.
+        segment_length (float | list[float] | None, optional):
+            Time length in ps for statistical averaging segments. If a list, it
+            must match the number of temperatures (for ensemble analysis). If
+            None, the entire trajectory is used. Defaults to None.
         start (float, optional):
-            Start time in picoseconds (ps) for the linear fitting range. Defaults to 1.0.
-        end (Optional[float], optional):
+            Start time in picoseconds (ps) for the linear fitting range.
+            Defaults to 1.0.
+        end (float | None, optional):
             End time in picoseconds (ps) for the linear fitting range. If None,
-            the end of the trajectory/segment is used. Defaults to None.
-        **kwargs:
-            Additional keyword arguments passed to `TrajectoryBundle` (e.g., `prefix`, `depth`).
+            the end of the trajectory is used. Defaults to None.
+        **kwargs (Any):
+            Additional keyword arguments passed to `MSDEnsemble` or
+            `TrajectoryBundle` (e.g., `prefix`, `depth`).
 
     Returns:
-        Union[MSDEnsemble, MSDCalculator]: An initialized analysis object.
+        Union[MSDEnsemble, MSDCalculator]:
+            An initialized analysis object ready for calculation.
+
+    Raises:
+        FileNotFoundError:
+            If the provided `path_traj` does not exist or is not a file/directory.
+        TypeError:
+            If `segment_length` is a list when `path_traj` points to a single file.
+
+    Examples:
+        >>> # Analyze an ensemble of trajectories in a directory
+        >>> ensemble_analyzer = einstein_analyzer(
+        ...     path_traj='path/to/trajectories/',
+        ...     symbol='Li'
+        ... )
+        >>> ensemble_analyzer.calculate()
+
+        >>> # Analyze a single trajectory file
+        >>> single_analyzer = einstein_analyzer(
+        ...     path_traj='path/to/TRAJ_Li_1000K.h5',
+        ...     symbol='Li'
+        ... )
+        >>> single_analyzer.calculate()
     """
     p = Path(path_traj)
     if p.is_dir():

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import h5py
 import json
@@ -28,6 +30,7 @@ from vachoppy.utils import monitor_performance
 
 
 class Arrow3D(FancyArrowPatch):
+    """A custom 3D arrow patch for matplotlib."""
     def __init__(self, xs, ys, zs, *args, **kwargs):
         super().__init__((0, 0), (0, 0), *args, **kwargs)
         self._verts3d = xs, ys, zs
@@ -46,56 +49,63 @@ class Arrow3D(FancyArrowPatch):
 
 
 class Trajectory:
-    """
-    Analyzes a single molecular dynamics trajectory to trace atomic and vacancy hops.
+    """Analyzes a single MD trajectory to trace atomic and vacancy hops.
 
     This class reads a trajectory from an HDF5 file, identifies which lattice
-    site each atom occupies at each time step, validates hops using a
+    site each atom occupies at each time step, validates hops using a robust
     transition state criterion, and reconstructs the movement paths of vacancies.
-    It provides methods for interactive and static visualization of the results.
+    It serves as the primary engine for analyzing vacancy diffusion events and
+    provides methods for both interactive (Plotly) and static (matplotlib)
+    visualization of the results.
 
     Args:
-        path_traj (str): 
+        path_traj (str):
             Path to the HDF5 trajectory file.
-        site (Site): 
-            An instance of the `Site` class containing pre-analyzed
-            information about the crystal lattice sites.
-        t_interval (float): 
-            The time interval in picoseconds (ps) between
-            each analysis step. This determines the coarse-graining level.
-        force_margin (float, optional): The minimum force magnitude (in eV/Å)
-            required to perform the directional TS check. Defaults to 0.01.
-        cos_margin (float, optional): The required difference between the cosine
-            of the angle to the initial site and the final site to reject a hop.
-            Defaults to 0.1.
-        verbose (bool, optional): 
-            Verbosity tag. Defaults to True.
+        site (Site):
+            An initialized `Site` object containing pre-analyzed information
+            about the crystal lattice sites.
+        t_interval (float):
+            The time interval in picoseconds (ps) between each analysis step.
+            This determines the coarse-graining level of the analysis.
+        force_margin (float, optional):
+            The minimum force magnitude (eV/Å) required for the directional
+            transition state check. Defaults to 0.05.
+        cos_margin (float, optional):
+            The required cosine difference to reject a hop during the transition
+            state check. A higher value makes the check stricter. Defaults to 0.1.
+        verbose (bool, optional):
+            Verbosity flag. Defaults to True.
 
     Attributes:
-        occupation (np.ndarray): 
-            A 2D array of shape (num_atoms, num_steps)
-            storing the index of the lattice site occupied by each atom at each step.
-        trace_arrows (dict): 
-            A dictionary mapping each time step to a list of
-            hop events (arrows) that occurred at that step.
-        vacancy_trajectory_index (dict): 
-            A dictionary mapping each time step to an
-            array of occupied vacancy site indices.
-        vacancy_trajectory_coord_cart (dict): 
-            A dictionary mapping each time step
-            to the Cartesian coordinates of the occupied vacancy sites.
+        occupation (numpy.ndarray):
+            A 2D array of shape (num_atoms, num_steps) storing the lattice site
+            index occupied by each atom at each step.
+        hopping_sequence (dict):
+            A dictionary mapping each time step to the reconstructed vacancy hop
+            paths between sites.
+        vacancy_trajectory_index (dict):
+            A dictionary mapping each time step to the indices of occupied
+            vacancy sites.
+        vacancy_trajectory_coord_cart (dict):
+            A dictionary mapping each time step to the Cartesian coordinates (Å)
+            of occupied vacancy sites within the unit cell.
         unwrapped_vacancy_trajectory_coord_cart (dict):
-            A dictionary mapping each time step to the Cartesian coordinates of vacancies. 
-            These coordinates are unwrapped across periodic boundaries to represent the 
-            true, continuous diffusion path.
-        hopping_sequence (dict): 
-            A dictionary mapping each time step to the
-            reconstructed vacancy hop paths.
+            A dictionary mapping each time step to the continuous, unwrapped
+            Cartesian coordinates of vacancies, representing the true diffusion path.
+        hopping_sequence (dict):
+            A dictionary mapping each time step to the reconstructed vacancy hop
+            paths between sites.
+
+    Raises:
+        FileNotFoundError: If the `path_traj` file is not found.
+        ValueError: If the trajectory file has an invalid format, missing data,
+            or if parameters (`t_interval`, `symbol`, etc.) are inconsistent.
+        IOError: If the HDF5 file cannot be read.
     """
 
     def __init__(self,
                  path_traj: str,
-                 site,
+                 site: Site,
                  t_interval: float,
                  force_margin: float = 0.05,
                  cos_margin: float = 0.1,
@@ -151,7 +161,7 @@ class Trajectory:
     def animate_vacancy_trajectory(self,
                                    vacancy_indices: int | list,
                                    step_init: int = 0,
-                                   step_final: int = None,
+                                   tep_final: int | None = None,
                                    unwrap: bool = False,
                                    max_trace_length: int = 10,
                                    update_alpha: float = 0.8,
@@ -159,43 +169,44 @@ class Trajectory:
                                    save: bool = True,
                                    filename: str = "video.html",
                                    verbose: bool = True) -> None:
-        """
-        Generates an interactive 3D animation of vacancy trajectories using Plotly.
+        """Generates an interactive 3D animation of vacancy trajectories using Plotly.
 
-        The animation includes a play/pause button and a slider to navigate through
-        time steps. The real-time position of each vacancy is shown as a circle,
-        and its recent path fades out over time to indicate the direction of movement.
+        The animation includes play/pause controls and a slider to navigate through
+        time. The real-time position of each vacancy is shown, and its recent path
+        fades over time to indicate the direction of movement.
 
         Args:
-            vacancy_indices (int | list): 
-                Index or list of indices for the vacancies to be plotted.
-            step_init (int, optional): 
+            vacancy_indices (int | list):
+                Index or list of indices for the vacancies to be animated.
+            step_init (int, optional):
                 The starting step for the animation. Defaults to 0.
-            step_final (int, optional): 
-                The ending step for the animation. If None, animates up to the 
-                last available step. Defaults to None.
-            unwrap (bool, optional): 
-                If True, plots the continuous, unwrapped path in a supercell view. 
-                Defaults to False.
-            max_trace_length (int, optional): 
-                The maximum number of past path segments to display as a fading
-                tail. Defaults to 15.
-                **Warning**: Increasing this value significantly can lead to
-                longer computation times and higher memory usage, potentially
-                slowing down the animation generation and increasing the
-                output file size.
-            update_alpha (float, optional): 
-                Fading rate for past trajectory lines. A value closer to 0 
-                makes paths fade faster. Defaults to 0.75.
-            fps (int, optional): 
-                Frames per second for the animation playback when the 'Play'
-                button is pressed. Defaults to 20.
-            save (bool, optional): 
-                If True, saves the animation as a standalone HTML file. If False,
-                displays it directly (e.g., in a Jupyter notebook). Defaults to True.
-            filename (str, optional): 
-                The name of the output HTML file if save is True.
+            step_final (int | None, optional):
+                The ending step for the animation. If None, animates to the end.
+                Defaults to None.
+            unwrap (bool, optional):
+                If True, plots the continuous, unwrapped path. Defaults to False.
+            max_trace_length (int, optional):
+                The number of past path segments to display as a fading tail.
+                Defaults to 10.
+            update_alpha (float, optional):
+                Fading rate for the tail. Closer to 0 makes paths fade faster.
+                Defaults to 0.8.
+            fps (int, optional):
+                Frames per second for animation playback. Defaults to 5.
+            save (bool, optional):
+                If True, saves the animation as a standalone HTML file.
+                Defaults to True.
+            filename (str, optional):
+                The name of the output HTML file if `save` is True.
                 Defaults to "video.html".
+            verbose (bool, optional):
+                Verbosity flag. Defaults to True.
+
+        Returns:
+            None: This method saves an HTML file or displays a plot.
+
+        Raises:
+            ValueError: If the specified `step_init` or `step_final` is out of bounds.
         """
         if unwrap:
             coord_source = self.unwrapped_vacancy_trajectory_coord_cart
@@ -428,31 +439,42 @@ class Trajectory:
     def plot_vacancy_trajectory(self, 
                                 vacancy_indices: int | list, 
                                 step_init: int = 0, 
-                                step_final: int = None,
+                                step_final: int | None = None,
                                 unwrap: bool = False,
                                 alpha: float = 0.6,
                                 disp: bool = True,
                                 save: bool = False,
                                 filename: str = "trajectory.html") -> None:
-        """
-        Generates an interactive 3D plot of specified vacancy trajectories using Plotly.
+        """Generates an interactive 3D plot of vacancy trajectories using Plotly.
+
+        This method creates a static but interactive (rotatable, zoomable) 3D plot
+        of the complete vacancy paths over a specified time range.
 
         Args:
-            vacancy_indices (int | list): The index or list of indices for the
-                vacancies to be plotted. E.g., 0 for the first vacancy, [0, 1] for both.
-            step_init (int, optional): The starting step for the trajectory plot. 
-                Defaults to 0.
-            step_final (int, optional): The ending step for the trajectory plot.
-                If None, plots up to the last available step. Defaults to None.
-            unwrap (bool, optional): If True, plots the continuous, unwrapped path
-                in a supercell view. Defaults to False.
-            alpha (float, optional): Opacity for the trajectory lines. Lower values
-                make lines more transparent, causing overlapping paths to appear
-                darker. Defaults to 0.6.
-            save (bool, optional): If True, saves the plot as a standalone HTML file.
-                If False, displays the plot directly. Defaults to False.
-            filename (str, optional): The name of the output HTML file if save is True.
-                Defaults to "traj.html".
+            vacancy_indices (int | list):
+                Index or list of indices for the vacancies to be plotted.
+            step_init (int, optional):
+                The starting step for the trajectory plot. Defaults to 0.
+            step_final (int | None, optional):
+                The ending step for the plot. If None, plots to the end.
+                Defaults to None.
+            unwrap (bool, optional):
+                If True, plots the continuous, unwrapped path. Defaults to False.
+            alpha (float, optional):
+                Opacity for trajectory lines. Defaults to 0.6.
+            disp (bool, optional):
+                If True, displays the plot interactively. Defaults to True.
+            save (bool, optional):
+                If True, saves the plot as a standalone HTML file. Defaults to False.
+            filename (str, optional):
+                The name of the output HTML file if `save` is True.
+                Defaults to "trajectory.html".
+        
+        Returns:
+            None: This method saves an HTML file or displays a plot.
+
+        Raises:
+            ValueError: If the specified `step_init` or `step_final` is out of bounds.
         """
         if unwrap:
             if self.unwrapped_vacancy_trajectory_coord_cart is None:
@@ -597,47 +619,59 @@ class Trajectory:
                 
         if disp: fig.show()
         
-    def animation(self,
-                  index: list | str = 'all',
-                  steps: list | str = 'all',
-                  vac: bool = True,
-                  gif: bool = True,
-                  filename: str = 'traj.gif',
-                  foldername: str = 'snapshots',
-                  update_alpha: float = 0.75,
-                  fps: int = 5,
-                  loop: int = 0,
-                  dpi: int = 150,
-                  legend: bool = False,
-                  label: bool = False) -> None:
-        """
-        Generates an animation of the atomic trajectory as a GIF file.
+    def animate_occupation(self,
+                           index: list | str = 'all',
+                           steps: list | str = 'all',
+                           vac: bool = True,
+                           gif: bool = True,
+                           filename: str = 'traj.gif',
+                           foldername: str = 'snapshots',
+                           update_alpha: float = 0.75,
+                           fps: int = 5,
+                           loop: int = 0,
+                           dpi: int = 150,
+                           legend: bool = False,
+                           label: bool = False) -> None:
+        """Generates a GIF animation visualizing the time evolution of site occupations.
+
+        This method creates a series of 3D snapshot images for each time step and
+        compiles them into a GIF. Each frame displays the crystal lattice and shows
+        the position of color-coded atoms based on which site they occupy at that
+        moment in time.
+
+        This provides a dynamic, visual representation of how individual atoms hop
+        between lattice sites and how vacancies consequently move through the
+        crystal structure.
 
         Args:
-            index (list | str, optional): 
+            index (list | str, optional):
                 Indices of atoms to display. Defaults to 'all'.
-            steps (list | str, optional): 
+            steps (list | str, optional):
                 Time steps to include in the animation. Defaults to 'all'.
-            vac (bool, optional): 
-                If True, displays vacancies. Defaults to True.
-            gif (bool, optional): 
-                If True, creates a GIF file from snapshots. Defaults to True.
-            filename (str, optional): 
+            vac (bool, optional):
+                If True, highlights vacancy and transient vacancy sites.
+                Defaults to True.
+            gif (bool, optional):
+                If True, creates a GIF file from the snapshots. Defaults to True.
+            filename (str, optional):
                 Output GIF file name. Defaults to 'traj.gif'.
-            foldername (str, optional): 
-                Directory to save snapshots. Defaults to 'snapshots'.
-            update_alpha (float, optional): 
-                Fading rate for trace arrows. Defaults to 0.75.
-            fps (int, optional): 
-                Frames per second for the GIF. Defaults to 5.
-            loop (int, optional): 
+            foldername (str, optional):
+                Directory to save temporary snapshot images. Defaults to 'snapshots'.
+            update_alpha (float, optional):
+                Fading rate for atomic hop trace arrows. Defaults to 0.75.
+            fps (int, optional):
+                Frames per second for the output GIF. Defaults to 5.
+            loop (int, optional):
                 Number of loops for the GIF (0 for infinite). Defaults to 0.
-            dpi (int, optional): 
-                DPI for saved snapshots. Defaults to 150.
-            legend (bool, optional): 
+            dpi (int, optional):
+                Resolution in dots per inch for snapshots. Defaults to 150.
+            legend (bool, optional):
                 If True, displays a legend for atoms. Defaults to False.
-            label (bool, optional): 
-                If True, displays labels for lattice sites. Defaults to False.
+            label (bool, optional):
+                If True, displays numeric labels for lattice sites. Defaults to False.
+
+        Returns:
+            None: This method saves image files and a GIF to disk.
         """
         if not os.path.isdir(foldername):
             os.mkdir(foldername)
@@ -725,20 +759,20 @@ class Trajectory:
         """Calculates the PBC-aware distance between fractional coordinates.
 
         This method computes the shortest distance between one or more initial
-        points (coord1) and a final point (coord2), respecting the periodic
+        points (`coord1`) and a final point (`coord2`), respecting the periodic
         boundary conditions of the lattice.
 
         Args:
-            coord1 (np.ndarray): 
-                Initial coordinate(s) in fractional form.
-                Can be a single point (1D array) or multiple points (2D array).
-            coord2 (np.ndarray): 
+            coord1 (np.ndarray):
+                Initial coordinate(s) in fractional form. Can be a single point
+                (1D array) or multiple points (2D array).
+            coord2 (np.ndarray):
                 Final coordinate in fractional form (1D array).
 
         Returns:
-            float | np.ndarray: The calculated distance(s) in Cartesian units.
-                Returns a single float if coord1 is 1D, or a 1D array of
-                distances if coord1 is 2D.
+            float | np.ndarray:
+                The calculated distance(s) in Cartesian units. Returns a float
+                if `coord1` is 1D, or a 1D array of distances if `coord1` is 2D.
         """
         dist_frac = coord1 - coord2
         dist_frac -= np.round(dist_frac) 
@@ -1285,48 +1319,67 @@ class Trajectory:
 
 
 class TrajectoryAnalyzer:
-    """
-    Analyzes and quantifies hopping statistics from Trajectory and Site objects.
+    """Analyzes and quantifies hopping statistics from Trajectory and Site objects.
 
-    This class takes pre-processed lattice information (from a Site object) and
-    a trajectory analysis (from a Trajectory object) to calculate detailed
-    statistics about vacancy diffusion, such as hop counts, residence times,
-    and mean squared displacement.
+    This class serves as a post-processor for the `Trajectory` analysis. It takes
+    pre-computed lattice information (from a `Site` object) and a detailed hop
+    analysis (from a `Trajectory` object) to calculate key diffusion statistics,
+    such as hop counts per path, site residence times, and the theoretical
+    mean squared displacement from a random walk perspective.
+
+    The main workflow is to initialize the class with a fully processed `Trajectory`
+    object. All calculations are performed automatically upon initialization, and
+    results can be viewed using the `.summary()` method.
 
     Args:
-        trajectory (Trajectory): 
-            An initialized Trajectory object containing
-            the calculated occupation and vacancy trajectory data.
-        site (Site, optional): 
-            An initialized Site object containing lattice structure and 
-            pre-defined hopping path information. If None, the `site` object 
+        trajectory (Trajectory):
+            An initialized and fully processed `Trajectory` object.
+        site (Site | None, optional):
+            An initialized `Site` object. If None, the `site` object
             associated with the `trajectory` object will be used.
             Defaults to None.
-        eps (float, optional): 
-            A tolerance value for floating-point comparisons when categorizing hops. 
-            Defaults to 1e-3.
-        verbose (bool, optional): 
-            Verbosity tag. Defaults to True.
+        eps (float, optional):
+            A tolerance value for floating-point comparisons when categorizing
+            hopping paths. Defaults to 1e-3.
+        verbose (bool, optional):
+            Verbosity flag. Defaults to True.
 
     Attributes:
-        hopping_history (list[list[dict]]): 
-            A list of lists, where each sublist contains 
-            a time-ordered sequence of hop dictionaries for a single vacancy.
-        counts (np.ndarray): 
-            A 2D array of shape (num_vacancies, num_paths)
-            counting the occurrences of each pre-defined hop path.
-        counts_unknown (np.ndarray): 
-            A 2D array counting occurrences of dynamically discovered "unknown" hop paths.
-        residence_time (np.ndarray): 
-            A 2D array of shape (num_vacancies, num_sites)
-            storing the total time (in ps) each vacancy spent at each inequivalent site.
-        msd_rand (float): 
-            The Mean Squared Displacement calculated from all
-            observed hops based on random walk theory.
+        hopping_history (list[list[dict]]):
+            A nested list containing a time-ordered sequence of hop dictionaries
+            for each vacancy.
+        counts (numpy.ndarray):
+            A 2D array of shape (num_vacancies, num_paths) counting the
+            occurrences of each pre-defined hop path.
+        counts_unknown (numpy.ndarray):
+            A 2D array counting occurrences of dynamically discovered "unknown"
+            hop paths that were not in the initial `Site` definition.
+        residence_time (numpy.ndarray):
+            A 2D array of shape (num_vacancies, num_sites) storing the total
+            time (in ps) each vacancy spent at each inequivalent site type.
+        msd_rand (float):
+            The Mean Squared Displacement (Å²) calculated from all observed hops,
+            based on random walk theory.
+
+    Raises:
+        AttributeError: If the input `trajectory` or `site` objects are missing
+            required attributes for the analysis.
+
+    Examples:
+        >>> # First, create Site and Trajectory objects
+        >>> site_info = Site(path_structure='POSCAR', symbol='O')
+        >>> traj_analysis = Trajectory(
+        ...     path_traj='TRAJ_O.h5',
+        ...     site=site_info,
+        ...     t_interval=0.1
+        ... )
+        >>> # Now, create the analyzer with the trajectory results
+        >>> analyzer = TrajectoryAnalyzer(trajectory=traj_analysis, verbose=True)
+        # A full summary of hopping statistics is printed upon initialization.
     """
     def __init__(self,
-                 trajectory,
-                 site=None,
+                 trajectory: Trajectory,
+                 site: Site | None = None,
                  eps: float = 1e-3,
                  verbose: bool = True):
         self.trajectory = trajectory
@@ -1478,7 +1531,13 @@ class TrajectoryAnalyzer:
         )
 
     def summary(self) -> None:
-        """Prints a comprehensive summary of the hopping analysis."""
+        """Prints a comprehensive, multi-part summary of the hopping analysis.
+
+        The summary includes tables for:
+        - Path Counts: The number of times each defined (and unknown) path was traversed by each vacancy.
+        - Residence Time: The total time each vacancy spent at each inequivalent site type.
+        - Hopping Sequence: A detailed, time-ordered log of every hop for each vacancy.
+        """
         # update unknown path information (for bundle application)
         self._counts_unknown_path()
         
@@ -1520,26 +1579,63 @@ class TrajectoryAnalyzer:
             
 
 class Encounter:
-    """
-    Analyzes vacancy encounters and calculates diffusion correlation factors.
+    """Analyzes atom-vacancy encounters to calculate diffusion correlation factors.
 
-    An "encounter" is defined as the sequence of hops made by a single atom,
-    mediated by one or more vacancies, before it loses correlation with the
-    initial vacancy. This class processes the hopping history from a
-    TrajectoryAnalyzer to identify these encounters and compute properties like
-    the mean squared displacement (MSD) and the correlation factor (f).
+    An "encounter" is a sequence of correlated hops involving a **specific atom**
+    and a **specific vacancy**. This sequence continues as long as the atom
+    interacts with the same vacancy, even if it hops away and returns.
+
+    The encounter is considered **terminated** when the atom performs a hop by
+    exchanging with a **different** vacancy. At that moment, a new encounter
+    begins with the new vacancy. This class identifies these events to compute
+    the correlation factor (f).
 
     Args:
-        analyzer (TrajectoryAnalyzer): 
-            An initialized TrajectoryAnalyzer object containing the full hopping statistics.
-        use_incomplete_encounter (bool, optional): 
-            If True, encounters that were still in progress at the end of the simulation are 
-            included in the statistical analysis. Defaults to True.
-        verbose (bool, optional): 
+        analyzer (TrajectoryAnalyzer):
+            An initialized `TrajectoryAnalyzer` object containing the full
+            hopping statistics from a trajectory.
+        use_incomplete_encounter (bool, optional):
+            If True, encounters that were still in progress at the end of the
+            simulation are included in the statistical analysis. This can improve
+            statistics for short simulations but may slightly skew results.
+            Defaults to True.
+        verbose (bool, optional):
             Verbosity flag. Defaults to True.
+
+    Attributes:
+        f_cor (float):
+            The calculated correlation factor (f), a measure of how
+            correlated successive jumps of an atom are.
+        msd (float):
+            The mean squared displacement (Å²) of atoms, averaged over all
+            analyzed encounters.
+        path_count (numpy.ndarray):
+            An array counting the total number of times each pre-defined path
+            was traversed across all encounters.
+        num_encounter (int):
+            The total number of encounters used in the analysis.
+        encounter_complete (list[dict]):
+            A list of all encounter events that were fully completed within the
+            simulation time.
+        encounter_in_process (list[dict]):
+            A list of encounter events that were still ongoing when the
+            simulation ended.
+
+    Raises:
+        AttributeError:
+            If the input `analyzer` object is missing required, pre-computed
+            attributes (e.g., `hopping_sequence`).
+
+    Examples:
+        >>> # Assuming site_info and traj_analysis objects have been created
+        >>> analyzer = TrajectoryAnalyzer(trajectory=traj_analysis)
+        >>> encounter_stats = Encounter(analyzer=analyzer, verbose=True)
+        # A summary is printed upon initialization if encounters are found.
+        # Access results directly:
+        # print(f"Correlation Factor (f): {encounter_stats.f_cor:.4f}")
     """
     def __init__(self,
-                 analyzer,
+                 analyzer: TrajectoryAnalyzer,
                  use_incomplete_encounter: bool = True,
                  verbose: bool = True):
         self.analyzer = analyzer
@@ -1764,8 +1860,13 @@ class Encounter:
         else:
             self.f_cor = np.nan
 
-    def summary(self):
-        """Prints a comprehensive, formatted summary of the encounter analysis."""
+    def summary(self) -> None:
+        """Prints a comprehensive, formatted summary of the encounter analysis.
+
+        The summary includes key calculated values like the correlation factor
+        and MSD, statistics on the number and type of encounters, and a
+        detailed table of path-wise hop counts within the encounters.
+        """
         print("# Encounter Analysis")
         print(f"  Use incomplete encounters : {self.use_incomplete_encounter}")
         print(f"  Correlation factor (f)    : {self.f_cor:.5f}")
@@ -1794,42 +1895,55 @@ class Encounter:
 
 
 class TrajectoryBundle:
-    """Manages a collection of HDF5 trajectory files from simulations.
+    """Manages a collection of HDF5 trajectory files from an ensemble of simulations.
 
-    This class automatically finds, validates, and groups trajectory files based
-    on simulation parameters. It searches for files in a given path, groups them
-    by temperature, and ensures that all grouped files are from consistent
-    simulations (e.g., same timestep, atom counts, lattice).
+    This class automatically discovers, validates, and groups trajectory files based
+    on simulation parameters. It recursively searches for files in a given path,
+    groups them by temperature, and ensures that all grouped files are from
+    consistent simulations (e.g., same timestep, atom counts, lattice).
+
+    The main workflow is to initialize the class, which triggers the file search
+    and validation. The results are stored in attributes and can be saved to a
+    summary file using the `.summary()` method.
 
     Args:
-        path_traj (str): 
+        path_traj (str):
             The root directory to search for trajectory files.
-        symbol (str): 
-            The chemical symbol of the target element to filter files.
-        prefix (str, optional): 
-            The prefix of the trajectory files to search for.
+        symbol (str):
+            The chemical symbol of the target element, used to filter files.
+        prefix (str, optional):
+            The prefix of the trajectory files to search for (e.g., "TRAJ").
             Defaults to "TRAJ".
-        depth (int, optional): 
-            The maximum directory depth to search.
-            Defaults to 2.
-        eps (float, optional): 
-            The tolerance for comparing floating-point values
-            like temperature, dt, and lattice vectors. Defaults to 1.0e-3.
-        verbose (bool, optional): 
-            Verbosity tag. Defaults to True.
+        depth (int, optional):
+            The maximum directory depth to search for files. Defaults to 2.
+        eps (float, optional):
+            The tolerance for comparing floating-point values in metadata
+            (e.g., temperature, dt, lattice vectors). Defaults to 1.0e-3.
+        verbose (bool, optional):
+            Verbosity flag. Defaults to False.
 
     Attributes:
-        temperatures (list[float]): 
-            A sorted list of unique temperatures found.
-        traj (list[list[str]]): 
-            A 2D list where each sublist contains file paths
-            for a corresponding temperature in `self.temperatures`.
-        atom_count (int): 
-            The number of atoms for the specified symbol, confirmed
-            to be consistent across all files.
-        lattice (np.ndarray): 
-            The 3x3 lattice vectors as a NumPy array, confirmed
-            to be consistent across all files.
+        temperatures (list[float]):
+            A sorted list of unique temperatures found across all valid files.
+        traj (list[list[str]]):
+            A nested list where each sublist contains the full file paths for a
+            corresponding temperature in `self.temperatures`.
+        atom_count (int):
+            The number of atoms for the specified symbol, confirmed to be
+            consistent across all files.
+        lattice (numpy.ndarray):
+            The 3x3 lattice vectors as a NumPy array, confirmed to be consistent.
+
+    Raises:
+        NotADirectoryError:
+            If the provided `path_traj` is not a valid directory.
+        ValueError:
+            If `depth` is less than 1, or if inconsistent simulation parameters
+            (dt, atom_counts, lattice) are found among the files.
+        FileNotFoundError:
+            If no valid trajectory files matching the criteria are found.
+        IOError:
+            If a trajectory file or its metadata cannot be read.
     """
     def __init__(self,
                  path_traj: str,
@@ -1854,7 +1968,7 @@ class TrajectoryBundle:
         # List of TRAJ_*_.h5 files 
         self.temperatures = []
         self.traj = []
-        self.search_traj()
+        self._search_traj()
         
         self.atom_count = None
         self.lattice = None
@@ -1921,7 +2035,7 @@ class TrajectoryBundle:
                         raise
                     raise IOError(f"Could not read or validate metadata from '{path}'. Reason: {e}")
         
-    def search_traj(self) -> None:
+    def _search_traj(self) -> None:
         """
         Searches for HDF5 trajectory files, groups them by temperature,
         and populates self.temperatures and self.traj lists.
@@ -1984,13 +2098,33 @@ class TrajectoryBundle:
         self.temperatures = temp_groups
         self.traj = traj_groups
     
-    def summary(self) -> None:
+    def summary(self, filename: str = 'Bundle.txt') -> None:
+        """Creates a text file summarizing the found trajectories.
+
+        This method generates a detailed text summary that includes:
+        - Consistent system information (symbol, atom count, lattice).
+        - A list of all found trajectory files, grouped by temperature.
+        - The simulation time for each file and the total time per temperature.
+
+        The summary is saved to the specified file.
+
+        Args:
+            filename (str, optional):
+                The path and name of the output summary file.
+                Defaults to 'bundle.txt'.
+
+        Returns:
+            None: This method does not return a value; it writes a file to disk.
+
+        Examples:
+            >>> bundle = TrajectoryBundle(...)
+            >>> # Save summary to the default 'bundle.txt'
+            >>> bundle.summary()
+
+            >>> # Save summary to a custom file
+            >>> bundle.summary(filename='simulation_summary.log')
         """
-        Creates a 'bundle.txt' file, summarizing the found trajectories.
-        Includes system information at the top.
-        """
-        output_filename = "bundle.txt"
-        with open(output_filename, 'w', encoding='utf-8') as f:
+        with open(filename, 'w', encoding='utf-8') as f:
             f.write("--- System Information ---\n")
             f.write(f"Symbol        : {self.symbol}\n")
             f.write(f"Atom Count    : {self.atom_count}\n")
@@ -2019,68 +2153,82 @@ class TrajectoryBundle:
                         f.write(f"  - {path}: [Error reading metadata: {e}]\n")
                         
                 f.write(f"\n  Total simulation time: {total_sim_time:.2f} ps\n\n")
-        print(f"Summary written to '{output_filename}'")
+        print(f"Summary written to '{filename}'")
         
 
 class CalculatorSingle(Trajectory):
-    """
-    Orchestrates the full vacancy diffusion analysis pipeline from a single trajectory.
+    """Orchestrates the full vacancy diffusion analysis pipeline for a single trajectory.
 
-    This class performs the entire primary analysis (Trajectory, TrajectoryAnalyzer,
-    Encounter) upon instantiation. It inherits from the Trajectory class to
-    process the raw trajectory data and immediately creates child analyzer objects
-    to compute intermediate results like hop counts and mean squared displacements.
+    This class serves as a high-level interface for analyzing a single simulation.
+    It inherits from `Trajectory` and, upon initialization, automatically runs the
+    primary analysis by creating `TrajectoryAnalyzer` and `Encounter` instances.
+    This first step computes foundational statistics like hop histories and identifies
+    atom-vacancy encounters.
 
-    After the object is created, the user can call the .calculate() method to
-    compute the final derived physical properties, such as the correlation factor,
-    diffusivity, and residence time, from the pre-computed results.
+    After initialization, call the `.calculate()` method to compute the final,
+    derived physical properties (e.g., diffusivity, correlation factor) from the
+    results of the initial analysis.
 
     Args:
-        path_traj (str): 
+        path_traj (str):
             Path to the HDF5 trajectory file.
-        site (Site): 
-            An initialized Site object containing lattice structure and path info.
-        t_interval (float): 
-            The time interval in picoseconds (ps) for coarse-graining.
-        eps (float, optional): 
+        site (Site):
+            An initialized `Site` object containing lattice structure and path info.
+        t_interval (float):
+            The time interval in picoseconds (ps) for coarse-graining the analysis.
+        eps (float, optional):
             A tolerance for floating-point comparisons. Defaults to 1.0e-3.
-        use_incomplete_encounter (bool, optional): 
-            If True, incomplete encounters are included in the final analysis. 
+        use_incomplete_encounter (bool, optional):
+            If True, incomplete encounters are included in the final analysis.
             Defaults to True.
-        verbose (bool, optional): 
+        verbose (bool, optional):
             Verbosity flag. Defaults to True.
 
     Attributes:
-        analyzer (TrajectoryAnalyzer): 
-            The TrajectoryAnalyzer instance, created during initialization.
-        encounter (Encounter): 
-            The Encounter instance, created during initialization.
-        
-        -- Attributes Populated During Initialization --
-        hopping_history (list): 
+        analyzer (TrajectoryAnalyzer):
+            The `TrajectoryAnalyzer` instance, containing detailed hop statistics.
+        encounter (Encounter):
+            The `Encounter` instance, containing encounter analysis results.
+        f (float):
+            The calculated correlation factor (f). Populated after `.calculate()`.
+        D_rand (float):
+            The random-walk diffusivity (m²/s). Populated after `.calculate()`.
+        D (float):
+            The final diffusivity (D = D_rand * f) in m²/s. Populated after `.calculate()`.
+        tau (float):
+            The average vacancy residence time (ps). Populated after `.calculate()`.
+        z_mean (float):
+            The mean number of equivalent paths for observed hops. Populated after `.calculate()`.
+        hopping_history (list):
             A detailed log of every hop for each vacancy.
-        counts (np.ndarray): 
+        counts (numpy.ndarray):
             Counts of each pre-defined hop path.
-        msd_rand (float): 
-            Mean Squared Displacement from random walk theory (in Ang^2).
-        ...and other attributes copied from the analyzer and encounter objects.
+        msd_rand (float):
+            Mean Squared Displacement from random walk theory (Å²).
 
-        -- Attributes Populated After .calculate() is Called --
-        f (float): 
-            The correlation factor (f).
-        D_rand (float): 
-            The random walk diffusivity (in m^2/s).
-        D (float): 
-            The final tracer diffusivity (D = D_rand * f_cor) (in m^2/s).
-        tau (float): 
-            The average residence time (in ps).
-        z_mean (float): 
-            The mean number of equivalent paths for observed hops.
+    Raises:
+        Exception: Propagates any exceptions raised during the initialization
+            of the internal `Trajectory`, `TrajectoryAnalyzer`, and `Encounter`
+            objects (e.g., `FileNotFoundError`, `ValueError`).
+
+    Examples:
+        >>> site_info = Site("POSCAR", symbol="O")
+        >>> calc = CalculatorSingle(
+        ...     path_traj="TRAJ_O_1000K.h5",
+        ...     site=site_info,
+        ...     t_interval=0.1
+        ... )
+        >>> # Final properties are calculated here
+        >>> calc.calculate()
+        >>> # Print a full summary of results
+        >>> calc.summary()
+        >>> # Access a specific result
+        >>> print(f"Correlation Factor: {calc.f:.4f}")
     """
     @monitor_performance
     def __init__(self,
                  path_traj: str,
-                 site,
+                 site: Site,
                  t_interval: float,
                  eps: float = 1.0e-3,
                  use_incomplete_encounter: bool = True,
@@ -2126,7 +2274,7 @@ class CalculatorSingle(Trajectory):
         self.verbose = verbose
         self.calculate_is_done = False
         
-        # extra properties...
+        # extra properties
         self.a_path = None
         self.z_path = None
         self.temperatures = None
@@ -2178,9 +2326,11 @@ class CalculatorSingle(Trajectory):
         self.times_site = (count_site * self.t_interval).tolist()
     
     def calculate(self) -> None:
-        """
-        Calculates the final physical properties (D, f, tau, etc.) from the
-        results of the initial analysis.
+        """Calculates the final physical properties from the initial analysis.
+
+        This method should be called after the `CalculatorSingle` object has been
+        initialized. It computes derived quantities like diffusivity, correlation
+        factor, and residence time from the already-processed hop and encounter data.
         """
         self._get_correlation_factor()
         self._get_random_walk_diffusivity()
@@ -2191,25 +2341,27 @@ class CalculatorSingle(Trajectory):
         self.calculate_is_done = True
         
     def plot_counts(self,
-                    title: str = None,
+                    title: str | None = None,
                     save: bool = True, 
                     filename: str = 'counts.png', 
                     dpi: int = 300) -> None:
-        """
-        Generates a bar plot showing the total counts for each migration path.
+        """Generates a bar plot showing the total counts for each migration path.
 
         This plot visualizes the frequency of both predefined (known) and
-        dynamically discovered (unknown) hopping events across all temperatures.
+        dynamically discovered (unknown) hopping events.
 
         Args:
-            title (str, optional): 
+            title (str | None, optional):
                 A custom title for the plot. Defaults to None.
-            save (bool, optional): 
-                If True, saves the figure. Defaults to True.
-            filename (str, optional): 
+            save (bool, optional):
+                If True, saves the figure to a file. Defaults to True.
+            filename (str, optional):
                 Filename for the saved plot. Defaults to 'counts.png'.
-            dpi (int, optional): 
-                Resolution for the saved figure. Defaults to 300.
+            dpi (int, optional):
+                Resolution in dots per inch for the saved figure. Defaults to 300.
+
+        Returns:
+            None: This method displays a plot and optionally saves it to a file.
         """
         if self.counts is None or self.counts_unknown is None:
             raise RuntimeError("Path counts have not been calculated. "
@@ -2251,7 +2403,15 @@ class CalculatorSingle(Trajectory):
         plt.close(fig)
               
     def summary(self) -> None:
-        """Prints a summary of the analysis results in a structured format."""
+        """Prints a comprehensive, formatted summary of the analysis results.
+
+        The summary includes input parameters and all key calculated physical
+        properties like diffusivity, correlation factor, and residence time.
+        It automatically calls `.calculate()` if it has not been run yet.
+
+        Returns:
+            None: This method prints a summary to the console.
+        """
         if not self.analyzer or not self.encounter:
             raise RuntimeError("Primary analysis objects (analyzer, encounter) are missing.")
         if not self.calculate_is_done:
@@ -2300,7 +2460,11 @@ class CalculatorSingle(Trajectory):
         print("=" * 60)
         
     def show_hopping_history(self) -> None:
-        """Prints a detailed, formatted table of the hopping sequence for each vacancy."""
+        """Prints a detailed, time-ordered table of the hopping sequence for each vacancy.
+
+        Returns:
+            None: This method prints a table to the console.
+        """
         for i in range(self.num_vacancies):
             print("=" * 116)
             print(" "*43 + f"Hopping Sequence of Vacancy {i}")
@@ -2323,7 +2487,14 @@ class CalculatorSingle(Trajectory):
             print("=" * 116 + "\n")
             
     def show_hopping_paths(self) -> None:
-        """ Prints a summary table of all observed hopping path types and their counts."""
+        """Prints a summary table of all observed hopping paths and their counts.
+
+        This includes both the paths pre-defined in the `Site` object and any
+        new "unknown" paths discovered during the trajectory analysis.
+
+        Returns:
+            None: This method prints a table to the console.
+        """
         
         path_info = []
         for i, path in enumerate(self.site.path):
@@ -2373,13 +2544,15 @@ class CalculatorSingle(Trajectory):
     def save_trajectory(self, filename: str = "trajectory.json") -> None:
         """Saves the unwrapped Cartesian trajectories of vacancies to a JSON file.
 
-        The output JSON contains simulation metadata (symbol, lattice, etc.)
-        and the time-series coordinates for each vacancy, keyed as 'Vacancy0',
-        'Vacancy1', and so on.
+        The output JSON contains simulation metadata and the time-series coordinates
+        for each vacancy, keyed as 'Vacancy0', 'Vacancy1', etc.
 
         Args:
-            filename (str, optional): 
+            filename (str, optional):
                 The name of the output JSON file. Defaults to 'trajectory.json'.
+
+        Returns:
+            None: This method writes a file to disk.
         """
         trajectories = {i:[] for i in range(self.num_vacancies)}
         for coords in self.unwrapped_vacancy_trajectory_coord_cart.values():
@@ -2406,13 +2579,18 @@ class CalculatorSingle(Trajectory):
     def save_parameters(self,
                         filename: str = "parameters.json") -> None:
         """Saves all calculated physical parameters to a JSON file.
-        
-        The output JSON includes a 'description' key that explains each parameter.
+
+        The output JSON includes a 'description' key that explains each parameter,
+        making the file self-documenting.
 
         Args:
-            filename (str, optional): 
+            filename (str, optional):
                 The name of the output JSON file. Defaults to 'parameters.json'.
+        
+        Returns:
+            None: This method writes a file to disk.
         """
+
             
         description = {
             'D'         : 'Diffusivity (m2/s): (n_temperatures,)',
@@ -2497,38 +2675,89 @@ class CalculatorSingle(Trajectory):
         
         
 class CalculatorEnsemble(TrajectoryBundle):
-    """
-    Manages and runs the full analysis pipeline on a bundle of trajectories.
+    """Manages and runs the full analysis pipeline on a bundle of trajectories.
 
-    This class discovers and groups trajectory files, then orchestrates the
-    entire analysis workflow for each file in parallel. It calculates various
-    physical properties, aggregates them by temperature, and performs Arrhenius fits.
-    Finally, it provides a suite of plotting methods to visualize the results.
+    This class serves as the main entry point for multi-temperature diffusion
+    analysis. It inherits from `TrajectoryBundle` to discover and group trajectory
+    files by temperature.
 
-    The main entry point is the .calculate() method, which runs the entire
-    computational pipeline.
+    The primary workflow is to initialize the class and then call the `.calculate()`
+    method, which runs the entire computational pipeline in parallel. This process
+    calculates various physical properties, aggregates them by temperature, and
+    performs Arrhenius fits. The results can then be visualized with a suite of
+    plotting methods or saved to a file.
 
     Args:
-        path_traj (str): 
-            The root directory to search for trajectory files.
-        site (Site): 
-            An initialized Site object with lattice and path information.
-        t_interval (float): 
-            The time interval in picoseconds (ps).
-        prefix (str, optional): 
-            Prefix of trajectory files. Defaults to "TRAJ".
-        depth (int, optional): 
-            Maximum directory depth for file search. Defaults to 2.
-        use_incomplete_encounter (bool, optional): 
-            Flag for Encounter analysis. Defaults to True.
-        eps (float, optional): 
-            Tolerance for floating-point comparisons. Defaults to 1.0e-3.
-        verbose (bool, optional): 
+        path_traj (str):
+            The root directory to search for HDF5 trajectory files.
+        site (Site):
+            An initialized `Site` object with lattice and path information.
+        t_interval (float):
+            The time interval in picoseconds (ps) for coarse-graining the analysis.
+        prefix (str, optional):
+            Prefix of trajectory files to search for. Defaults to "TRAJ".
+        depth (int, optional):
+            Maximum directory depth for the file search. Defaults to 2.
+        use_incomplete_encounter (bool, optional):
+            If True, incomplete encounters are included in the analysis.
+            Defaults to True.
+        eps (float, optional):
+            A tolerance for floating-point comparisons. Defaults to 1.0e-3.
+        verbose (bool, optional):
             Verbosity flag. Defaults to True.
+
+    Attributes:
+        D (numpy.ndarray): 
+            Temperature-dependent diffusivity (m²/s).
+        Ea_D (float): 
+            Activation energy (eV) for diffusivity.
+        D0 (float): 
+            Pre-exponential factor (m²/s) for diffusivity.
+        f (numpy.ndarray): 
+            Temperature-dependent correlation factor.
+        Ea_f (float): 
+            Activation energy (eV) for the correlation factor.
+        f0 (float): 
+            Pre-exponential factor for the correlation factor.
+        tau (numpy.ndarray): 
+            Temperature-dependent average residence time (ps).
+        Ea_tau (float): 
+            Activation energy (eV) for residence time.
+        tau0 (float): 
+            Pre-exponential factor (ps) for residence time.
+        a (float): 
+            Effective hopping distance (Å).
+        D_rand (numpy.ndarray): 
+            Temperature-dependent random-walk diffusivity (m²/s).
+        Ea_D_rand (float): 
+            Activation energy (eV) for random-walk diffusivity.
+        D_rand0 (float): 
+            Pre-exponential factor (m²/s) for random-walk diffusivity.
+        calculators (list[CalculatorSingle]): 
+            A list of the successfully completed `CalculatorSingle` instances for each trajectory file.
+
+    Raises:
+        Exception: Propagates any exceptions raised during the initialization
+            of the parent `TrajectoryBundle` class (e.g., `NotADirectoryError`,
+            `FileNotFoundError`, `ValueError`).
+
+    Examples:
+        >>> site_info = Site("POSCAR", symbol="O")
+        >>> ensemble = CalculatorEnsemble(
+        ...     path_traj="path/to/trajectories/",
+        ...     site=site_info,
+        ...     t_interval=0.1
+        ... )
+        >>> # Run the entire analysis pipeline
+        >>> ensemble.calculate(n_jobs=4)
+        >>> # Print a summary of the results
+        >>> ensemble.summary()
+        >>> # Plot the Arrhenius plot for diffusivity
+        >>> ensemble.plot_D()
     """
     def __init__(self,
                  path_traj: str,
-                 site,
+                 site: Site,
                  t_interval: float,
                  prefix: str = "TRAJ",
                  depth: int = 2,
@@ -2605,20 +2834,22 @@ class CalculatorEnsemble(TrajectoryBundle):
         
     @monitor_performance
     def calculate(self, n_jobs: int = -1, verbose=True) -> None:
-        """
-        Runs the full analysis pipeline on all trajectories.
-        
-        Args
-            n_jobs (int, optional): 
-            Number of CPU cores for parallel analysis. -1 uses all available cores. Defaults to -1.
+        """Runs the full analysis pipeline on all trajectories in parallel.
 
         This method performs the following steps:
-        1. Runs the analysis for each trajectory file in parallel.
-        2. Gathers and sorts the results.
-        3. Groups the results by temperature.
-        4. Calculates temperature-averaged physical properties (D, f, tau, etc.).
-        5. Performs Arrhenius fits if more than one temperature is available.
-        6. Calculates the effective hopping distance from the fit results.
+        1. Runs the `CalculatorSingle` analysis for each trajectory file in parallel.
+        2. Gathers and aggregates the results by temperature.
+        3. Calculates temperature-averaged physical properties (D, f, tau, etc.).
+        4. Performs Arrhenius fits for these properties if more than one temperature
+           is available.
+        5. Calculates the effective hopping distance from the fit results.
+
+        Args:
+            n_jobs (int, optional):
+                Number of CPU cores for parallel analysis. -1 uses all available
+                cores. Defaults to -1.
+            verbose (bool, optional):
+                Verbosity flag for the performance monitor decorator. Defaults to True.
         """
         results = Parallel(n_jobs=n_jobs)(
             delayed(self._run_single_task)(path_traj) 
@@ -3123,13 +3354,19 @@ class CalculatorEnsemble(TrajectoryBundle):
         return fig, ax
              
     def plot_D_rand(self, 
-                    title: str = "Random Walk Diffusivity (Arrhenius Plot)", 
+                    title: str | None = "Random Walk Diffusivity (Arrhenius Plot)",
                     disp: bool = True,
                     save: bool = True, 
                     filename: str = "D_rand.png", 
                     dpi: int = 300) -> None:
-        """
-        Generates and displays an Arrhenius plot for the random walk diffusivity.
+        """Generates an Arrhenius plot for the random-walk diffusivity (D_rand).
+
+        Args:
+            title (str | None, optional): A custom title for the plot.
+            disp (bool, optional): If True, displays the plot. Defaults to True.
+            save (bool, optional): If True, saves the plot to a file. Defaults to True.
+            filename (str, optional): Filename for the saved plot.
+            dpi (int, optional): Resolution for the saved figure.
         """
         if len(self.temperatures) < 2:
             raise ValueError("At least two temperature points are required for an Arrhenius plot.")
@@ -3158,13 +3395,19 @@ class CalculatorEnsemble(TrajectoryBundle):
         plt.close(fig)
         
     def plot_f(self, 
-               title: str = "Correlation Factor vs. Temperature", 
+               title: str | None = "Correlation Factor vs. Temperature",
                disp: bool = True,
                save: bool = True, 
                filename: str = 'f.png', 
                dpi: int = 300) -> None:
-        """
-        Plots the correlation factor (f) vs. temperature.
+        """Plots the correlation factor (f) as a function of temperature.
+
+        Args:
+            title (str | None, optional): A custom title for the plot.
+            disp (bool, optional): If True, displays the plot. Defaults to True.
+            save (bool, optional): If True, saves the plot to a file. Defaults to True.
+            filename (str, optional): Filename for the saved plot.
+            dpi (int, optional): Resolution for the saved figure.
         """
         if self.f is None:
             raise RuntimeError("Correlation factor has not been calculated. Please run .calculate() first.")
@@ -3206,13 +3449,19 @@ class CalculatorEnsemble(TrajectoryBundle):
         plt.close(fig)
         
     def plot_D(self, 
-               title: str = "Diffusivity (Arrhenius Plot)", 
+               title: str | None = "Diffusivity (Arrhenius Plot)",
                disp: bool = True,
                save: bool = True, 
                filename: str = "D.png", 
                dpi: int = 300) -> None:
-        """
-        Generates and displays an Arrhenius plot for the actual diffusivity (D).
+        """Generates an Arrhenius plot for the final diffusivity (D).
+
+        Args:
+            title (str | None, optional): A custom title for the plot.
+            disp (bool, optional): If True, displays the plot. Defaults to True.
+            save (bool, optional): If True, saves the plot to a file. Defaults to True.
+            filename (str, optional): Filename for the saved plot.
+            dpi (int, optional): Resolution for the saved figure.
         """
         if len(self.temperatures) < 2:
             raise ValueError("At least two temperature points are required for an Arrhenius plot.")
@@ -3241,14 +3490,19 @@ class CalculatorEnsemble(TrajectoryBundle):
         plt.close(fig)
         
     def plot_tau(self, 
-                 title: str = "Residence Time vs. Temperature",
+                 title: str | None = "Residence Time vs. Temperature",
                  disp: bool = True,
                  save: bool = True, 
                  filename: str = 'tau.png', 
                  dpi: int = 300) -> None:
-        """
-        Plots the residence time (tau) vs. temperature using a bar and scatter plot.
-        Overlays the Arrhenius fit and displays the results.
+        """Plots the average residence time (tau) vs. temperature.
+
+        Args:
+            title (str | None, optional): A custom title for the plot.
+            disp (bool, optional): If True, displays the plot. Defaults to True.
+            save (bool, optional): If True, saves the plot to a file. Defaults to True.
+            filename (str, optional): Filename for the saved plot.
+            dpi (int, optional): Resolution for the saved figure.
         """
         if self.tau is None:
             raise RuntimeError("Residence time has not been calculated. Please run .calculate() first.")
@@ -3305,13 +3559,22 @@ class CalculatorEnsemble(TrajectoryBundle):
         plt.close(fig)
     
     def plot_counts(self,
-                    title: str = "Total Hopping Counts per Path",
+                    title: str | None = "Total Hopping Counts per Path",
                     disp: bool = True,
                     save: bool = True,
                     filename: str = 'counts.png', 
                     dpi: int = 300) -> None:
-        """
-        Generates a bar plot showing the total counts for each migration path.
+        """Generates a bar plot of total hop counts for each path type.
+
+        This plot visualizes the frequency of all observed hopping events,
+        summed across all trajectories in the ensemble.
+
+        Args:
+            title (str | None, optional): A custom title for the plot.
+            disp (bool, optional): If True, displays the plot. Defaults to True.
+            save (bool, optional): If True, saves the plot to a file. Defaults to True.
+            filename (str, optional): Filename for the saved plot.
+            dpi (int, optional): Resolution for the saved figure.
         """
         if self.counts is None or self.counts_unknown is None:
             raise RuntimeError("Path counts have not been calculated.")
@@ -3346,11 +3609,12 @@ class CalculatorEnsemble(TrajectoryBundle):
         if disp: plt.show()
         plt.close(fig)
 
-
     def summary(self):
-        """
-        Prints a comprehensive summary of the analysis results, including
-        fitted parameters and temperature-dependent data in a table.
+        """Prints a comprehensive summary of the ensemble analysis results.
+
+        The summary includes a table of temperature-dependent data (D, f, tau)
+        and a detailed breakdown of the final fitted Arrhenius parameters for
+        each physical quantity.
         """
         if self.calculators is None:
             print("Calculator has not been run. Running .calculate() now...")
@@ -3471,7 +3735,14 @@ class CalculatorEnsemble(TrajectoryBundle):
         print("=" * 110 + "\n")
     
     def show_hopping_history(self) -> None:
-        """Prints a detailed, formatted table of the hopping sequence for each vacancy."""
+        """Prints instructions on how to view the history for a single trajectory.
+
+        This method does not print a history table directly, as this is an
+        ensemble analysis. Instead, it provides a user guide explaining how to
+        access the `show_hopping_history` method of an individual
+        `CalculatorSingle` object within the `.calculators` list.
+        """
+        
         print("\n" + "="*87)
         print(" "*5 + "NOTE: `show_hopping_history()` is a method for a single trajectory analysis!")
         print("="*87)
@@ -3494,19 +3765,16 @@ class CalculatorEnsemble(TrajectoryBundle):
     def save_trajectory(self,
                         path_dir: str = 'trajectories',
                         prefix: str = 'trajectory') -> None:
-        """Saves the unwrapped vacancy trajectories from all simulations into a structured directory.
+        """Saves the unwrapped vacancy trajectories from all simulations.
 
-        This method iterates through each temperature group identified in the bundle.
-        For each temperature, it creates a corresponding subdirectory (e.g., 'trajectories/300K/').
-        Inside each subdirectory, it saves the trajectory from each individual simulation
-        as a sequentially numbered JSON file (e.g., 'trajectory_01.json', 'trajectory_02.json').
+        This method creates a directory structure organized by temperature
+        (e.g., 'trajectories/300K/'), and saves the unwrapped vacancy trajectory
+        from each simulation as a separate JSON file within the appropriate
+        subdirectory.
 
         Args:
-            path_dir (str, optional):
-                The root directory where the temperature subdirectories will be created.
-                Defaults to 'trajectories'.
-            prefix (str, optional):
-                The prefix for the output JSON filenames. Defaults to 'trajectory'.
+            path_dir (str, optional): The root directory for saving trajectories.
+            prefix (str, optional): The prefix for the output JSON filenames.
         """
         if not hasattr(self, 'calculators') or not self.calculators:
             raise RuntimeError("Analysis has not been run. Please call the .calculate() method first.")
@@ -3528,13 +3796,13 @@ class CalculatorEnsemble(TrajectoryBundle):
             
     def save_parameters(self,
                         filename: str = "parameters.json") -> None:
-        """Saves all calculated physical parameters to a JSON file.
+        """Saves all calculated and fitted physical parameters to a JSON file.
 
-        The output JSON includes a 'description' key that explains each parameter.
+        The output JSON includes a 'description' key that explains each parameter,
+        making the file self-documenting.
 
         Args:
-            filename (str, optional): 
-                The name of the output JSON file. Defaults to 'parameters.json'.
+            filename (str, optional): The name of the output JSON file.
         """
             
         description = {
@@ -3625,16 +3893,17 @@ class CalculatorEnsemble(TrajectoryBundle):
     def calculate_attempt_frequency(self,
                                     neb_csv: str,
                                     filename: str = "parameters.json") -> None:
-        """
-        Calculates attempt frequencies by running the AttemptFrequency analysis
-        and updates the parameter file with the new results.
+        """Calculates attempt frequencies and updates the parameter file.
+
+        This method first saves the current analysis results, then runs the
+        `AttemptFrequency` analysis using the provided NEB data, and finally
+        updates the parameter file with the newly calculated frequency results.
 
         Args:
-            neb_csv (str): 
-                Path to the CSV file containing NEB-calculated 
-                activation barriers for each hopping path.
-            filename (str, optional): 
-                The name of the parameter JSON file to create and update. 
+            neb_csv (str):
+                Path to the CSV file containing NEB-calculated activation barriers.
+            filename (str, optional):
+                The name of the parameter JSON file to create and update.
                 Defaults to "parameters.json".
         """
         if len(self.temperatures) <= 1:
@@ -3651,14 +3920,22 @@ class CalculatorEnsemble(TrajectoryBundle):
             self.attempt_frequency.summary()
     
     def plot_nu(self,
-                title: Optional[str] = "Attempt Frequency vs. Temperature",
+                title: str | None = "Attempt Frequency vs. Temperature",
                 disp: bool = True,
                 save: bool = True,
                 filename: str = "attempt_frequency.png",
                 dpi: int = 300) -> None:
-        """
-        Plots the effective attempt frequency (nu) as a function of temperature.
-        This method delegates the plotting task to the internal AttemptFrequency object.
+        """Plots the effective attempt frequency (nu) vs. temperature.
+
+        This method delegates the plotting task to the internal `AttemptFrequency` object.
+        `.calculate_attempt_frequency()` must be called first.
+
+        Args:
+            title (str | None, optional): A custom title for the plot.
+            disp (bool, optional): If True, displays the plot. Defaults to True.
+            save (bool, optional): If True, saves the plot. Defaults to True.
+            filename (str, optional): Filename for the saved plot.
+            dpi (int, optional): Resolution for the saved figure.
         """
         if self.attempt_frequency is None:
             raise RuntimeError("Attempt frequencies have not been calculated. "
@@ -3671,14 +3948,22 @@ class CalculatorEnsemble(TrajectoryBundle):
                                        dpi=dpi)
         
     def plot_z(self,
-               title: Optional[str] = "Coordination Number vs. Temperature",
+               title: str | None = "Coordination Number vs. Temperature",
                disp: bool = True,
                save: bool = True,
                filename: str = "coordination_number.png",
                dpi: int = 300) -> None:
-        """
-        Plots the effective coordination number (z) as a function of temperature.
-        This method delegates the plotting task to the internal AttemptFrequency object.
+        """Plots the effective coordination number (z) vs. temperature.
+
+        This method delegates the plotting task to the internal `AttemptFrequency` object.
+        `.calculate_attempt_frequency()` must be called first.
+        
+        Args:
+            title (str | None, optional): A custom title for the plot.
+            disp (bool, optional): If True, displays the plot. Defaults to True.
+            save (bool, optional): If True, saves the plot. Defaults to True.
+            filename (str, optional): Filename for the saved plot.
+            dpi (int, optional): Resolution for the saved figure.
         """
         if self.attempt_frequency is None:
             raise RuntimeError("Attempt frequencies have not been calculated. "

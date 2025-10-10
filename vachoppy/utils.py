@@ -10,6 +10,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from tabulate import tabulate
 from typing import List, Union
+from numpy.typing import DTypeLike
 
 from ase import Atoms
 from ase.io import write
@@ -50,15 +51,20 @@ def monitor_performance(func):
 
 
 @monitor_performance
-def concat_traj(path_traj1:str,
-                path_traj2:str,
-                label:str="CONCAT",
-                chunk_size:int=10000,
-                eps:float=1.0e-4,
-                dtype = np.float64,
+def concat_traj(path_traj1: str,
+                path_traj2: str,
+                label:str = "CONCAT",
+                chunk_size: int = 10000,
+                eps: float = 1.0e-3,
+                dtype: DTypeLike = np.float64,
                 verbose:bool=True) -> None:
-    """
-    Concatenates two HDF5 trajectory files after checking for consistency.
+    """Concatenates two HDF5 trajectory files after checking for consistency.
+
+    This function joins two sequential trajectory simulations. It performs a
+    thorough check to ensure that critical metadata (symbol, composition,
+    temperature, dt, lattice) are consistent between the two files before
+    proceeding. It also handles periodic boundary conditions by calculating an
+    offset to create a continuous, unwrapped trajectory.
 
     Args:
         path_traj1 (str):
@@ -66,26 +72,26 @@ def concat_traj(path_traj1:str,
         path_traj2 (str):
             Path to the second HDF5 trajectory file.
         label (str, optional):
-            A label for the output concatenated file, resulting in a filename
+            A label for the output concatenated file, creating a filename
             like 'TRAJ_SYMBOL_LABEL.h5'. Defaults to "CONCAT".
         chunk_size (int, optional):
             The number of frames to process at once during the copy operation.
             Defaults to 10000.
         eps (float, optional):
-            Tolerance for comparing floating-point metadata values such as
-            temperature, time step, and lattice vectors. Defaults to 1.0e-4.
-        dtype (numpy.dtype, optional):
-            The data type for the output arrays (e.g., np.float64, np.float32).
-            Defaults to np.float64.
+            Tolerance for comparing floating-point metadata values.
+            Defaults to 1.0e-3.
+        dtype (DTypeLike, optional):
+            NumPy data type for the output arrays. Defaults to np.float64.
         verbose (bool, optional):
-            Verbosity tag. Defaults to True.
+            Verbosity flag. Defaults to True.
 
     Returns:
-        None: The function saves a new, concatenated HDF5 file to disk.
+        None: This function saves a new, concatenated HDF5 file to disk.
 
     Raises:
-        FileNotFoundError: If `traj1` or `traj2` is not found.
-        ValueError: If the metadata of the two files is inconsistent.
+        FileNotFoundError: If `path_traj1` or `path_traj2` is not found.
+        ValueError: If the metadata of the two files is inconsistent or if
+            either file contains no frames.
     """
     if not os.path.exists(path_traj1):
         raise FileNotFoundError(f"Input file not found: {path_traj1}")
@@ -214,8 +220,35 @@ def concat_traj(path_traj1:str,
     if verbose: print(f"Successfully created concatenated file: '{out_file}'")
 
 
-def cut_traj(path_traj) -> None:
-    # will be updated
+def cut_traj(path_traj: str,
+             start_frame: int | None = None,
+             end_frame: int | None = None,
+             label: str = "CUT") -> None:
+    """Cuts a portion of a trajectory file and saves it as a new file.
+
+    This function extracts a specific range of frames (from `start_frame` to
+    `end_frame`) from a source HDF5 trajectory and saves it into a new HDF5
+    file with updated metadata.
+
+    Args:
+        path_traj (str):
+            Path to the source HDF5 trajectory file.
+        start_frame (int):
+            The starting frame number to include in the new trajectory (inclusive).
+        end_frame (int):
+            The ending frame number to include in the new trajectory (exclusive).
+        label (str, optional):
+            A label for the output cut file, creating a filename like
+            'TRAJ_SYMBOL_LABEL.h5'. Defaults to "CUT".
+
+    Returns:
+        None: This function saves a new, shorter HDF5 file to disk.
+
+    Raises:
+        FileNotFoundError: If `path_traj` is not found.
+        ValueError: If the specified frame range is invalid.
+    """
+    # This function is not yet implemented.
     if not os.path.exists(path_traj):
         raise FileNotFoundError(f"Input file not found: {path_traj}")
     pass
@@ -223,17 +256,23 @@ def cut_traj(path_traj) -> None:
 
 def show_traj(path_traj: str) -> None:
     """Displays metadata and dataset info from a trajectory HDF5 file.
-    
+
+    This utility function reads the metadata and dataset shapes from a given
+    HDF5 trajectory file and prints a formatted, human-readable summary to the
+    console.
+
     Args:
         path_traj (str):
             Path to the HDF5 trajectory file to inspect.
 
     Returns:
-        None: The function prints information to the console and does not
-              return any value.
+        None: This function prints information to the console.
 
     Raises:
         FileNotFoundError: If the input HDF5 file is not found.
+
+    Examples:
+        >>> show_traj('path/to/my_trajectory.h5')
     """
     if not os.path.exists(path_traj):
         raise FileNotFoundError(f"Input file not found: {path_traj}")
@@ -286,28 +325,61 @@ def show_traj(path_traj: str) -> None:
 
 
 class Snapshots:
-    """
-    Generates step-wise structure files from a set of HDF5 trajectory files.
+    """Generates step-wise structure files from a set of HDF5 trajectory files.
 
-    This class reads HDF5 trajectory files, reconstructs the full trajectory,
-    and calculates averaged atomic positions for specified time intervals.
-    The results are stored in memory and can be saved to files using the
-    `save_snapshots` method.
+    This class reads one or more HDF5 trajectory files, validates their
+    consistency, and reconstructs the full, continuous atomic trajectory. It then
+    calculates averaged atomic positions for user-specified time intervals. The
+    resulting structures ("snapshots") are stored in memory and can be saved to
+    individual files using the `save_snapshots` method.
 
     Args:
-        path_traj (Union[str, List[str]]):
-            A path to a single HDF5 trajectory file or a list of paths.
+        path_traj (str | list[str]):
+            A path to a single HDF5 trajectory file or a list of such paths.
         t_interval (float):
-            The time interval in picoseconds (ps) for averaging snapshots.
-            Must be a multiple of the simulation's `dt`.
+            The time interval in picoseconds (ps) for averaging snapshots. This
+            must be a multiple of the simulation's `dt`.
         eps (float, optional):
-            A tolerance for floating-point comparisons (e.g., for temperature).
+            A tolerance for floating-point comparisons of metadata.
             Defaults to 1.0e-3.
         verbose (bool, optional):
             Verbosity flag. Defaults to True.
+
+    Attributes:
+        pos (numpy.ndarray):
+            A 3D array of shape (num_steps, num_atoms, 3) containing the
+            time-averaged, wrapped fractional coordinates for each snapshot.
+        num_steps (int):
+            The total number of snapshots generated.
+        dt (float):
+            The simulation timestep in femtoseconds (fs), read from metadata.
+        lattice (numpy.ndarray):
+            The 3x3 lattice matrix of the simulation cell.
+        atom_counts (dict):
+            A dictionary of atom counts for each chemical symbol.
+        num_atoms (int):
+            The total number of atoms in the system.
+
+    Raises:
+        FileNotFoundError: If any of the input trajectory files are not found.
+        ValueError: If `path_traj` is empty, if `t_interval` is invalid, or if
+            metadata is inconsistent across multiple trajectory files.
+
+    Examples:
+        >>> # Create snapshots every 10 ps from a list of files
+        >>> snapshot_generator = Snapshots(
+        ...     path_traj=['TRAJ_Hf_run1.h5', 'TRAJ_O_run1.h5'],
+        ...     t_interval=0.1
+        ... )
+        >>> # Save the snapshots as VASP POSCAR files
+        >>> snapshot_generator.save_snapshots(
+        ...     path_dir='poscar_snapshots',
+        ...     file_format='vasp',
+        ...     prefix='POSCAR'
+        ... )
     """
     def __init__(self,
-                 path_traj: Union[str, List[str]],
+                 path_traj: str | list[str],
                  t_interval: float,
                  eps: float = 1.0e-3,
                  verbose: bool = True):
@@ -419,9 +491,10 @@ class Snapshots:
                        prefix: str = 'POSCAR'):
         """Saves the averaged snapshots as a series of structure files using ASE.
 
-        This method uses ASE (Atomic Simulation Environment) to write the
-        structure of each snapshot to a separate file. The output format,
-        directory, and filename prefix can be specified.
+        This method uses the Atomic Simulation Environment (ASE) to write the
+        atomic structure of each generated snapshot to a separate file. It also
+        creates a `description.txt` file in the output directory summarizing the
+        snapshot parameters and the mapping from filename to simulation time.
 
         Args:
             path_dir (str, optional):
@@ -433,6 +506,9 @@ class Snapshots:
             prefix (str, optional):
                 The prefix for the output filenames (e.g., 'POSCAR', 'snapshot').
                 Defaults to 'POSCAR'.
+
+        Returns:
+            None: This method does not return a value; it writes files to disk.
         """
         if not os.path.isdir(path_dir):
             os.makedirs(path_dir, exist_ok=True)

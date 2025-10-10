@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import os
-import sys
 import tempfile
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,47 +9,72 @@ from ase import Atoms
 from ase.io import read
 from tqdm.auto import tqdm
 from joblib import Parallel, delayed
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple, Optional
 from itertools import combinations_with_replacement
 
 from vachoppy.utils import Snapshots
 
 
 class FingerPrint:
-    """
-    Calculates the atomic environment fingerprint between two atom types.
+    """Calculates the atomic environment fingerprint between two atom types.
 
-    This class reads a crystallographic structure file, identifies two specified
-    atom types (A and B), and computes the partial pair correlation function g(r)
-    between them. The calculation is vectorized using NumPy for performance.
+    This class computes the partial pair correlation function, g(r), between two
+    specified atom types (A and B) within a crystal structure. It serves as a
+    "fingerprint" to characterize the local atomic environment. The calculation
+    is vectorized using NumPy for performance.
 
-    The primary workflow is to initialize the class and then call the .calculate()
-    method to perform the computation. Results can be visualized using .plot_fingerprint().
+    The primary workflow is to initialize the class, which automatically triggers
+    the calculation. Results can then be visualized using `.plot_fingerprint()`.
 
     Args:
-        A (str): 
+        A (str):
             Chemical symbol of the central atom type.
-        B (str): 
+        B (str):
             Chemical symbol of the neighboring atom type.
-        path_structure (str): 
+        path_structure (str):
             Path to the crystallographic structure file (e.g., POSCAR, cif).
-        Rmax (float, optional): 
-            Cutoff radius in Angstroms for the calculation. Defaults to 10.
-        delta (float, optional): 
-            Discretization step for the distance axis (r). Defaults to 0.08.
-        sigma (float, optional): 
-            Gaussian broadening width for interatomic distances. Defaults to 0.03.
-        dirac (str, optional): 
-            Type of Dirac delta function approximation. 'g' for Gaussian or 's' for a square function. 
-            Defaults to 'g'
-        verbose (bool, optional): 
+        Rmax (float, optional):
+            Cutoff radius in Angstroms for the calculation. Defaults to 10.0.
+        delta (float, optional):
+            Discretization step (bin size) for the distance axis (r).
+            Defaults to 0.08.
+        sigma (float, optional):
+            Gaussian broadening width applied to interatomic distances.
+            Defaults to 0.03.
+        dirac (str, optional):
+            Type of Dirac delta function approximation: 'g' for Gaussian or
+            's' for a square function. Defaults to 'g'.
+        verbose (bool, optional):
             Verbosity flag. Defaults to True.
 
     Attributes:
-        fingerprint (np.ndarray): 
-            The calculated fingerprint g(r) - 1 as a 1D NumPy array.
-        R (np.ndarray): 
-            The distance values (r) for which the fingerprint is calculated.
+        fingerprint (numpy.ndarray):
+            The calculated fingerprint, g(r) - 1, as a 1D NumPy array.
+        R (numpy.ndarray):
+            The distance values (r) in Angstroms for which the fingerprint is calculated.
+        num_A (int):
+            The number of atoms of type A found in the structure.
+        num_B (int):
+            The number of atoms of type B found in the structure.
+
+    Raises:
+        FileNotFoundError:
+            If the specified structure file does not exist.
+        IOError:
+            If the structure file cannot be read by ASE.
+        ValueError:
+            If atom types A or B are not found in the structure, or if an
+            invalid `dirac` type is specified.
+
+    Examples:
+        >>> fp = FingerPrint(
+        ...     A='Ti',
+        ...     B='O',
+        ...     path_structure='POSCAR',
+        ...     rmax=10.0,
+        ...     verbose=True
+        ... )
+        >>> fp.plot_fingerprint()
     """
     def __init__(self,
                  A: str,
@@ -145,12 +171,12 @@ class FingerPrint:
         return fingerprint_i
         
     def calculate(self) -> None:
-        """
-        Runs the main fingerprint calculation.
+        """Runs the main fingerprint calculation.
 
-        This method computes the extended coordinates for neighbor atoms and then
-        iterates through each central atom to calculate its partial fingerprint,
-        averaging the results. The final g(r) - 1 is stored in `self.fingerprint`.
+        This method computes the extended coordinates for neighbor atoms to handle
+        periodic boundaries, then iterates through each central atom to calculate
+        its partial fingerprint, and finally averages the results. The final
+        g(r) - 1 is stored in the `self.fingerprint` attribute.
         """
         extended_coords_B = self._get_extended_coords(self.indices_B)
         
@@ -178,30 +204,54 @@ class FingerPrint:
         print("="*50 + "\n")
 
     def plot_fingerprint(self, 
-                         title: Optional[str] = None,
+                         title: str | None = None,
                          disp: bool = True,
                          save: bool = True,
-                         filename: str = None,
+                         filename: str | None = None,
                          dpi: int = 300) -> None:
-        """ Plots the calculated fingerprint g(r) - 1.
-        
+        """Plots the calculated fingerprint, g(r) - 1.
+
         This method generates a 2D plot of the atomic fingerprint, showing
-        g(r) - 1 as a function of distance (r). The plot is always displayed,
-        and can optionally be saved to a file.
+        g(r) - 1 as a function of distance (r). The plot can be displayed
+        interactively and optionally saved to a file.
 
         Args:
-            title (str, optional): 
+            title (str | None, optional):
                 A custom title for the plot. If None, no title is set.
                 Defaults to None.
-            save (bool, optional): 
+            disp (bool, optional):
+                If True, displays the plot interactively (`plt.show()`).
+                Defaults to True.
+            save (bool, optional):
                 If True, saves the plot to a file. Defaults to True.
-            filename (str, optional): 
+            filename (str | None, optional):
                 The filename for the saved plot. If None, a default filename
-                is automatically generated based on the atom types
-                (e.g., 'FP_A-B.png'). Defaults to None.
-            dpi (int, optional): 
+                is automatically generated (e.g., 'FP_A-B.png').
+                Defaults to None.
+            dpi (int, optional):
                 The resolution (dots per inch) for the saved figure.
                 Defaults to 300.
+
+        Returns:
+            None: This method does not return any value.
+
+        Raises:
+            RuntimeError: If the fingerprint has not been calculated. Call the
+                `.calculate()` method first.
+
+        Examples:
+            >>> fp = FingerPrint(A='Ti', B='O', path_structure='POSCAR')
+            >>> fp.calculate()
+            >>> # Display the plot and save it with a default name
+            >>> fp.plot_fingerprint()
+            
+            >>> # Save the plot with a custom name without displaying it
+            >>> fp.plot_fingerprint(
+            ...     title="Ti-O Fingerprint",
+            ...     disp=False,
+            ...     save=True,
+            ...     filename="tio2_fp.png"
+            ... )
         """
 
         if self.fingerprint is None:
@@ -233,28 +283,48 @@ def cosine_distance(fp1: np.ndarray, fp2: np.ndarray) -> float:
     """Calculates a scaled cosine distance between two fingerprint vectors.
 
     This function computes the cosine similarity between two vectors and
-    transforms it into a distance metric ranging from 0 to 1. A distance of 0
-    means the vectors are identical, while 1 means they are opposite.
+    transforms it into a distance metric scaled to the range [0, 1]. A distance
+    of 0 indicates identical vectors, while 1 indicates opposite vectors.
 
     Note:
         The formula used is `0.5 * (1 - cos_similarity)`, where `cos_similarity`
-        is the dot product of the unit vectors. This scales the standard
-        cosine distance `(1 - cos_similarity)` to the [0, 1] range.
+        is the dot product of the unit vectors.
 
     Args:
-        fp1 (np.ndarray): 
+        fp1 (np.ndarray):
             The first fingerprint vector (1D NumPy array).
-        fp2 (np.ndarray): 
+        fp2 (np.ndarray):
             The second fingerprint vector (1D NumPy array).
 
     Returns:
-        float: The scaled cosine distance between the two vectors.
+        float:
+            The scaled cosine distance, a value between 0.0 and 1.0.
+
+    Raises:
+        ValueError:
+            If the input arrays have mismatched shapes, which would prevent
+            the dot product calculation.
+
+    Examples:
+        >>> import numpy as np
+        >>> vec1 = np.array([1.0, 0.0, 0.0])
+        >>> vec2 = np.array([0.0, 1.0, 0.0])
+        >>> # Identical vectors
+        >>> cosine_distance(vec1, vec1)
+        0.0
+        
+        >>> # Orthogonal vectors
+        >>> cosine_distance(vec1, vec2)
+        0.5
+
+        >>> # Opposite vectors
+        >>> cosine_distance(vec1, -vec1)
+        1.0
     """
-    # Numerically stable dot product of unit vectors (cosine similarity)
     fp1_norm = np.linalg.norm(fp1)
     fp2_norm = np.linalg.norm(fp2)
     
-    # Add a small epsilon to prevent division by zero if a vector has zero length
+    # Add a small epsilon to prevent division by zero
     epsilon = 1e-9
     
     similarity = np.dot(fp1, fp2) / (fp1_norm * fp2_norm + epsilon)
@@ -271,43 +341,61 @@ def get_fingerprint(path_structure: str,
                     dirac: str = 'g',
                     disp: bool = True,
                     verbose: bool = True) -> np.ndarray:
-    """
-    Calculates and concatenates fingerprints for multiple atom pairs, saves them to
-    a file, and optionally plots the results.
+    """Calculates, concatenates, and saves fingerprints for multiple atom pairs.
 
-    This function iterates through a list of specified atom pairs (A, B),
-    calculates the atomic fingerprint for each using the FingerPrint class,
-    and concatenates them into a single 1D array.
+    This function serves as a convenient wrapper around the `FingerPrint` class.
+    It iterates through a list of specified atom pairs (A, B), calculates the
+    fingerprint for each, and concatenates them into a single 1D array.
 
-    The final result is saved to a two-column text file. The first column is a
-    composite distance axis, where each pair's distance range [0, Rmax) is
-    shifted by multiples of Rmax. The second column is the concatenated
-    fingerprint data. The optional plot displays each pair's fingerprint
-    concatenated along the x-axis.
+    The final result is saved to a two-column text file, where the first column
+    is a composite distance axis and the second is the concatenated fingerprint
+    data. An optional plot visualizes all fingerprints sequentially.
 
     Args:
         path_structure (str):
             Path to the crystallographic structure file (e.g., POSCAR, cif).
         filename (str):
-            The name of the output file to save the fingerprint data.
+            The name of the output file to save the concatenated fingerprint data.
         atom_pairs (List[Tuple[str, str]]):
-            A list of tuples, where each tuple contains the chemical symbols
-            for an atom pair, e.g., [('Ti', 'O'), ('O', 'O')].
-        Rmax (float):
-            Cutoff radius in Angstroms for the fingerprint calculation.
-        delta (float):
-            Discretization step for the distance axis (r).
-        sigma (float):
-            Gaussian broadening width for interatomic distances.
-        disp (bool, optional): 
-            If True, displays a plot of the fingerprints for all atom pairs. 
+            A list of tuples, each containing the chemical symbols for an atom
+            pair, e.g., `[('Ti', 'O'), ('O', 'O')]`.
+        Rmax (float, optional):
+            Cutoff radius in Angstroms for the calculation. Defaults to 10.0.
+        delta (float, optional):
+            Discretization step (bin size) for the distance axis (r).
+            Defaults to 0.08.
+        sigma (float, optional):
+            Gaussian broadening width for interatomic distances. Defaults to 0.03.
+        dirac (str, optional):
+            Type of Dirac delta function approximation: 'g' for Gaussian or
+            's' for a square function. Defaults to 'g'.
+        disp (bool, optional):
+            If True, displays a plot of the concatenated fingerprints.
             Defaults to True.
         verbose (bool, optional):
-            Verbosity flag. Defaults to True
-        
+            Verbosity flag. Defaults to True.
+
     Returns:
-        np.ndarray: A single 1D NumPy array containing the concatenated
-                    fingerprints of all specified atom pairs.
+        np.ndarray:
+            A single 1D NumPy array containing the concatenated fingerprints of
+            all specified atom pairs.
+
+    Raises:
+        FileNotFoundError:
+            If the `path_structure` file does not exist.
+        ValueError:
+            If an atom type specified in `atom_pairs` is not found in the
+            structure file.
+
+    Examples:
+        >>> pairs = [('Ti', 'Ti'), ('Ti', 'O'), ('O', 'O')]
+        >>> combined_fp = get_fingerprint(
+        ...     path_structure='POSCAR',
+        ...     filename='tio2_full_fp.txt',
+        ...     atom_pairs=pairs,
+        ...     Rmax=10.0,
+        ...     disp=True
+        ... )
     """
     all_fingerprints = []
     all_R_values = []
@@ -378,10 +466,11 @@ def _worker_calculate_distance(args: tuple) -> List[float]:
     
     return [snapshot_index, dist]
 
-def plot_cosine_distance(path_traj: Union[str, List[str]],
+
+def plot_cosine_distance(path_traj: str | list[str],
                          t_interval: float,
                          reference_structure: str,
-                         atom_pairs: Optional[List[Tuple[str, str]]] = None,
+                         atom_pairs: list[tuple[str, str]] | None = None,
                          Rmax: float = 10.0,
                          delta: float = 0.08,
                          sigma: float = 0.03,
@@ -392,62 +481,81 @@ def plot_cosine_distance(path_traj: Union[str, List[str]],
                          n_jobs: int = -1,
                          find_fluctuations: bool = True,
                          window_size: int = 50,
-                         threshold_std: float = None,
+                         threshold_std: float | None = None,
                          verbose: bool = True) -> None:
-    """
-    Traces the change in atomic fingerprint over time against a reference structure.
+    """Traces structural evolution by plotting fingerprint cosine distance over time.
 
-    This function internally generates snapshots from the given trajectory files,
-    then calculates the cosine distance between each snapshot's fingerprint and
-    a reference structure's fingerprint. The process is parallelized using joblib.
-    Results (cosine distance vs. time) are saved to a text file and plotted.
+    This function provides a comprehensive workflow to analyze how a system's atomic
+    structure deviates from a reference state over a trajectory. It performs the
+    following steps:
+    1.  Generates structural snapshots from the trajectory at specified time intervals.
+    2.  Calculates the atomic fingerprint for each snapshot in parallel.
+    3.  Computes the cosine distance between each snapshot's fingerprint and that
+        of a reference structure.
+    4.  Optionally, analyzes the resulting time-series data to detect significant
+        fluctuations using a moving average filter.
+    5.  Saves the time-series data to a text file and generates a plot.
 
     Args:
-        path_traj (Union[str, List[str]]):
-            Path to a single HDF5 trajectory file or a list of paths.
+        path_traj (str | list[str]):
+            Path to a single HDF5 trajectory file or a list of such paths.
         t_interval (float):
-            The time interval in picoseconds (ps) for averaging snapshots.
+            The time interval in picoseconds (ps) for generating snapshots.
         reference_structure (str):
             Path to the reference structure file (e.g., POSCAR of the initial phase).
-        atom_pairs (Optional[List[Tuple[str, str]]], optional):
-            A list of atom pairs to analyze. If None, all unique pair
-            combinations from the reference_structure will be generated
-            automatically. Defaults to None.
-        Rmax (float, optional): 
-            Cutoff radius for the fingerprint. Defaults to 10.0.
-        delta (float, optional): 
-            Discretization step for the fingerprint. Defaults to 0.08.
-        sigma (float, optional): 
-            Gaussian broadening for the fingerprint. Defaults to 0.03.
-        dirac (str, optional): 
-            Dirac function type ('g' or 's'). Defaults to 'g'.
+        atom_pairs (list[tuple[str, str]] | None, optional):
+            A list of atom pairs to include in the fingerprint calculation. If None,
+            all unique pair combinations are auto-generated. Defaults to None.
+        Rmax (float, optional):
+            Cutoff radius (Å) for the fingerprint calculation. Defaults to 10.0.
+        delta (float, optional):
+            Discretization step (Å) for the fingerprint. Defaults to 0.08.
+        sigma (float, optional):
+            Gaussian broadening width (Å) for the fingerprint. Defaults to 0.03.
+        dirac (str, optional):
+            Dirac function type ('g' for Gaussian or 's' for square). Defaults to 'g'.
         prefix (str, optional):
-            A prefix for the output plot and data files (e.g., 'cosine_distance'). 
+            A prefix for the output plot and data files.
             Defaults to 'cosine_distance_trace'.
         dpi (int, optional):
-            The resolution (dots per inch) for the saved plot figure.
-            Defaults to 300.
-        path_dir (str, optional): 
-            Directory to save final output files. Defaults to 'fingerprint_trace'.
-        n_jobs (int, optional): 
-            Number of CPU cores for parallel processing. -1 uses all. Defaults to -1.
-        find_fluctuations (bool, optional): 
-            If True, performs an analysis to find intervals where the cosine distance 
-            deviates significantly from the mean. Defaults to True.
-        window_size (int, optional): 
-            The number of data points to include in the moving average window. 
-            A larger window provides more smoothing. Defaults to 50.
-        threshold_std (float, optional): 
-            The number of standard deviations (sigma) from the global mean 
-            to define the fluctuation threshold. If `None`, the threshold line
-            is not drawn and fluctuation intervals are not detected.
-            Common values are:
-                - 1.0 (flags ~31.8% of data as potential outliers)
-                - 2.0 (flags ~4.6% of data as outliers)
-                - 3.0 (flags ~0.3% of data as extreme outliers)
+            Resolution in dots per inch for the saved plot. Defaults to 300.
+        path_dir (str, optional):
+            Directory to save the final output files. Defaults to 'fingerprint_trace'.
+        n_jobs (int, optional):
+            Number of CPU cores for parallel processing. -1 uses all available cores.
+            Defaults to -1.
+        find_fluctuations (bool, optional):
+            If True, analyzes the data for significant deviations from the mean.
+            Defaults to True.
+        window_size (int, optional):
+            The window size (number of data points) for the moving average filter.
+            Defaults to 50.
+        threshold_std (float | None, optional):
+            The threshold in standard deviations (σ) from the global mean to define
+            a fluctuation. If None, fluctuation intervals are not detected.
             Defaults to None.
         verbose (bool, optional):
             Verbosity flag. Defaults to True.
+
+    Returns:
+        None:
+            This function does not return any value. It saves a plot (`.png`) and
+            a data file (`.txt`) to the specified `path_dir`.
+
+    Raises:
+        IOError:
+            If the `reference_structure` cannot be read to auto-generate atom pairs.
+        FileNotFoundError:
+            If any of the input trajectory files are not found.
+    
+    Examples:
+        >>> plot_cosine_distance(
+        ...     path_traj='path/to/trajectory.h5',
+        ...     t_interval=0.1,
+        ...     reference_structure='path/to/initial_POSCAR',
+        ...     atom_pairs=[('Ti', 'O'), ('O', 'O')],
+        ...     threshold_std=2.5
+        ... )
     """
     if not os.path.isdir(path_dir):
         os.makedirs(path_dir)

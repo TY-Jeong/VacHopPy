@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import h5py
 import json
@@ -105,26 +107,53 @@ def _worker_get_frequencies(args):
 # ============================================
 
 class Vibration:
-    """
-    Calculates atomic vibrational frequencies from a molecular dynamics trajectory.
+    """Calculates atomic vibrational frequencies from a molecular dynamics trajectory.
 
-    This class determines a data-driven site radius, assigns atoms to lattice sites,
-    segments trajectories into vibrational periods, and calculates the frequency
-    spectrum using FFT. The process is parallelized for performance.
+    This class analyzes a short segment of a trajectory to determine the
+    characteristic vibrational frequency of atoms. The workflow involves:
+    1.  Determining a data-driven "site radius" based on atomic displacements.
+    2.  Assigning atoms to their nearest lattice sites.
+    3.  Segmenting individual atom trajectories into periods of stable vibration.
+    4.  Calculating the frequency spectrum for all segments using FFT.
+
+    The main entry point is the `.calculate()` method. The results can be
+    visualized with the `.plot_*()` methods or inspected via attributes.
+
+    Args:
+        path_traj (str):
+            Path to the HDF5 trajectory file.
+        site (Site):
+            An initialized `Site` object containing lattice site information.
+        sampling_size (int, optional):
+            Number of initial trajectory frames to use for the analysis.
+            Defaults to 5000.
+        filter_high_freq (bool, optional):
+            If True, filters out high-frequency outliers using the IQR method.
+            Defaults to True.
+        verbose (bool, optional):
+            Verbosity flag. Defaults to True.
 
     Attributes:
-        frequencies (list): 
-            A list of calculated vibrational frequencies in THz.
-        mean_frequency (float): 
-            The mean of the calculated frequencies.
-        displacements (np.ndarray): 
-            A flattened array of all measured displacements in Angstroms.
-        site_radius (float): 
-            The calculated site radius used for atom assignment.
+        mean_frequency (float):
+            The mean of all calculated vibrational frequencies in THz.
+        frequencies (list[float]):
+            A list containing all individual vibrational frequencies calculated
+            from the trajectory segments.
+        displacements (numpy.ndarray):
+            A flattened array of all measured atomic displacements (Å) during
+            vibrational periods.
+        site_radius (float):
+            The calculated site radius (2σ of displacements) in Å, used for
+            atom-to-site assignment.
+
+    Raises:
+        FileNotFoundError: If the `path_traj` file does not exist.
+        ValueError: If the HDF5 file is missing required data or metadata.
+        IOError: If the HDF5 file cannot be read.
     """
     def __init__(self,
                  path_traj: str,
-                 site,
+                 site: Site,
                  sampling_size: int = 5000,
                  filter_high_freq : bool = True,
                  verbose: bool = True):
@@ -271,9 +300,22 @@ class Vibration:
                            bins: int = 50,
                            disp: bool = True,
                            save: bool = True,
-                           title: str = "Displacement Distribution",
+                           title: str | None = "Displacement Distribution",
                            filename: str = "displacement.png",
                            dpi : int = 300) -> None:
+        """Plots a histogram of the atomic displacements with a Gaussian fit.
+
+        Args:
+            bins (int, optional): Number of bins for the histogram. Defaults to 50.
+            disp (bool, optional): If True, displays the plot. Defaults to True.
+            save (bool, optional): If True, saves the plot to a file. Defaults to True.
+            title (str | None, optional): A custom title for the plot.
+            filename (str, optional): Filename for the saved plot.
+            dpi (int, optional): Resolution for the saved figure.
+
+        Raises:
+            AttributeError: If `.calculate()` has not been run yet.
+        """
         if self.displacements is None:
             raise AttributeError("Displacement data not available. Please run the .calculate() method first.")
         
@@ -304,9 +346,22 @@ class Vibration:
                          bins: int = 50,
                          disp: bool = True,
                          save: bool = True,
-                         title: str = "Frequency Distribution",
+                         title: str | None = "Frequency Distribution",
                          filename: str = "frequency.png",
                          dpi: int = 300) -> None:
+        """Plots a histogram of the calculated vibrational frequencies.
+
+        Args:
+            bins (int, optional): Number of bins for the histogram. Defaults to 50.
+            disp (bool, optional): If True, displays the plot. Defaults to True.
+            save (bool, optional): If True, saves the plot to a file. Defaults to True.
+            title (str | None, optional): A custom title for the plot.
+            filename (str, optional): Filename for the saved plot.
+            dpi (int,optional): Resolution for the saved figure.
+
+        Raises:
+            AttributeError: If `.calculate()` has not been run yet.
+        """
         if self.frequencies is None:
             raise AttributeError("Frequency data not available. Please run the .calculate() method first.")
         
@@ -339,25 +394,28 @@ class Vibration:
     def calculate(self, 
                   n_jobs: int = -1,
                   jump_detection_radius: float = 1.0,
-                  verbose: bool = None) -> None:
-        """
-        Executes the full vibrational frequency analysis workflow.
+                  verbose: bool | None = None) -> None:
+        """Executes the full vibrational frequency analysis workflow.
 
         This is the main method to run the analysis. It performs the following steps:
-        1. Calculates the average vibrational amplitude and determines a site radius.
-        2. Assigns each atom to the nearest lattice site at each timestep, if within the site radius.
-        3. Segments the trajectory for each atom based on site assignment.
+        1. Calculates the average vibrational amplitude to determine a site radius.
+        2. Assigns each atom to its nearest lattice site at each timestep.
+        3. Segments the trajectory for each atom based on these site assignments.
         4. Calculates the vibrational frequencies for all segments using FFT.
         5. Optionally filters high-frequency outliers.
-        The results are stored in the object's attributes (e.g., self.mean_frequency).
+
+        The results are stored in the object's attributes (e.g., `self.mean_frequency`).
 
         Args:
-            n_jobs (int, optional): 
-                The number of CPU cores to use for parallel processing.
-                -1 means using all available cores. Defaults to -1.
-            jump_detection_radius (float, optional): 
-                The radius in Angstroms used in the initial step to distinguish 
-                between vibrations and jumps for amplitude estimation. Defaults to 1.0.
+            n_jobs (int, optional):
+                The number of CPU cores for parallel processing. -1 uses all
+                available cores. Defaults to -1.
+            jump_detection_radius (float, optional):
+                The radius (Å) used to distinguish between vibrations and jumps
+                during the initial amplitude estimation. Defaults to 1.0.
+            verbose (bool | None, optional):
+                Overrides the class-level verbosity for this method run.
+                If None, the class-level setting is used. Defaults to None.
         """
         if verbose is None:
             verbose = self.verbose
@@ -413,12 +471,16 @@ class Vibration:
             self.summary()
             
     def summary(self):
-        if self.verbose:
-            print("="*52)
-            print(f"       Vibrational Analysis Results Summary")
-            print("="*52)
-            print(f"  - Mean Vibrational Amplitude (σ) : {self.sigma_displacements:.3f} Ang")
-            print(f"  - Determined Site Radius (2 x σ) : {self.site_radius:.3f} Ang")
-            print(f"  - Total Vibrational Frequencies  : {len(self.frequencies)} found")
-            print(f"  - Mean Vibrational Frequency     : {self.mean_frequency:.3f} THz")
-            print("="*52 + "\n")
+        """Prints a formatted summary of the vibrational analysis results.
+        
+        The summary includes the mean displacement, determined site radius,
+        and the final mean vibrational frequency.
+        """
+        print("="*52)
+        print(f"       Vibrational Analysis Results Summary")
+        print("="*52)
+        print(f"  - Mean Vibrational Amplitude (σ) : {self.sigma_displacements:.3f} Ang")
+        print(f"  - Determined Site Radius (2 x σ) : {self.site_radius:.3f} Ang")
+        print(f"  - Total Vibrational Frequencies  : {len(self.frequencies)} found")
+        print(f"  - Mean Vibrational Frequency     : {self.mean_frequency:.3f} THz")
+        print("="*52 + "\n")

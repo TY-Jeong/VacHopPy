@@ -1,14 +1,17 @@
+from __future__ import annotations
+
 import os
 import h5py
 import json
 import itertools
 import numpy as np
 
-from typing import Union
 from pathlib import Path
-from tabulate import tabulate
+from typing import Union
 from tqdm.auto import tqdm
+from tabulate import tabulate
 from ase.io import read, iread
+from numpy.typing import DTypeLike
 
 from pymatgen.io.ase import AseAtomsAdaptor
 from pymatgen.analysis.local_env import VoronoiNN
@@ -26,43 +29,62 @@ def parse_md(filename: str,
              dt: float = 1.0,
              label: str = None,
              chunk_size: int = 5000,
-             dtype=np.float64,
+             dtype: DTypeLike = np.float64,
              verbose: bool = True) -> None:
-    """Parses a generic MD trajectory using ASE and saves data to HDF5 files.
+    """Parses a molecular dynamics (MD) trajectory and saves the data to HDF5 files.
 
-    This function processes large trajectory files (e.g., VASP outputs, extxyz)
-    supported by ASE. It reads the trajectory in chunks to manage memory usage
-    efficiently. The core calculation involves converting atomic positions to
-    unwrapped fractional coordinates to correctly handle periodic boundaries.
+    This function provides a memory-efficient way to process large MD trajectory
+    files supported by ASE (e.g., VASP outputs, extxyz). It reads and processes
+    the trajectory in chunks, converting atomic positions to unwrapped fractional
+    coordinates to correctly handle periodic boundary conditions.
 
-    For each chemical symbol, a separate HDF5 file (`TRAJ_SYMBOL_LABEL.h5`) is
-    created. Each file contains 'positions' and 'forces' datasets, along with
-    simulation metadata (lattice, temperature, etc.) stored as an attribute.
-    This method avoids creating intermediate files for improved I/O performance.
+    Key Features:
+    - Processes large files in memory-efficient chunks using ASE's iread.
+    - Unwraps atomic coordinates across periodic boundaries for accurate analysis.
+    - Separates data by chemical symbol into distinct HDF5 files.
+    - Includes essential simulation metadata (lattice, temp, etc.) in each file.
 
     Args:
         filename (str):
-            Path to the MD trajectory file (e.g., 'vasprun.xml', 'OUTCAR').
-        format (str):
-            File format string supported by ASE (e.g., 'vasp-xml', 'extxyz').
+            Path to the input MD trajectory file (e.g., 'vasprun.xml').
+        file_format (str):
+            The file format string recognized by ASE (e.g., 'vasp-xml', 'extxyz').
         temperature (float):
-            Simulation temperature in Kelvin.
+            Simulation temperature in Kelvin, to be stored as metadata.
         dt (float, optional):
-            Timestep in femtoseconds. Defaults to 1.0.
-        label (str, optional):
-            A custom suffix for the output HDF5 filenames. Defaults to None.
+            Timestep in femtoseconds (fs). Defaults to 1.0.
+        label (str | None, optional):
+            A custom suffix for output filenames (e.g., 'TRAJ_SYMBOL_LABEL.h5').
+            Defaults to None.
         chunk_size (int, optional):
-            The number of frames to process in memory at once. A larger size
-            can be faster but uses more RAM. Defaults to 5000.
+            Number of frames to read into memory per chunk. Larger values may
+            improve speed but increase RAM usage. Defaults to 5000.
+        dtype (DTypeLike, optional):
+            NumPy data type for storing positions and forces, affecting
+            precision and file size. Defaults to np.float64.
         verbose (bool, optional):
-            Verbosity tag. Defaults to True.
+            Verbosity flag. Defaults to True.
 
     Returns:
-        None: The function saves one or more HDF5 files to disk.
+        None:
+            This function does not return a value; it writes one or more HDF5
+            files to disk in the current directory.
 
     Raises:
-        FileNotFoundError: If the input trajectory file is not found.
-        ValueError: If force data is missing from the trajectory.
+        FileNotFoundError:
+            If the input trajectory file is not found.
+        ValueError:
+            If force data is missing from the trajectory frames.
+
+    Examples:
+        >>> parse_md(
+        ...     filename='path/to/vasprun.xml',
+        ...     file_format='vasp-xml',
+        ...     temperature=2000.0,
+        ...     dt=2.0,
+        ...     label='2000K'
+        ... )
+        # This will create files like 'TRAJ_Ti_2000K.h5' and 'TRAJ_O_200K.h5'.
     """
     
     temp_files = {'pos': {}, 'force': {}}
@@ -206,62 +228,86 @@ def parse_md(filename: str,
 
 
 @monitor_performance
-def parse_lammps(lammps_data:str,
-                 lammps_dump:str,
-                 atom_style_data:str,
-                 atom_style_dump:str,
-                 atom_symbols:dict,
-                 temperature:float,
-                 dt:float=1.0,
-                 label:str=None,
-                 chunk_size=5000,
-                 dtype=np.float64,
-                 verbose:bool=True) -> None:
+def parse_lammps(lammps_data: str,
+                 lammps_dump: str,
+                 atom_style_data: str,
+                 atom_style_dump: str,
+                 atom_symbols: dict[int, str],
+                 temperature: float,
+                 dt: float = 1.0,
+                 label: str | None = None,
+                 chunk_size: int = 5000,
+                 dtype: DTypeLike = np.float64,
+                 verbose: bool = True) -> None:
     """Parses a LAMMPS trajectory using MDAnalysis and saves data to HDF5 files.
 
-    This function processes large LAMMPS trajectories by leveraging MDAnalysis
-    for efficient file indexing and reading. The trajectory is read in chunks
-    to manage memory usage. The core calculation involves converting atomic
-    positions to unwrapped fractional coordinates to correctly handle
-    periodic boundaries.
+    This function leverages the MDAnalysis library to efficiently process large
+    LAMMPS data and dump files. It reads the trajectory in chunks to maintain
+    low memory usage while converting atomic positions to unwrapped fractional
+    coordinates for accurate periodic boundary handling.
 
-    For each chemical symbol, a separate HDF5 file (`TRAJ_SYMBOL_LABEL.h5`) is
-    created. Each file contains 'positions' and 'forces' datasets, along with
-    simulation metadata (lattice, temperature, etc.) stored as an attribute.
-    This method avoids creating intermediate files for improved I/O performance.
+    Key Features:
+    - Efficiently processes large LAMMPS dump files using MDAnalysis.
+    - Unwraps atomic coordinates across periodic boundaries for accurate analysis.
+    - Separates atom data by chemical symbol into distinct HDF5 files.
+    - Stores simulation parameters as metadata in each output file.
 
     Args:
         lammps_data (str):
-            Path to the LAMMPS data file (topology).
+            Path to the LAMMPS data file containing topology and box info.
         lammps_dump (str):
-            Path to the LAMMPS dump file (trajectory).
+            Path to the LAMMPS dump file containing the trajectory.
         atom_style_data (str):
-            Atom style string for the LAMMPS data file.
+            Atom style string for the LAMMPS data file (e.g., 'full', 'atomic').
         atom_style_dump (str):
-            Atom style string for the LAMMPS dump file.
-        atom_symbols (dict):
+            Atom style string for the LAMMPS dump file (e.g., 'atomic').
+        atom_symbols (dict[int, str]):
             A dictionary mapping atom type IDs (int) to chemical symbols (str),
             e.g., {1: 'Ti', 2: 'O'}.
         temperature (float):
-            Simulation temperature in Kelvin.
+            Simulation temperature in Kelvin, to be stored as metadata.
         dt (float, optional):
-            Timestep in femtoseconds. Defaults to 1.0.
-        label (str, optional):
-            A custom suffix for the output HDF5 filenames. Defaults to None.
+            Timestep in femtoseconds (fs). Defaults to 1.0.
+        label (str | None, optional):
+            A custom suffix for output filenames (e.g., 'TRAJ_SYMBOL_LABEL.h5').
+            Defaults to None.
         chunk_size (int, optional):
-            The number of frames to process in memory at once. A larger size
-            can be faster but uses more RAM. Defaults to 5000.
+            Number of frames to read into memory per chunk. Larger values may
+            improve speed but increase RAM usage. Defaults to 5000.
+        dtype (DTypeLike, optional):
+            NumPy data type for storing positions and forces, affecting
+            precision and file size. Defaults to np.float64.
         verbose (bool, optional):
-            Verbosity tag. Defaults to True.
+            Verbosity flag. Defaults to True.
 
     Returns:
-        None: The function saves one or more HDF5 files to disk.
+        None:
+            This function does not return a value; it writes one or more HDF5
+            files to disk in the current directory.
 
     Raises:
-        FileNotFoundError: If a LAMMPS input file is not found.
-        ValueError: If an atom type is missing from `atom_symbols` or if
-                    force data is not found in the trajectory.
+        ImportError:
+            If the MDAnalysis library is not installed.
+        FileNotFoundError:
+            If a specified LAMMPS input file is not found.
+        ValueError:
+            If an atom type in the trajectory is missing from `atom_symbols`,
+            or if force data is not found in the dump file.
+
+    Examples:
+        >>> parse_lammps(
+        ...     lammps_data='tio2.data',
+        ...     lammps_dump='tio2.dump',
+        ...     atom_style_data='type id x y z',
+        ...     atom_style_dump='type id x y z fx fy fz',
+        ...     atom_symbols={1: 'Ti', 2: 'O'},
+        ...     temperature=1200.0,
+        ...     dt=1.0,
+        ...     label='1200K'
+        ... )
+        # This will create files like 'TRAJ_Ti_1200K.h5' and 'TRAJ_Ti_1200K.h5'.
     """
+    
     try:
         import MDAnalysis as mda
     except ImportError:
@@ -269,7 +315,6 @@ def parse_lammps(lammps_data:str,
             "This feature requires the MDAnalysis library. "
             "Please install it using 'pip install MDAnalysis'."
         )
-    
     
     h5_files = {}
     h5_datasets = {}
@@ -407,49 +452,66 @@ def parse_lammps(lammps_data:str,
                 
 
 class Site:
-    """
-    Analyzes a crystal structure to find inequivalent atomic sites and hopping paths.
+    """Analyzes a crystal structure to find inequivalent sites and hopping paths.
 
-    This class reads a standard crystallographic structure file (e.g., POSCAR, cif),
-    identifies the symmetrically inequivalent sites for a specified chemical
-    element, and calculates all unique nearest-neighbor hopping paths up to a
-    given cutoff radius. It is useful for setting up kinetic Monte Carlo or
-    diffusion simulations.
+    This class reads a standard crystallographic structure file (e.g., POSCAR,
+    cif), identifies symmetrically inequivalent sites for a specified element,
+    and calculates all unique nearest-neighbor hopping paths up to a given
+    cutoff radius. It is a foundational tool for setting up kinetic Monte Carlo
+    or diffusion analyses.
 
     Args:
-        path_structure (str): 
+        path_structure (str):
             Path to the crystallographic structure file.
-        symbol (str): 
-            The atomic symbol of the diffusing species to analyze.
-        format (str, optional): 
-            The format of the structure file. If None, ASE
-            will attempt to automatically determine the format. Defaults to None.
-        rmax (float, optional): 
-            The maximum distance (in Angstroms) to consider
-            when searching for neighbor sites for hopping paths. Defaults to 3.25.
-        eps (float, optional): 
-            A small tolerance value used for distance
-            comparisons and finding atoms at specific coordinates. Defaults to 1.0e-3.
-        verbose (bool, optional): 
-            If True, a summary of the analysis will be
-            printed to the console upon initialization. Defaults to False.
-
-    Attributes:
-        structure (pymatgen.core.structure.Structure): 
-            The crystal structure as a pymatgen Structure object.
         symbol (str):
             The atomic symbol of the diffusing species to analyze.
-        path (list[dict]): 
-            A list of dictionaries, where each dictionary describes a unique hopping path.
-        path_name (list[str]): 
-            A list of unique names generated for each path (e.g., 'A1', 'A2', 'B1').
-        site_name (list[str]): 
+        structure_format (str | None, optional):
+            Format of the structure file, as recognized by ASE. If None, ASE
+            will attempt to determine the format automatically. Defaults to None.
+        rmax (float, optional):
+            The maximum distance (in Angstroms) to search for neighbors when
+            defining hopping paths. Defaults to 3.25.
+        eps (float, optional):
+            A small tolerance value for distance comparisons and identifying
+            atomic coordinates. Defaults to 1.0e-3.
+        verbose (bool, optional):
+            Verbosity flag. Defaults to True.
+
+    Attributes:
+        structure (pymatgen.core.structure.Structure):
+            The crystal structure represented as a pymatgen Structure object.
+        symbol (str):
+            The atomic symbol of the diffusing species being analyzed.
+        path (list[dict]):
+            A list of dictionaries, each describing a unique hopping path with
+            details like distance, coordination number (z), and coordinates.
+        path_name (list[str]):
+            A list of unique names for each hopping path (e.g., 'A1', 'B1').
+        site_name (list[str]):
             A list of names for the inequivalent sites (e.g., 'site1', 'site2').
-        lattice_sites (list[dict]): 
-            A list containing information about each atomic site of the specified symbol, 
+        lattice_sites (list[dict]):
+            A list detailing each atomic site of the specified symbol,
             including its fractional and Cartesian coordinates.
-        lattice_parameter (np.ndarray): 
+        lattice_parameter (numpy.ndarray):
             The 3x3 lattice matrix of the crystal structure.
+
+    Raises:
+        FileNotFoundError:
+            If the specified structure file does not exist.
+        IOError:
+            If the structure file cannot be read or converted by ASE/pymatgen.
+        ValueError:
+            If the specified `symbol` is not found in the structure.
+
+    Examples:
+        >>> tio2_site = Site(
+        ...     path_structure='TiO2_rutile.cif',
+        ...     symbol='Ti',
+        ...     rmax=3.5,
+        ...     verbose=True
+        ... )
+        # This will create the Site object and print a summary of the analysis.
+        # Hopping path data can then be accessed via tio2_site.path
     """
     def __init__(self,
                  path_structure: str,
@@ -488,12 +550,12 @@ class Site:
         self.lattice_parameter = self.structure.lattice.matrix
         self.path_unknown = []
         
-        self.find_hopping_path()
+        self._find_hopping_path()
         
         if self.verbose:
             self.summary()
             
-    def find_hopping_path(self):
+    def _find_hopping_path(self) -> None:
         """
         Identifies inequivalent sites and calculates all unique hopping paths.
 
@@ -579,7 +641,7 @@ class Site:
         for path, name in zip(self.path, self.path_name):
             path['name'] = name
     
-    def summary(self):
+    def summary(self) -> None:
         """
         Prints a formatted summary of the site and path analysis to the console.
 
@@ -621,50 +683,62 @@ class Site:
         
 
 def Calculator(path_traj: str,
-               site, # : Site
+               site: Site,
+               *,
+               t_interval: float | None = None,
                **kwargs) -> Union[CalculatorEnsemble, CalculatorSingle]:
-    """
-    A factory function that returns the appropriate calculator instance.
+    """A factory function that returns the appropriate calculator instance.
 
-    Based on whether the input path_traj is a directory or a file, this function
-    instantiates and returns either a `CalculatorEnsemble` object for analyzing
-    multiple trajectories or a `CalculatorSingle` object for a single trajectory.
+    Based on whether the input path points to a directory or a single file,
+    this function instantiates and returns the appropriate calculator:
+    - `CalculatorEnsemble`: For analyzing multiple trajectories in a directory.
+    - `CalculatorSingle`: For analyzing a single trajectory file.
 
-    This simplifies the user API by providing a single entry point.
+    This simplifies the user API by providing a single, intelligent entry point
+    for creating calculator objects.
 
     Args:
-        path_traj (str): 
-            The path to a trajectory file or a directory containing them.
-        site (Site): 
-            An initialized Site object with lattice and hopping path information.
-        t_interval (float, optional): 
-            The time interval in picoseconds (ps). If None, t_interval will be
-            automatically set. Defaults to None.
-            
-        **kwargs: Additional keyword arguments to be passed to the constructors.
+        path_traj (str):
+            The path to a single trajectory file or a directory containing them.
+        site (Site):
+            An initialized `Site` object containing lattice and hopping path data.
+        t_interval (float | None, optional):
+            The time interval in picoseconds (ps) for analysis. If None, the
+            interval is automatically estimated from the mean vibration frequency.
+            Defaults to None.
+        **kwargs:
+            Additional keyword arguments passed to the underlying calculator's
+            constructor (`CalculatorEnsemble` or `CalculatorSingle`).
             Accepted arguments include:
-            - prefix (str, optional): 
-                File prefix. (Bundle only). Defaults to "TRAJ".
-            - depth (int, optional): 
-                Directory search depth. (Bundle only). Defaults to 2.
-            - sampling_size (int, optional): 
-                Number of initial trajectory frames to use for t_interval estimation.
-                Defaults to 5000.
-            - use_incomplete_encounter (bool, optional): 
-                Flag for Encounter analysis. Defaults to True.
-            - eps (float, optional): 
-                Tolerance for float comparisons. Defaults to 1.0e-3.
-            - verbose (bool, optional): 
-                Verbosity flag. Defaults to True.
+            - `prefix` (str, optional): File prefix for directory scans.
+              Defaults to "TRAJ".
+            - `depth` (int, optional): Directory search depth. Defaults to 2.
+            - `sampling_size` (int, optional): Frames for t_interval
+              estimation. Defaults to 5000.
+            - `use_incomplete_encounter` (bool, optional): Flag for Encounter
+              analysis. Defaults to True.
+            - `eps` (float, optional): Tolerance for float comparisons.
+              Defaults to 1.0e-3.
+            - `verbose` (bool, optional): Verbosity flag. Defaults to True.
 
     Returns:
-        Union[CalculatorEnsemble, CalculatorSingle]: An instance of either
-            `CalculatorEnsemble` if the path_traj is a directory, or `CalculatorSingle`
-            if the path_traj is a file.
+        Union[CalculatorEnsemble, CalculatorSingle]:
+            An initialized calculator instance appropriate for the provided path.
 
     Raises:
-        FileNotFoundError: If the specified path_traj does not exist.
-        ValueError: If the path_traj exists but is not a regular file or directory.
+        FileNotFoundError:
+            If the specified `path_traj` does not exist.
+        ValueError:
+            If `path_traj` is not a regular file or directory, or if t_interval
+            cannot be estimated.
+
+    Examples:
+        >>> # For a single trajectory file
+        >>> site_info = Site("POSCAR", symbol="O")
+        >>> calc_single = Calculator("TRAJ_O.h5", site=site_info)
+
+        >>> # For a directory of trajectories with auto t_interval estimation
+        >>> calc_ensemble = Calculator("trajectories/", site=site_info)
     """
     p = Path(path_traj)
     if not p.exists():
