@@ -1,0 +1,19 @@
+# Sphinx and theme
+sphinx
+sphinx-rtd-theme
+myst-parser
+
+# Project dependencies needed for autodoc
+numpy
+scipy
+matplotlib
+h5py
+ase
+pymatgen
+pandas
+tabulate
+joblib
+tqdm
+plotly
+Pillow
+mdanalysis
