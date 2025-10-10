@@ -5,23 +5,14 @@ API Reference
 
 This page provides an auto-generated summary of VacHopPy's API.
 
-.. automodule:: vachoppy.core
-   :members:
+.. toctree::
+   :maxdepth: 2
+   :caption: Modules
 
-.. automodule:: vachoppy.trajectory
-   :members:
-
-.. automodule:: vachoppy.frequency
-   :members:
-
-.. automodule:: vachoppy.vibration
-   :members:
-
-.. automodule:: vachoppy.fingerprint
-   :members:
-
-.. automodule:: vachoppy.einstein
-   :members:
-
-.. automodule:: vachoppy.utils
-   :members:
+   api/core
+   api/trajectory
+   api/einstein
+   api/fingerprint
+   api/frequency
+   api/vibration
+   api/utils
