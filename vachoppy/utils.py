@@ -55,6 +55,7 @@ def concat_traj(path_traj1:str,
                 label:str="CONCAT",
                 chunk_size:int=10000,
                 eps:float=1.0e-4,
+                dtype = np.float64,
                 verbose:bool=True) -> None:
     """
     Concatenates two HDF5 trajectory files after checking for consistency.
@@ -73,6 +74,9 @@ def concat_traj(path_traj1:str,
         eps (float, optional):
             Tolerance for comparing floating-point metadata values such as
             temperature, time step, and lattice vectors. Defaults to 1.0e-4.
+        dtype (numpy.dtype, optional):
+            The data type for the output arrays (e.g., np.float64, np.float32).
+            Defaults to np.float64.
         verbose (bool, optional):
             Verbosity tag. Defaults to True.
 
@@ -128,7 +132,7 @@ def concat_traj(path_traj1:str,
                 f"'{path_traj1}' is at {temp1} K, but '{path_traj2}' is at {temp2} K."
             )
         
-        # Check time step (assuming 'potim' is the time step)
+        # Check time step
         dt1 = cond1["dt"]
         dt2 = cond2["dt"]
         if abs(dt1 - dt2) < eps:
@@ -153,6 +157,13 @@ def concat_traj(path_traj1:str,
         # Concatenate two traj files
         num_frames1 = cond1["nsw"]
         num_frames2 = cond2["nsw"]
+        if num_frames1 == 0 or num_frames2 == 0:
+            raise ValueError("One of the trajectory files has no frames.")
+        
+        # PBC-unwrapped displacements
+        displacement = f2['positions'][0] - f1['positions'][-1]
+        offset = -np.round(displacement)
+        
         total_frames = num_frames1 + num_frames2
         out_file = f"TRAJ_{symbol}_{label}.h5"
         with h5py.File(out_file, "w") as f_out:
@@ -169,12 +180,12 @@ def concat_traj(path_traj1:str,
             pos_out = f_out.create_dataset(
                 "positions", 
                 shape=(total_frames, atom_counts[symbol], 3), 
-                dtype=np.float64
+                dtype=dtype
             )
             force_out = f_out.create_dataset(
                 "forces", 
                 shape=(total_frames, atom_counts[symbol], 3), 
-                dtype=np.float64
+                dtype=dtype
             )
 
             pbar = tqdm(
@@ -195,7 +206,7 @@ def concat_traj(path_traj1:str,
             # Copy from the second file
             for i in range(0, num_frames2, chunk_size):
                 end = min(i + chunk_size, num_frames2)
-                pos_out[num_frames1 + i : num_frames1 + end] = f2['positions'][i:end]
+                pos_out[num_frames1 + i : num_frames1 + end] = f2['positions'][i:end] + offset
                 force_out[num_frames1 + i : num_frames1 + end] = f2['forces'][i:end]
                 pbar.update(end - i)
             pbar.close()

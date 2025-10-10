@@ -309,7 +309,7 @@ def cli_concat(path_traj1: str,
                path_traj2: str,
                **kwargs):
     """[CLI method] This method concatenates two successive HDFT trajectory files"""
-    con_keys = ['label', 'chunk_size', 'eps', 'verbose']
+    con_keys = ['label', 'chunk_size', 'eps', 'dtype', 'verbose']
     con_kwargs = {key: kwargs[key] for key in con_keys if key in kwargs}
     concat_traj(path_traj1, path_traj2, **con_kwargs)
     print('')

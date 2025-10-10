@@ -459,7 +459,7 @@ def main():
     p_concat.add_argument(
         '--label', 
         type=str, 
-        default='NEW', 
+        default='CONCAT', 
         help='A custom label for the output concatenated HDF5 file.')            
     p_concat.add_argument(
         '--chunk_size', 
