@@ -36,28 +36,28 @@ def cli_trajectory(path_traj: str,
     t_interval = kwargs.get('t_interval', None)
     if t_interval is None:
         print(f"[STEP{STEP_FLAG}] Automatic t_interval Estimation:"); STEP_FLAG += 1
+        
     calc = Calculator(path_traj, site, **calc_kwargs)
+    calc.calculate()
     
-    if not calc.hopping_sequence:
+    if not calc.calculators[0].hopping_sequence:
         print("\n[INFO] No hopping events found. Stopping analysis.\n")
         return
     
-    calc.calculate()
-    
     print(f"\n\n[STEP{STEP_FLAG}] Summary of Hopping Paths:"); STEP_FLAG += 1
-    calc.show_hopping_paths()
+    calc.calculators[0].show_hopping_paths()
     
     print(f"\n[STEP{STEP_FLAG}] Summary of Hopping Histories:"); STEP_FLAG += 1
-    calc.show_hopping_history()
+    calc.calculators[0].show_hopping_history()
     filename = 'trajectory.json'
-    calc.save_trajectory(filename=filename)
+    calc.calculators[0].save_trajectory(filename=filename)
     
     plot_keys = ['vacancy_indices', 'filename']
     plot_kwargs = {key: kwargs[key] for key in plot_keys if key in kwargs}
     plot_kwargs['unwrap'] = kwargs.get('unwrap', True)
     plot_kwargs['save'] = kwargs.get('save_plot', True)
     plot_kwargs['disp'] = False
-    calc.plot_vacancy_trajectory(np.arange(calc.num_vacancies), **plot_kwargs)
+    calc.calculators[0].plot_vacancy_trajectory(np.arange(calc.num_vacancies), **plot_kwargs)
     
     print(f"Results are saved in '{filename}'.")
     print(f"Trajectory is saved in 'trajectory.html'.\n")
@@ -118,24 +118,28 @@ def cli_analyze(path_traj: str,
         print(f"\n\n[STEP{STEP_FLAG}] Attempt Frequency Calculation:"); STEP_FLAG += 1
         calc.calculate_attempt_frequency(neb_csv=neb_csv, filename=filename)
         calc.attempt_frequency.summary()
-        
-    if len(calc.temperatures) > 1 and dir_imgs is not None:
+    
+    
+    
+    if  dir_imgs is not None:
         if not os.path.isdir(dir_imgs): os.makedirs(dir_imgs)
-        calc.plot_D_rand(disp=True, filename=os.path.join(dir_imgs, 'D_rand.png'))
-        calc.plot_f(disp=True, filename=os.path.join(dir_imgs, 'f.png'))
-        calc.plot_D(disp=True, filename=os.path.join(dir_imgs, 'D.png'))
-        calc.plot_tau(disp=True, filename=os.path.join(dir_imgs, 'tau.png'))
         calc.plot_counts(disp=True, filename=os.path.join(dir_imgs, 'counts.png'))
-        if neb_csv is not None:
-            calc.plot_nu(disp=True, filename=os.path.join(dir_imgs, 'nu.png'))
-            calc.plot_z(disp=True, filename=os.path.join(dir_imgs, 'z.png'))
-    else:
-        print("\n[INFO] Skipping plots (e.g., Arrhenius plots), " + 
-              "as they require data from more than one temperature.\n")
+        
+        if len(calc.temperatures) > 1:
+            calc.plot_D_rand(disp=True, filename=os.path.join(dir_imgs, 'D_rand.png'))
+            calc.plot_f(disp=True, filename=os.path.join(dir_imgs, 'f.png'))
+            calc.plot_D(disp=True, filename=os.path.join(dir_imgs, 'D.png'))
+            calc.plot_tau(disp=True, filename=os.path.join(dir_imgs, 'tau.png'))
+            
+            if neb_csv is not None:
+                calc.plot_nu(disp=True, filename=os.path.join(dir_imgs, 'nu.png'))
+                calc.plot_z(disp=True, filename=os.path.join(dir_imgs, 'z.png'))
+        else:
+            print("\n[INFO] Skipping plots (e.g., Arrhenius plots), " + 
+                "as they require data from more than one temperature.\n")
     
     print(f"Results are saved in '{filename}'.")      
-    if len(calc.temperatures) > 1 and dir_imgs is not None:
-        print(f"Images are saved in '{dir_imgs}'.")
+    if dir_imgs is not None: print(f"Images are saved in '{dir_imgs}'.")
     print('')
     
     
