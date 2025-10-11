@@ -1946,7 +1946,9 @@ class TrajectoryBundle:
     """Manages and validates one or more HDF5 trajectory files.
 
     This class handles two main scenarios:
+
     1.  **Single File Mode**: Processes a single, specified HDF5 trajectory file.
+
     2.  **Directory Search Mode**: Recursively searches a directory for HDF5 files,
         groups them by temperature, and validates their consistency.
 
@@ -2642,8 +2644,10 @@ class CalculatorEnsemble(TrajectoryBundle):
     and group HDF5 trajectory files by temperature from a given path.
 
     The primary workflow involves two steps:
+
     1.  **Initialization**: Create an instance of the class, which prepares the
         dataset.
+
     2.  **Calculation**: Call the `.calculate()` method to run the entire
         computational pipeline. This process analyzes each trajectory in parallel,
         aggregates the results, and performs Arrhenius fits to determine activation
