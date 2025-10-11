@@ -2679,12 +2679,21 @@ class CalculatorEnsemble(TrajectoryBundle):
     Attributes:
         temperatures (numpy.ndarray):
             Array of unique temperatures (K) found in the analysis.
+
+        The following attributes are populated after calling the `.calculate()` method:
+
         D (numpy.ndarray):
             Temperature-dependent vacancy diffusivity (m²/s).
         Ea_D (float):
             Activation energy (eV) for diffusivity from Arrhenius fit.
         D0 (float):
             Pre-exponential factor (m²/s) for diffusivity.
+        D_rand (numpy.ndarray):
+            Temperature-dependent random-walk diffusivity (m²/s).
+        Ea_D_rand (float):
+            Activation energy (eV) for random-walk diffusivity.
+        D_rand0 (float):
+            Pre-exponential factor (m²/s) for random-walk diffusivity.
         f (numpy.ndarray):
             Temperature-dependent correlation factor.
         tau (numpy.ndarray):
@@ -2696,6 +2705,16 @@ class CalculatorEnsemble(TrajectoryBundle):
         calculators (list[CalculatorSingle]):
             A list of the successfully completed `CalculatorSingle` instances,
             ordered corresponding to the `all_traj_paths` attribute.
+
+        The following attributes are populated after calling the `.calculate_attempt_frequency()` method:
+
+        z (numpy.ndarray):
+            Temperature-dependent effective coordination number.
+        nu (numpy.ndarray):
+            Temperature-dependent effective attempt frequency (THz).
+        nu_path (numpy.ndarray):
+            Path-wise attempt frequency (THz), with shape
+            (n_temperatures, n_paths).
 
     Raises:
         FileNotFoundError:
@@ -2715,10 +2734,14 @@ class CalculatorEnsemble(TrajectoryBundle):
         >>> # 2. Run the entire parallel analysis pipeline
         >>> ensemble.calculate(n_jobs=-1)
         >>>
-        >>> # 3. View and visualize the results
+        >>> # 3. View and visualize the main results
         >>> ensemble.summary()
         >>> ensemble.plot_D(filename="diffusivity_plot.png")
-    """
+        >>>
+        >>> # 4. (Optional) Calculate attempt frequencies with NEB data
+        >>> ensemble.calculate_attempt_frequency(neb_csv="path/to/neb_data.csv")
+        >>> ensemble.plot_nu()
+"""
     def __init__(self,
                  path_traj: str,
                  site: Site,
@@ -2757,25 +2780,25 @@ class CalculatorEnsemble(TrajectoryBundle):
         self.counts_unknown = None
         
         # correlation factor
-        self.f = None
+        self.f = None       # (n_temp,)
         self.f0 = None
         self.Ea_f = None
         self.f_R2 = None
         
         # random walk diffusivity
-        self.D_rand = None
+        self.D_rand = None  # (n_temp,)
         self.D_rand0 = None
         self.Ea_D_rand = None
         self.D_rand_R2 = None
         
         # diffusivity
-        self.D = None
+        self.D = None       # (n_temp,)
         self.D0 = None
         self.Ea_D = None
         self.D_R2 = None
         
         # residence time
-        self.tau = None
+        self.tau = None     # (n_temp,)
         self.tau0 = None
         self.Ea_tau = None
         self.tau_R2 = None
@@ -2787,14 +2810,17 @@ class CalculatorEnsemble(TrajectoryBundle):
         self.z_mean = None
         
         # extra properties for attempt frequency calc.
-        self.a_path = None # (n_path,)
-        self.z_path = None # (n_path,)
-        self.P_site = None  # (n_temp, n_site)
-        self.times_site = None # (n_temp, n_site)
+        self.a_path = None      # (n_path,)
+        self.z_path = None      # (n_path,)
+        self.P_site = None      # (n_temp, n_site)
+        self.times_site = None  # (n_temp, n_site)
         self.counts_hop = None  # (n_temp, n_path)
         
-        # object of AttemptFrequency
+        # attirbutes populated after `.calculate_attempt_frequency()` is called.
         self.attempt_frequency = None
+        self.z = None       # (n_temp,)
+        self.nu = None      # (n_temp,)
+        self.nu_path = None # (n_temp, n_path)
         
     @monitor_performance
     def calculate(self, n_jobs: int = -1, verbose=True) -> None:
@@ -3880,6 +3906,9 @@ class CalculatorEnsemble(TrajectoryBundle):
         self.save_parameters(filename=filename)
         self.attempt_frequency = AttemptFrequency(filename, neb_csv, verbose=False)
         self.attempt_frequency.update_json()
+        self.z = self.attempt_frequency.z
+        self.nu = self.attempt_frequency.nu
+        self.nu_path = self.attempt_frequency.nu_path
         
         if self.verbose:
             self.attempt_frequency.summary()

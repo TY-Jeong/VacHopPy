@@ -26,7 +26,7 @@ Here is a summary of the main commands available:
 | `vibration` | Extract atomic vibration frequency from a single trajectory. |
 | `distance` | Trace change in cosine distance from a reference structure over time. |
 | `fingerprint` | Calculate and plot the fingerprint for a single static structure. |
-| `msd` | Calculate diffusivity from Mean Squared Displacement (Einstein relation). |
+| `msd` | Calculate diffusivity from mean squared displacement (Einstein relation). |
 | `convert` | Convert various MD trajectory formats to the standard HDF5 format. |
 | `concat` | Concatenate two successive HDF5 trajectory files into a new one. |
 | `show` | Display a metadata summary of a HDF5 trajectory file. |
