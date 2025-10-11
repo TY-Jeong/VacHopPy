@@ -52,7 +52,7 @@ If this package was used in your work, please cite `this paper <https://arxiv.or
    
    introduction
    installation
-   tutorial
    cli_usage
+   tutorial
    api_reference
    changelog

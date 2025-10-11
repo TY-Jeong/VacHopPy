@@ -38,6 +38,10 @@ HDF5 allows for highly efficient, streaming-based data access. As a result, `Vac
 
 Before running an analysis, you must first convert your MD trajectory into this format.
 
+````{warning}
+The input MD trajectory file must contain both **position** and **force** information. `VacHopPy` uses force data to accurately determine site occupations.
+````
+
 ### Converting Your Trajectory to HDF5
 
 You can convert your files using either a simple command-line tool or the Python script.
@@ -60,7 +64,7 @@ The arguments are as follows:
 
 * `2000K`: An optional suffix to append to the output filenames.
 
-For efficient storage, the converter automatically splits the trajectory by chemical species. The command above would generate two separate files: `TRAJ_Ti_2000K.h5` and `TRAJ_O_2000K.h5`. This conversion process is powered by Atomic Simulation Environment (**ASE**), enabling compatibility with a wide range of file [**formats supported by the ASE**](https://ase-lib.org/ase/io/io.html).
+For efficient storage, the converter automatically splits the trajectory by chemical species. The command above would generate two separate files: `TRAJ_Ti_2000K.h5` and `TRAJ_O_2000K.h5`. This conversion process is powered by Atomic Simulation Environment (**ASE**), enabling compatibility with a wide range of [**file formats supported by the ASE**](https://ase-lib.org/ase/io/io.html).
 
 #### Via the Python script
 
@@ -78,5 +82,5 @@ parse_md(
 ```
 
 ````{note}
-For **LAMMPS dump** format, `VacHopPy` automatically uses [**MDAnalysis**](https://www.mdanalysis.org) as a backend due to the limitaion of ASE. For more details and advanced options, consult the help message with `vachoppy convert -h` or refer to `parse_lammps` module in the API documentation.
-
+For **lammps-dump-text** format, `VacHopPy` automatically uses [**MDAnalysis**](https://www.mdanalysis.org) as a backend instead of ASE. For more details and advanced options, consult the help message with `vachoppy convert -h` or refer to `parse_lammps` module in the API documentation.
+````

@@ -21,6 +21,7 @@ The key parameters extractable with `VacHopPy` are summarized below.
 
 All parameters listed above are calculated as **effective values**. For a detailed explanation of the concept of effective hopping parameters, please refer to the following section.
 
+
 ---
 
 ## What are effective hopping parameters?
@@ -40,6 +41,54 @@ $$
 $$
 
 For a more detailed theoretical background, please refer to [this paper](https://arxiv.org/abs/2503.23467).
+
+---
+
+
+## Understanding Data Requirements
+
+`VacHopPy` is designed to be flexible, capable of processing either a single MD trajectory or an ensemble of trajectories simultaneously. Furthermore, it can analyze data from simulations performed at multiple temperatures to extract temperature-dependent properties.
+
+However, not all parameters can be calculated from the same set of data. The table below summarizes the data requirements for each parameter, where 'O' indicates that the parameter can be calculated, and 'X' indicates that it cannot.
+
+
+<div align="center">
+
+| Symbol | Single Temperature | Multiple Temperatures | Note              |
+| :----: | :----------------: | :-------------------: | :---------------: |
+|  $D$   | O                  | O                     | -                 |
+| $\tau$ | O                  | O                     | -                 |
+|  $f$   | O                  | O                     | -                 |
+| $E_a$  | X                  | O                     | -                 |
+|  $a$   | X                  | O                     | -                 |
+|  $z$   | X                  | O                     | NEB data required |
+| $\nu$  | O                  | O                     | NEB data required |
+| $\nu^*$| O                  | O                     | -                 |
+
+</div>
+
+As shown, parameters like the effective hopping barrier ($E_a$) require sampling MD trajectories across a range of temperatures to perform an Arrhenius-type analysis.
+
+The "NEB data required" note signifies that for certain parameters ($z$ and $\nu$), additional data from NEB calculations is necessary. `VacHopPy` needs the hopping barrier for each distinct migration path in the system. However, since these energy barriers can be highly sensitive to the local atomic environment, this approach is considered reliable only for **monovacancy systems**.
+
+
+### Identifying Hopping Paths for NEB
+
+To assist in setting up these required NEB calculations, `VacHopPy` provides the `Site` class to identify potential hopping paths in your crystal structure. 
+
+```python
+from vachoppy.core import Site
+
+site = Site('POSCAR_TiO2', 'O') 
+site.summary()
+```
+The `Site` class is initialized with two arguments:
+
+1. The **path to a structure file** of the perfect, vacancy-free crystal (e.g., 'POSCAR_TiO2'). It supports any format compatible with the Atomic Simulation Environment ([ASE](https://ase-lib.org/ase/io/io.html)).
+
+2. The **chemical symbol** of the species whose vacancy is being analyzed (e.g., 'O' for an oxygen vacancy).
+
+Running the `summary()` method provides the necessary structural information about crystal sites and potential migration paths to serve as a starting point for your NEB calculations.
 
 ---
 

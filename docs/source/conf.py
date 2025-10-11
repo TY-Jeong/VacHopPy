@@ -34,13 +34,17 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
-    'myst_parser',
+    'myst_nb',
 	'sphinx.ext.mathjax',
 ]
 
 myst_enable_extensions = [
     "dollarmath",
 ]
+
+# Do not execute Jupyter notebooks when building the documentation.
+# This uses the pre-saved outputs in the .ipynb file.
+nb_execution_mode = "off"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

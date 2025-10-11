@@ -1,7 +1,7 @@
 # Sphinx and theme
 sphinx
 sphinx-rtd-theme
-myst-parser
+myst-nb
 
 # Project dependencies needed for autodoc
 numpy
