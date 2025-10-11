@@ -1,25 +1,58 @@
-.. VacHopPy documentation master file, created by
-   sphinx-quickstart on Fri Oct 10 20:43:46 2025.
+.. vachoppy documentation master file, created by
+   sphinx-quickstart on Sat Oct 11 14:05:35 2025.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 Welcome to VacHopPy's documentation!
 ====================================
 
+.. image:: _static/logo.png
+   :align: center
+   :width: 550px
+   :alt: VacHopPy Logo
+
+**VacHopPy** is a Python package for analyzing vacancy-mediated diffusion from molecular dynamics (MD) 
+simulations. The library facilitates a reliable **multiscale modeling** workflow by calculating key 
+vacancy hopping parameters that can be directly incorporated into continuum-scale models.
+
+Key Features
+------------
+
+* **Effective Parameter Extraction** 
+
+  Derives a single set of effective hopping parameters from the MD simulations, 
+  providing ready-to-use inputs for continuum-scale models.
+
+* **Ensemble Analysis**
+
+  Simultaneously processes an ensemble of multiple MD trajectories. 
+  This approach efficiently samples rare hopping events in high-barrier systems, 
+  avoiding the need for a single, prohibitively long simulation.
+
+* **Memory-Efficient Processing**
+
+  Reads and interprets large-scale trajectories via a streaming approach, 
+  enabling the analysis of massive datasets within just a few gigabytes of RAM.
+
+.. note::
+
+   This package is designed for analyzing MD simulations performed under
+   the **NVT (canonical) ensemble** with periodic boundary conditions (PBC).
+
+
+How to Cite
+---------------
+If this package was used in your work, please cite `this paper <https://arxiv.org/abs/2503.23467>`_.
+
+
 .. toctree::
+   :hidden:
    :maxdepth: 2
    :caption: Contents:
-
+   
+   introduction
    installation
+   tutorial
    cli_usage
-   examples
    api_reference
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   changelog
