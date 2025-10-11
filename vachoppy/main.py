@@ -62,6 +62,11 @@ def main():
         type=str, 
         help="File format supported by ASE, e.g., 'vasp', 'cif', 'xyz'.")
     p_traj.add_argument(
+        '--sampling_size',
+        type=int,
+        default=5000,
+        help='Number of initial frames to use for `t_interval` auto-estimation.')
+    p_traj.add_argument(
         '--a_max',
         dest='rmax', 
         type=float, 
@@ -88,7 +93,7 @@ def main():
     p_anal.add_argument(
         'path_traj', 
         type=str, 
-        help='Path to the directory containing HDF5 trajectory files.')
+        help='Path to a single HDF5 file or a root directory to search for files.')
     p_anal.add_argument(
         'path_structure', 
         type=str, 
@@ -330,7 +335,7 @@ def main():
     p_msd.add_argument(
         'path_traj', 
         type=str, 
-        help='Path to a single HDF5 file or a directory containing them.')
+        help='Path to a single HDF5 file or a root directory to search for files.')
     p_msd.add_argument(
         'symbol', 
         type=str, 

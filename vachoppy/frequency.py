@@ -191,14 +191,21 @@ class AttemptFrequency:
     def _calculate_probabilities(self):
         """Calculates path-wise escape and total probabilities."""
         self.P_esc = np.exp(-self.Ea_path / (self.kb * self.temperatures[:, np.newaxis]))
-        self.P_esc_eff = np.exp(-self.Ea_D_rand / (self.kb * self.temperatures))
+        if len(self.temperatures) >= 2: 
+            self.P_esc_eff = np.exp(-self.Ea_D_rand / (self.kb * self.temperatures))
+        else:
+            self.P_esc_eff = None
         P_site_per_path = np.array([np.repeat(p_site, self.num_paths_per_site) for p_site in self.P_site])
         self.P = P_site_per_path * self.P_esc
         
     def _calculate_coordination_numbers(self):
-        self.z = np.sum(self.P * self.z_path, axis=1) / self.P_esc_eff
-        self.m_mean = np.sum(self.P * self.z_path, axis=1) / self.P_esc_eff
-        
+        if len(self.temperatures) >= 2 and self.P_esc_eff is not None:
+            self.z = np.sum(self.P * self.z_path, axis=1) / self.P_esc_eff
+            self.m_mean = np.sum(self.P * self.z_path, axis=1) / self.P_esc_eff
+        else:
+            self.z = [np.nan]
+            self.m_mean = [np.nan]
+            
     def _calculate_attempt_frequencies(self):
         """Calculates path-wise (nu_path) and effective (nu) attempt frequencies."""
         times_per_path = np.array([np.repeat(time, self.num_paths_per_site) for time in self.times_site])
@@ -318,6 +325,12 @@ class AttemptFrequency:
             dpi (int, optional):
                 The resolution for the saved figure. Defaults to 300.
         """
+        if len(self.temperatures) <= 1:
+            raise ValueError(
+                f"Found only {len(self.temperatures)} temperature point. "
+                "This analysis requires data from at least two temperatures."
+            )
+            
         fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
             ax.spines[axis].set_linewidth(1.2)
@@ -360,9 +373,10 @@ class AttemptFrequency:
         with open(self.parameter_json, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        attributes_to_update = [
-            'nu', 'nu_path', 'Ea_path', 'z', 'm_mean', 'P_esc'
-        ]
+        if len(self.temperatures) >= 2:
+            attributes_to_update = ['nu', 'nu_path', 'Ea_path', 'z', 'm_mean', 'P_esc']
+        else:
+            attributes_to_update = ['nu', 'nu_path', 'Ea_path', 'P_esc']
 
         for attr in attributes_to_update:
             if hasattr(self, attr):

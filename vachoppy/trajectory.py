@@ -2,44 +2,45 @@
 vachoppy.trajectory
 ===================
 
-Provides the core classes for performing detailed vacancy trajectory analysis
-and calculating key diffusion properties.
+Contains the core classes that form the computational engine for vacancy
+diffusion analysis in `VacHopPy`.
 
-This module contains the main analysis engine of the `VacHopPy` package. It
-is built upon a hierarchy of classes that progressively analyze trajectory
-data, from identifying individual atomic hops to calculating ensemble-averaged
-physical quantities like diffusivity and correlation factors.
+This module provides a hierarchy of classes designed to process trajectory
+data in progressive stages, from the lowest level of identifying individual
+atomic hops to the highest level of calculating ensemble-averaged physical
+properties and performing Arrhenius fits.
 
 While these classes can be used individually for advanced or custom workflows,
-they are typically orchestrated by the high-level factory function in the
+they are typically orchestrated by the high-level setup function in the
 `vachoppy.core` module.
 
-Main Components
----------------
-- **Trajectory**: The foundational analysis class. It reads a single trajectory,
+Core Classes
+------------
+- **Trajectory**: The foundational class that reads a single HDF5 trajectory,
   determines the site occupation of each atom at each time step, and
   reconstructs the raw vacancy movement paths.
-- **TrajectoryAnalyzer**: A post-processor that takes a `Trajectory` object and
-  quantifies the hopping events, calculating statistics like hop counts per
-  path and site residence times.
-- **Encounter**: A further analysis step that processes the results from
-  `TrajectoryAnalyzer` to identify atom-vacancy encounters and calculate the
-  correlation factor (f).
-- **TrajectoryBundle**: A utility class to discover, validate, and group a
-  collection of trajectory files, typically for a multi-temperature study.
-- **CalculatorSingle**: A high-level class that combines `Trajectory`,
-  `TrajectoryAnalyzer`, and `Encounter` to perform a full analysis on a
-  single simulation file.
-- **CalculatorEnsemble**: The top-level orchestrator that manages a `TrajectoryBundle`
-  and runs `CalculatorSingle` analyses in parallel to compute
-  temperature-dependent properties and perform Arrhenius fits.
+- **TrajectoryAnalyzer**: Analyzes the output of a `Trajectory` object to
+  identify and quantify discrete hopping events, calculating statistics like
+  hop counts and site residence times.
+- **Encounter**: Processes results from `TrajectoryAnalyzer` to identify
+  atom-vacancy encounters and calculate the correlation factor (f).
+- **CalculatorSingle**: A high-level orchestrator that combines the three
+  classes above to run the full pipeline on a *single* trajectory file. It
+  serves as the worker process for ensemble calculations.
+- **CalculatorEnsemble**: The top-level analysis class that manages an ensemble
+  of trajectories. It uses `TrajectoryBundle` for file discovery and runs
+  multiple `CalculatorSingle` instances in parallel to compute
+  temperature-dependent properties.
+- **TrajectoryBundle**: A helper class used by `CalculatorEnsemble` to
+  discover, validate, and group a collection of trajectory files for
+  multi-temperature analysis.
 
 Typical Usage
 -------------
-Users typically do not interact with this module's classes directly. Instead,
-they should use the `vachoppy.core.Calculator` factory function, which
-automatically selects, instantiates, and runs the appropriate orchestrator class
-(`CalculatorSingle` or `CalculatorEnsemble`) from this module.
+Users should typically **not** import classes from this module directly.
+Instead, the intended entry point is the `vachoppy.core.Calculator`
+function, which handles the instantiation and execution of the appropriate
+classes from this module behind the scenes.
 """
 
 from __future__ import annotations
@@ -1942,27 +1943,29 @@ class Encounter:
 
 
 class TrajectoryBundle:
-    """Manages a collection of HDF5 trajectory files from an ensemble of simulations.
+    """Manages and validates one or more HDF5 trajectory files.
 
-    This class automatically discovers, validates, and groups trajectory files based
-    on simulation parameters. It recursively searches for files in a given path,
-    groups them by temperature, and ensures that all grouped files are from
-    consistent simulations (e.g., same timestep, atom counts, lattice).
+    This class handles two main scenarios:
+    1.  **Single File Mode**: Processes a single, specified HDF5 trajectory file.
+    2.  **Directory Search Mode**: Recursively searches a directory for HDF5 files,
+        groups them by temperature, and validates their consistency.
 
-    The main workflow is to initialize the class, which triggers the file search
-    and validation. The results are stored in attributes and can be saved to a
-    summary file using the `.summary()` method.
+    It ensures that all processed files are from consistent simulations (e.g.,
+    same timestep, atom counts, lattice). The primary workflow is to initialize
+    the class, which triggers file discovery and validation. Results can then be
+    saved to a summary file using the `.summary()` method.
 
     Args:
         path_traj (str):
-            The root directory to search for trajectory files.
+            Path to a single HDF5 file or a root directory to search for files.
         symbol (str):
             The chemical symbol of the target element, used to filter files.
         prefix (str, optional):
-            The prefix of the trajectory files to search for (e.g., "TRAJ").
-            Defaults to "TRAJ".
+            The prefix of trajectory files to search for (e.g., "TRAJ").
+            Used only when searching a directory. Defaults to "TRAJ".
         depth (int, optional):
-            The maximum directory depth to search for files. Defaults to 2.
+            The maximum directory depth to search for files. Used only when
+            searching a directory. Defaults to 2.
         eps (float, optional):
             The tolerance for comparing floating-point values in metadata
             (e.g., temperature, dt, lattice vectors). Defaults to 1.0e-3.
@@ -1982,13 +1985,12 @@ class TrajectoryBundle:
             The 3x3 lattice vectors as a NumPy array, confirmed to be consistent.
 
     Raises:
-        NotADirectoryError:
-            If the provided `path_traj` is not a valid directory.
+        FileNotFoundError:
+            If the provided `path_traj` does not exist, or if no valid trajectory
+            files matching the criteria are found during a directory search.
         ValueError:
             If `depth` is less than 1, or if inconsistent simulation parameters
             (dt, atom_counts, lattice) are found among the files.
-        FileNotFoundError:
-            If no valid trajectory files matching the criteria are found.
         IOError:
             If a trajectory file or its metadata cannot be read.
     """
@@ -2007,8 +2009,9 @@ class TrajectoryBundle:
         self.prefix = prefix
         self.verbose = verbose
         
-        if not self.path_traj.is_dir():
-            raise NotADirectoryError(f"Error: Invalid directory: '{path_traj}'")
+        if not self.path_traj.exists():
+            raise FileNotFoundError(f"Error: '{self.path_traj}' not found.")
+        
         if self.depth < 1:
             raise ValueError("Error: depth must be 1 or greater.")
 
@@ -2087,12 +2090,19 @@ class TrajectoryBundle:
         Searches for HDF5 trajectory files, groups them by temperature,
         and populates self.temperatures and self.traj lists.
         """
-        glob_iterators = []
-        for i in range(self.depth):
-            dir_prefix = '*/' * i
-            pattern = f"{dir_prefix}{self.prefix}*.h5"
-            glob_iterators.append(self.path_traj.glob(pattern))    
-        candidate_files = itertools.chain.from_iterable(glob_iterators)
+        if self.path_traj.is_file():
+            candidate_files = [self.path_traj]
+                
+        elif self.path_traj.is_dir():
+            glob_iterators = []
+            for i in range(self.depth):
+                dir_prefix = '*/' * i
+                pattern = f"{dir_prefix}{self.prefix}*.h5"
+                glob_iterators.append(self.path_traj.glob(pattern))    
+            candidate_files = itertools.chain.from_iterable(glob_iterators)
+            
+        else:
+            raise ValueError(f"Error: The path '{self.path_traj}' is not a regular file or directory.")
         
         found_paths = []
         for file_path in sorted(candidate_files):
@@ -2101,7 +2111,7 @@ class TrajectoryBundle:
                     metadata_str = f.attrs.get("metadata")
                     if not metadata_str:
                         if self.verbose:
-                            print(f"Warning: File '{str(file_path.resolve())}' is "+
+                            print(f"Warning: File '{str(file_path.resolve())}' is " +
                                   "missing 'metadata' attribute. Skipping.")
                         continue
                     
@@ -2112,7 +2122,7 @@ class TrajectoryBundle:
                     if file_symbol == self.symbol:
                         if file_temp is None:
                             if self.verbose:
-                                print(f"Warning: File '{str(file_path.resolve())}' is missing "+
+                                print(f"Warning: File '{str(file_path.resolve())}' is missing " +
                                       "'temperature' in metadata. Skipping.")
                             continue
                         
@@ -2121,15 +2131,16 @@ class TrajectoryBundle:
                         else:
                             if self.verbose:
                                 print(f"Warning: File '{str(file_path.resolve())}' is missing " +
-                                    "required datasets ('positions', 'forces'). Skipping.")
+                                      "required datasets ('positions', 'forces'). Skipping.")
+                                
             except Exception as e:
                 if self.verbose:
-                    print(f"Warning: Could not read or verify '{str(file_path.resolve())}'. "
+                    print(f"Warning: Could not read or verify '{str(file_path.resolve())}'. " +
                           f"Skipping file. Reason: {e}")
         
         if not found_paths:
             raise FileNotFoundError(
-                f"Error: No valid trajectory files found for symbol '{self.symbol}' "
+                f"Error: No valid trajectory files found for symbol '{self.symbol}' " +
                 f"in path '{self.path_traj}' with depth {self.depth}."
             )
             
@@ -2204,17 +2215,16 @@ class TrajectoryBundle:
         
 
 class CalculatorSingle(Trajectory):
-    """Orchestrates the full vacancy diffusion analysis pipeline for a single trajectory.
+    """Orchestrates the full vacancy diffusion analysis for a single trajectory.
 
-    This class serves as a high-level interface for analyzing a single simulation.
-    It inherits from `Trajectory` and, upon initialization, automatically runs the
-    primary analysis by creating `TrajectoryAnalyzer` and `Encounter` instances.
-    This first step computes foundational statistics like hop histories and identifies
-    atom-vacancy encounters.
+    This class provides a high-level interface for analyzing a single simulation run.
+    Upon initialization, it immediately performs the foundational analysis by
+    processing the trajectory to identify all hopping events and atom-vacancy
+    encounters.
 
-    After initialization, call the `.calculate()` method to compute the final,
-    derived physical properties (e.g., diffusivity, correlation factor) from the
-    results of the initial analysis.
+    After the object is created, the `.calculate()` method must be called to
+    compute the final, derived physical properties (e.g., diffusivity, correlation
+    factor, residence time) from the initial results.
 
     Args:
         path_traj (str):
@@ -2232,44 +2242,39 @@ class CalculatorSingle(Trajectory):
             Verbosity flag. Defaults to True.
 
     Attributes:
-        analyzer (TrajectoryAnalyzer):
-            The `TrajectoryAnalyzer` instance, containing detailed hop statistics.
-        encounter (Encounter):
-            The `Encounter` instance, containing encounter analysis results.
         f (float):
-            The calculated correlation factor (f). Populated after `.calculate()`.
-        D_rand (float):
-            The random-walk diffusivity (m²/s). Populated after `.calculate()`.
+            The calculated correlation factor. Populated after `.calculate()` is called.
         D (float):
-            The final diffusivity (D = D_rand * f) in m²/s. Populated after `.calculate()`.
+            The final vacancy diffusivity (m²/s). Populated after `.calculate()` is called.
+        D_rand (float):
+            The random-walk diffusivity (m²/s). Populated after `.calculate()` is called.
         tau (float):
-            The average vacancy residence time (ps). Populated after `.calculate()`.
-        z_mean (float):
-            The mean number of equivalent paths for observed hops. Populated after `.calculate()`.
+            The average vacancy residence time (ps). Populated after `.calculate()` is called.
         hopping_history (list):
-            A detailed log of every hop for each vacancy.
+            A detailed log of every hop for each vacancy, available after initialization.
         counts (numpy.ndarray):
-            Counts of each pre-defined hop path.
-        msd_rand (float):
-            Mean Squared Displacement from random walk theory (Å²).
+            An array containing the counts for each predefined hopping path.
 
     Raises:
-        Exception: Propagates any exceptions raised during the initialization
-            of the internal `Trajectory`, `TrajectoryAnalyzer`, and `Encounter`
-            objects (e.g., `FileNotFoundError`, `ValueError`).
+        FileNotFoundError:
+            If the specified `path_traj` does not exist.
+        ValueError:
+            If critical data is missing from the trajectory or site information.
 
     Examples:
+        >>> # 1. Initialize the Site and CalculatorSingle objects
         >>> site_info = Site("POSCAR", symbol="O")
         >>> calc = CalculatorSingle(
         ...     path_traj="TRAJ_O_1000K.h5",
         ...     site=site_info,
         ...     t_interval=0.1
         ... )
-        >>> # Final properties are calculated here
+        >>>
+        >>> # 2. Compute the final physical properties
         >>> calc.calculate()
-        >>> # Print a full summary of results
+        >>>
+        >>> # 3. View the results
         >>> calc.summary()
-        >>> # Access a specific result
         >>> print(f"Correlation Factor: {calc.f:.4f}")
     """
     @monitor_performance
@@ -2325,8 +2330,9 @@ class CalculatorSingle(Trajectory):
         self.a_path = None
         self.z_path = None
         self.temperatures = None
-        self.counts_hop = None
+        self.P_site = None
         self.times_site = None
+        self.counts_hop = None
      
     def _get_correlation_factor(self):
         """Extracts the correlation factor from the encounter analysis."""
@@ -2370,9 +2376,13 @@ class CalculatorSingle(Trajectory):
         all_indices = np.concatenate(list(self.vacancy_trajectory_index.values()))
         all_type_indices = site_index_to_type_map[all_indices]
         count_site = np.bincount(all_type_indices, minlength=len(self.site.site_name))
-        self.times_site = (count_site * self.t_interval).tolist()
+        self.times_site = count_site * self.t_interval
+        self.P_site = self.times_site / np.sum(self.times_site)
+        
+        self.times_site = [self.times_site.tolist()]
+        self.P_site = [self.P_site.tolist()]
     
-    def calculate(self) -> None:
+    def calculate(self, **kwargs) -> None:
         """Calculates the final physical properties from the initial analysis.
 
         This method should be called after the `CalculatorSingle` object has been
@@ -2623,128 +2633,37 @@ class CalculatorSingle(Trajectory):
         if self.verbose:
             print(f"Trajectoris saved to '{filename}'.")
 
-    def save_parameters(self,
-                        filename: str = "parameters.json") -> None:
-        """Saves all calculated physical parameters to a JSON file.
 
-        The output JSON includes a 'description' key that explains each parameter,
-        making the file self-documenting.
-
-        Args:
-            filename (str, optional):
-                The name of the output JSON file. Defaults to 'parameters.json'.
-        
-        Returns:
-            None: This method writes a file to disk.
-        """
-
-            
-        description = {
-            'D'         : 'Diffusivity (m2/s): (n_temperatures,)',
-            'D0'        : 'Pre-exponential factor for diffusivity (m2/s)',
-            'Ea_D'      : 'Activation barrier for diffusivity (eV)',
-            'D_rand'    : 'Random walk diffusivity (m2/s): (n_temperatures,)',
-            'D_rand0'   : 'Pre-exponential factor for random walk diffusivity (m2/s)',
-            'Ea_D_rand' : 'Activation barrier for random walk diffusivity (eV)',
-            'f'         : 'Correlation factor: (n_temperatures,)',
-            'f0'        : 'Pre-exponential factor for correlation factor',
-            'Ea_f'      : 'Activation barrier for correlation factor (eV)',
-            'tau'       : 'Residence time (ps): (n_temperatures,)',
-            'tau0'      : 'Pre-exponential factor for residence time (ps)',
-            'Ea_tau'    : 'Activation barrier for residence time (eV)',
-            'a'         : 'Effective hopping distance (Ang)',
-            'a_path'    : 'Path-wise hopping distance (Ang): (n_paths,)',
-            'nu'        : 'Effective attempt frequency (THz): (n_temperatures,)',
-            'nu_path'   : 'Path-wise attempt frequency (THz): (n_temperatures, n_paths)',
-            'Ea_path'   : 'Path-wise hopping barrier (eV): (n_paths)',
-            'z'         : 'Effective number of the equivalent paths',
-            'z_path'    : 'Number of the equivalent paths of each path: (n_paths,)',
-            'z_mean'    : 'Mean number of the equivalent paths per path type: (n_temperatures,)',
-            'm_mean'    : 'Mean number of path types: (n_temperatures,)',
-            'P_site'    : 'Site occupation probability: (n_temperatures, n_sites)',
-            'P_esc'     : 'Escape probability: (n_temperature, n_paths)',
-            'times_site': 'Total residence times at each site (ps): (n_temperature, n_sites)',
-            'counts_hop': 'Counts of hops at each temperature: (n_temperature, n_paths)'
-        }
-        is_list = {
-            'D'         : True,
-            'D0'        : False,
-            'Ea_D'      : False,
-            'D_rand'    : True,
-            'D_rand0'   : False,
-            'Ea_D_rand' : False,
-            'f'         : True,
-            'f0'        : False,
-            'Ea_f'      : False,
-            'tau'       : True,
-            'tau0'      : False,
-            'Ea_tau'    : False,
-            'a'         : False,
-            'a_path'    : True,
-            'nu'        : True,
-            'nu_path'   : True,
-            'Ea_path'   : True,
-            'z'         : False,
-            'z_path'    : True,
-            'z_mean'    : True,
-            'm_mean'    : True,
-            'P_site'    : True,
-            'P_esc'     : True,
-            'times_site': True,
-            'counts_hop': True
-        }
-        contents = {
-            'symbol': self.symbol,
-            'path': self.site.path_name,
-            'site': self.site.site_name,
-            'temperatures': self.temperatures.tolist(),
-            'num_vacancies': self.num_vacancies,
-        }
-        
-        for param in description.keys():
-            if hasattr(self, param):
-                value = getattr(self, param)
-                if isinstance(value, (np.ndarray, np.generic)):
-                    value = value.tolist()
-                if is_list[param] and not isinstance(value, list):
-                    contents[param] = [value]
-                else:
-                    contents[param] = value
-            else:
-                contents[param] = None
-        contents['description'] = description
-        
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(contents, f, indent=2)
-        
-        if self.verbose:
-            print(f"Parameters saved to '{filename}'")
-        
-        
 class CalculatorEnsemble(TrajectoryBundle):
-    """Manages and runs the full analysis pipeline on a bundle of trajectories.
+    """Orchestrates the full analysis pipeline for an ensemble of trajectories.
 
-    This class serves as the main entry point for multi-temperature diffusion
-    analysis. It inherits from `TrajectoryBundle` to discover and group trajectory
-    files by temperature.
+    This class is the main user interface for multi-temperature diffusion analysis.
+    It inherits from `TrajectoryBundle`, using it to automatically discover, validate,
+    and group HDF5 trajectory files by temperature from a given path.
 
-    The primary workflow is to initialize the class and then call the `.calculate()`
-    method, which runs the entire computational pipeline in parallel. This process
-    calculates various physical properties, aggregates them by temperature, and
-    performs Arrhenius fits. The results can then be visualized with a suite of
-    plotting methods or saved to a file.
+    The primary workflow involves two steps:
+    1.  **Initialization**: Create an instance of the class, which prepares the
+        dataset.
+    2.  **Calculation**: Call the `.calculate()` method to run the entire
+        computational pipeline. This process analyzes each trajectory in parallel,
+        aggregates the results, and performs Arrhenius fits to determine activation
+        energies and pre-exponential factors.
+
+    Once calculated, results can be viewed with the `.summary()` method, visualized
+    with a suite of plotting methods (e.g., `.plot_D()`), or saved to a file.
 
     Args:
         path_traj (str):
-            The root directory to search for HDF5 trajectory files.
+            Path to a single HDF5 file or a root directory to search for files.
         site (Site):
             An initialized `Site` object with lattice and path information.
         t_interval (float):
             The time interval in picoseconds (ps) for coarse-graining the analysis.
         prefix (str, optional):
-            Prefix of trajectory files to search for. Defaults to "TRAJ".
+            Prefix of trajectory files to search for (used in directory scans).
+            Defaults to "TRAJ".
         depth (int, optional):
-            Maximum directory depth for the file search. Defaults to 2.
+            Maximum directory depth for file searches. Defaults to 2.
         use_incomplete_encounter (bool, optional):
             If True, incomplete encounters are included in the analysis.
             Defaults to True.
@@ -2754,53 +2673,47 @@ class CalculatorEnsemble(TrajectoryBundle):
             Verbosity flag. Defaults to True.
 
     Attributes:
-        D (numpy.ndarray): 
-            Temperature-dependent diffusivity (m²/s).
-        Ea_D (float): 
-            Activation energy (eV) for diffusivity.
-        D0 (float): 
+        temperatures (numpy.ndarray):
+            Array of unique temperatures (K) found in the analysis.
+        D (numpy.ndarray):
+            Temperature-dependent vacancy diffusivity (m²/s).
+        Ea_D (float):
+            Activation energy (eV) for diffusivity from Arrhenius fit.
+        D0 (float):
             Pre-exponential factor (m²/s) for diffusivity.
-        f (numpy.ndarray): 
+        f (numpy.ndarray):
             Temperature-dependent correlation factor.
-        Ea_f (float): 
-            Activation energy (eV) for the correlation factor.
-        f0 (float): 
-            Pre-exponential factor for the correlation factor.
-        tau (numpy.ndarray): 
-            Temperature-dependent average residence time (ps).
-        Ea_tau (float): 
+        tau (numpy.ndarray):
+            Temperature-dependent average vacancy residence time (ps).
+        Ea_tau (float):
             Activation energy (eV) for residence time.
-        tau0 (float): 
-            Pre-exponential factor (ps) for residence time.
-        a (float): 
-            Effective hopping distance (Å).
-        D_rand (numpy.ndarray): 
-            Temperature-dependent random-walk diffusivity (m²/s).
-        Ea_D_rand (float): 
-            Activation energy (eV) for random-walk diffusivity.
-        D_rand0 (float): 
-            Pre-exponential factor (m²/s) for random-walk diffusivity.
-        calculators (list[CalculatorSingle]): 
-            A list of the successfully completed `CalculatorSingle` instances for each trajectory file.
+        a (float):
+            Effective hopping distance (Å), derived from fitted parameters.
+        calculators (list[CalculatorSingle]):
+            A list of the successfully completed `CalculatorSingle` instances,
+            ordered corresponding to the `all_traj_paths` attribute.
 
     Raises:
-        Exception: Propagates any exceptions raised during the initialization
-            of the parent `TrajectoryBundle` class (e.g., `NotADirectoryError`,
-            `FileNotFoundError`, `ValueError`).
+        FileNotFoundError:
+            If `path_traj` does not exist or no valid files are found.
+        ValueError:
+            If inconsistent simulation parameters are found among trajectories.
 
     Examples:
+        >>> # 1. Initialize the Site and CalculatorEnsemble objects
         >>> site_info = Site("POSCAR", symbol="O")
         >>> ensemble = CalculatorEnsemble(
         ...     path_traj="path/to/trajectories/",
         ...     site=site_info,
         ...     t_interval=0.1
         ... )
-        >>> # Run the entire analysis pipeline
-        >>> ensemble.calculate(n_jobs=4)
-        >>> # Print a summary of the results
+        >>>
+        >>> # 2. Run the entire parallel analysis pipeline
+        >>> ensemble.calculate(n_jobs=-1)
+        >>>
+        >>> # 3. View and visualize the results
         >>> ensemble.summary()
-        >>> # Plot the Arrhenius plot for diffusivity
-        >>> ensemble.plot_D()
+        >>> ensemble.plot_D(filename="diffusivity_plot.png")
     """
     def __init__(self,
                  path_traj: str,
@@ -3876,7 +3789,7 @@ class CalculatorEnsemble(TrajectoryBundle):
             'nu'        : 'Effective attempt frequency (THz): (n_temperatures,)',
             'nu_path'   : 'Path-wise attempt frequency (THz): (n_temperatures, n_paths)',
             'Ea_path'   : 'Path-wise hopping barrier (eV): (n_paths)',
-            'z'         : 'Effective number of the equivalent paths',
+            'z'         : 'Effective number of the equivalent paths: (n_temperatures,)',
             'z_path'    : 'Number of the equivalent paths of each path: (n_paths,)',
             'z_mean'    : 'Mean number of the equivalent paths per path type: (n_temperatures,)',
             'm_mean'    : 'Mean number of path types: (n_temperatures,)',
@@ -3959,11 +3872,6 @@ class CalculatorEnsemble(TrajectoryBundle):
                 The name of the parameter JSON file to create and update.
                 Defaults to "parameters.json".
         """
-        if len(self.temperatures) <= 1:
-            raise ValueError(
-                f"Found only {len(self.temperatures)} temperature point. "
-                "This analysis requires data from at least two temperatures."
-            )
         
         self.save_parameters(filename=filename)
         self.attempt_frequency = AttemptFrequency(filename, neb_csv, verbose=False)
@@ -4027,3 +3935,823 @@ class CalculatorEnsemble(TrajectoryBundle):
                                       save=save,
                                       filename=filename,
                                       dpi=dpi)
+
+
+
+# ===================================================================
+# Backups
+# ===================================================================
+
+# class TrajectoryBundle:
+#     """Manages a collection of HDF5 trajectory files from an ensemble of simulations.
+
+#     This class automatically discovers, validates, and groups trajectory files based
+#     on simulation parameters. It recursively searches for files in a given path,
+#     groups them by temperature, and ensures that all grouped files are from
+#     consistent simulations (e.g., same timestep, atom counts, lattice).
+
+#     The main workflow is to initialize the class, which triggers the file search
+#     and validation. The results are stored in attributes and can be saved to a
+#     summary file using the `.summary()` method.
+
+#     Args:
+#         path_traj (str):
+#             The root directory to search for trajectory files.
+#         symbol (str):
+#             The chemical symbol of the target element, used to filter files.
+#         prefix (str, optional):
+#             The prefix of the trajectory files to search for (e.g., "TRAJ").
+#             Defaults to "TRAJ".
+#         depth (int, optional):
+#             The maximum directory depth to search for files. Defaults to 2.
+#         eps (float, optional):
+#             The tolerance for comparing floating-point values in metadata
+#             (e.g., temperature, dt, lattice vectors). Defaults to 1.0e-3.
+#         verbose (bool, optional):
+#             Verbosity flag. Defaults to False.
+
+#     Attributes:
+#         temperatures (list[float]):
+#             A sorted list of unique temperatures found across all valid files.
+#         traj (list[list[str]]):
+#             A nested list where each sublist contains the full file paths for a
+#             corresponding temperature in `self.temperatures`.
+#         atom_count (int):
+#             The number of atoms for the specified symbol, confirmed to be
+#             consistent across all files.
+#         lattice (numpy.ndarray):
+#             The 3x3 lattice vectors as a NumPy array, confirmed to be consistent.
+
+#     Raises:
+#         NotADirectoryError:
+#             If the provided `path_traj` is not a valid directory.
+#         ValueError:
+#             If `depth` is less than 1, or if inconsistent simulation parameters
+#             (dt, atom_counts, lattice) are found among the files.
+#         FileNotFoundError:
+#             If no valid trajectory files matching the criteria are found.
+#         IOError:
+#             If a trajectory file or its metadata cannot be read.
+#     """
+#     def __init__(self,
+#                  path_traj: str,
+#                  symbol: str,
+#                  prefix: str = "TRAJ",
+#                  depth: int = 2,
+#                  eps: float = 1.0e-3,
+#                  verbose: bool = False):
+        
+#         self.eps = eps
+#         self.path_traj = Path(path_traj)
+#         self.depth = depth
+#         self.symbol = symbol
+#         self.prefix = prefix
+#         self.verbose = verbose
+        
+#         if not self.path_traj.is_dir():
+#             raise NotADirectoryError(f"Error: Invalid directory: '{path_traj}'")
+#         if self.depth < 1:
+#             raise ValueError("Error: depth must be 1 or greater.")
+
+#         # List of TRAJ_*_.h5 files 
+#         self.temperatures = []
+#         self.traj = []
+#         self._search_traj()
+        
+#         self.atom_count = None
+#         self.lattice = None
+#         self._validate_consistency()
+        
+#         if self.verbose:
+#             self.summary()
+        
+#     def _validate_consistency(self) -> None:
+#         """
+#         Validates that all found trajectory files share consistent simulation parameters
+#         and sets the class attributes for lattice and atom_count.
+#         """
+#         all_paths = list(itertools.chain.from_iterable(self.traj))
+        
+#         if not all_paths:
+#             return
+
+#         ref_path = all_paths[0]
+#         try:
+#             with h5py.File(ref_path, "r") as f:
+#                 cond = json.loads(f.attrs["metadata"])
+#                 ref_dt = cond.get("dt")
+#                 ref_atom_counts = cond.get("atom_counts")
+#                 ref_lattice = np.array(cond.get("lattice"), dtype=np.float64)
+                
+#                 self.lattice = ref_lattice
+#                 self.atom_count = ref_atom_counts.get(self.symbol)
+
+#         except Exception as e:
+#             raise IOError(f"Could not read reference metadata from '{ref_path}'. Reason: {e}")
+        
+#         if len(all_paths) > 1:
+#             for path in all_paths[1:]:
+#                 try:
+#                     with h5py.File(path, "r") as f:
+#                         cond = json.loads(f.attrs['metadata'])
+                        
+#                         current_dt = cond.get("dt")
+#                         if abs(current_dt - ref_dt) > self.eps:
+#                             raise ValueError(
+#                                 f"Inconsistent 'dt' parameter found.\n"
+#                                 f"  - Reference '{ref_path}': {ref_dt}\n"
+#                                 f"  - Conflicting '{path}': {current_dt}"
+#                             )
+                        
+#                         current_atom_counts = cond.get('atom_counts')
+#                         if current_atom_counts != ref_atom_counts:
+#                             raise ValueError(
+#                                 f"Inconsistent 'atom_counts' parameter found.\n"
+#                                 f"  - Reference '{ref_path}': {ref_atom_counts}\n"
+#                                 f"  - Conflicting '{path}': {current_atom_counts}"
+#                             )
+                            
+#                         current_lattice = np.array(cond.get('lattice'))
+#                         if not np.all(np.abs(current_lattice - ref_lattice) <= self.eps):
+#                             raise ValueError(
+#                                 f"Inconsistent 'lattice' parameter found.\n"
+#                                 f"  - Reference '{ref_path}':\n{ref_lattice}\n"
+#                                 f"  - Conflicting '{path}':\n{current_lattice}"
+#                             )
+#                 except Exception as e:
+#                     if isinstance(e, ValueError):
+#                         raise
+#                     raise IOError(f"Could not read or validate metadata from '{path}'. Reason: {e}")
+        
+#     def _search_traj(self) -> None:
+#         """
+#         Searches for HDF5 trajectory files, groups them by temperature,
+#         and populates self.temperatures and self.traj lists.
+#         """
+#         glob_iterators = []
+#         for i in range(self.depth):
+#             dir_prefix = '*/' * i
+#             pattern = f"{dir_prefix}{self.prefix}*.h5"
+#             glob_iterators.append(self.path_traj.glob(pattern))    
+#         candidate_files = itertools.chain.from_iterable(glob_iterators)
+        
+#         found_paths = []
+#         for file_path in sorted(candidate_files):
+#             try:
+#                 with h5py.File(file_path, "r") as f:
+#                     metadata_str = f.attrs.get("metadata")
+#                     if not metadata_str:
+#                         if self.verbose:
+#                             print(f"Warning: File '{str(file_path.resolve())}' is "+
+#                                   "missing 'metadata' attribute. Skipping.")
+#                         continue
+                    
+#                     cond = json.loads(metadata_str)
+#                     file_symbol = cond.get("symbol")
+#                     file_temp = cond.get("temperature")
+                    
+#                     if file_symbol == self.symbol:
+#                         if file_temp is None:
+#                             if self.verbose:
+#                                 print(f"Warning: File '{str(file_path.resolve())}' is missing "+
+#                                       "'temperature' in metadata. Skipping.")
+#                             continue
+                        
+#                         if "positions" in f and "forces" in f:
+#                             found_paths.append((str(file_path.resolve()), float(file_temp)))
+#                         else:
+#                             if self.verbose:
+#                                 print(f"Warning: File '{str(file_path.resolve())}' is missing " +
+#                                     "required datasets ('positions', 'forces'). Skipping.")
+#             except Exception as e:
+#                 if self.verbose:
+#                     print(f"Warning: Could not read or verify '{str(file_path.resolve())}'. "
+#                           f"Skipping file. Reason: {e}")
+        
+#         if not found_paths:
+#             raise FileNotFoundError(
+#                 f"Error: No valid trajectory files found for symbol '{self.symbol}' "
+#                 f"in path '{self.path_traj}' with depth {self.depth}."
+#             )
+            
+#         sorted_files = sorted(found_paths, key=lambda item: item[1])
+#         temp_groups, traj_groups = [], []
+#         for path, temp in sorted_files:
+#             if not traj_groups or abs(temp - temp_groups[-1]) > self.eps:
+#                 temp_groups.append(temp)
+#                 traj_groups.append([path])
+#             else:
+#                 traj_groups[-1].append(path)
+        
+#         self.temperatures = temp_groups
+#         self.traj = traj_groups
+    
+#     def summary(self, filename: str = 'Bundle.txt') -> None:
+#         """Creates a text file summarizing the found trajectories.
+
+#         This method generates a detailed text summary that includes:
+#         - Consistent system information (symbol, atom count, lattice).
+#         - A list of all found trajectory files, grouped by temperature.
+#         - The simulation time for each file and the total time per temperature.
+
+#         The summary is saved to the specified file.
+
+#         Args:
+#             filename (str, optional):
+#                 The path and name of the output summary file.
+#                 Defaults to 'bundle.txt'.
+
+#         Returns:
+#             None: This method does not return a value; it writes a file to disk.
+
+#         Examples:
+#             >>> bundle = TrajectoryBundle(...)
+#             >>> # Save summary to the default 'bundle.txt'
+#             >>> bundle.summary()
+
+#             >>> # Save summary to a custom file
+#             >>> bundle.summary(filename='simulation_summary.log')
+#         """
+#         with open(filename, 'w', encoding='utf-8') as f:
+#             f.write("--- System Information ---\n")
+#             f.write(f"Symbol        : {self.symbol}\n")
+#             f.write(f"Atom Count    : {self.atom_count}\n")
+#             f.write(f"Lattice (Ang) :\n{self.lattice}\n\n")
+#             f.write("--- Trajectory Summary ---\n\n")
+            
+#             for temp, paths in zip(self.temperatures, self.traj):
+#                 f.write(f"--- Temperature: {temp:.1f} K (Found {len(paths)} files) ---\n")
+                
+#                 total_sim_time = 0.0
+                
+#                 for path in paths:
+#                     try:
+#                         with h5py.File(path, 'r') as h5f:
+#                             cond = json.loads(h5f.attrs['metadata'])
+#                             nsw = cond.get('nsw')
+#                             dt = cond.get('dt')
+                            
+#                             if nsw is not None and dt is not None:
+#                                 sim_time = (nsw * dt) / 1000.0  # in ps
+#                                 total_sim_time += sim_time
+#                                 f.write(f"  - {path}: {sim_time:.2f} ps\n")
+#                             else:
+#                                 f.write(f"  - {path}: [nsw/dt not found in metadata]\n")
+#                     except Exception as e:
+#                         f.write(f"  - {path}: [Error reading metadata: {e}]\n")
+                        
+#                 f.write(f"\n  Total simulation time: {total_sim_time:.2f} ps\n\n")
+#         print(f"Summary written to '{filename}'")
+        
+
+# class CalculatorSingle(Trajectory):
+#     """Orchestrates the full vacancy diffusion analysis pipeline for a single trajectory.
+
+#     This class serves as a high-level interface for analyzing a single simulation.
+#     It inherits from `Trajectory` and, upon initialization, automatically runs the
+#     primary analysis by creating `TrajectoryAnalyzer` and `Encounter` instances.
+#     This first step computes foundational statistics like hop histories and identifies
+#     atom-vacancy encounters.
+
+#     After initialization, call the `.calculate()` method to compute the final,
+#     derived physical properties (e.g., diffusivity, correlation factor) from the
+#     results of the initial analysis.
+
+#     Args:
+#         path_traj (str):
+#             Path to the HDF5 trajectory file.
+#         site (Site):
+#             An initialized `Site` object containing lattice structure and path info.
+#         t_interval (float):
+#             The time interval in picoseconds (ps) for coarse-graining the analysis.
+#         eps (float, optional):
+#             A tolerance for floating-point comparisons. Defaults to 1.0e-3.
+#         use_incomplete_encounter (bool, optional):
+#             If True, incomplete encounters are included in the final analysis.
+#             Defaults to True.
+#         verbose (bool, optional):
+#             Verbosity flag. Defaults to True.
+
+#     Attributes:
+#         analyzer (TrajectoryAnalyzer):
+#             The `TrajectoryAnalyzer` instance, containing detailed hop statistics.
+#         encounter (Encounter):
+#             The `Encounter` instance, containing encounter analysis results.
+#         f (float):
+#             The calculated correlation factor (f). Populated after `.calculate()`.
+#         D_rand (float):
+#             The random-walk diffusivity (m²/s). Populated after `.calculate()`.
+#         D (float):
+#             The final diffusivity (D = D_rand * f) in m²/s. Populated after `.calculate()`.
+#         tau (float):
+#             The average vacancy residence time (ps). Populated after `.calculate()`.
+#         z_mean (float):
+#             The mean number of equivalent paths for observed hops. Populated after `.calculate()`.
+#         hopping_history (list):
+#             A detailed log of every hop for each vacancy.
+#         counts (numpy.ndarray):
+#             Counts of each pre-defined hop path.
+#         msd_rand (float):
+#             Mean Squared Displacement from random walk theory (Å²).
+
+#     Raises:
+#         Exception: Propagates any exceptions raised during the initialization
+#             of the internal `Trajectory`, `TrajectoryAnalyzer`, and `Encounter`
+#             objects (e.g., `FileNotFoundError`, `ValueError`).
+
+#     Examples:
+#         >>> site_info = Site("POSCAR", symbol="O")
+#         >>> calc = CalculatorSingle(
+#         ...     path_traj="TRAJ_O_1000K.h5",
+#         ...     site=site_info,
+#         ...     t_interval=0.1
+#         ... )
+#         >>> # Final properties are calculated here
+#         >>> calc.calculate()
+#         >>> # Print a full summary of results
+#         >>> calc.summary()
+#         >>> # Access a specific result
+#         >>> print(f"Correlation Factor: {calc.f:.4f}")
+#     """
+#     @monitor_performance
+#     def __init__(self,
+#                  path_traj: str,
+#                  site: Site,
+#                  t_interval: float,
+#                  eps: float = 1.0e-3,
+#                  use_incomplete_encounter: bool = True,
+#                  verbose: bool = True):
+        
+#         self.analyzer = None
+#         self.encounter = None
+        
+#         self.f = None
+#         self.D_rand = None
+#         self.D = None
+#         self.tau = None
+        
+#         # Trajectory
+#         super().__init__(path_traj=path_traj, 
+#                          site=site, 
+#                          t_interval=t_interval, 
+#                          verbose=False)
+        
+#         # TrajectoryAnalyzer
+#         self.analyzer = TrajectoryAnalyzer(
+#             trajectory=self, 
+#             site=self.site, 
+#             eps=eps, 
+#             verbose=False
+#         )
+#         self.hopping_history = self.analyzer.hopping_history
+#         self.counts = self.analyzer.counts
+#         self.path_unknown = self.analyzer.path_unknown
+#         self.unknown_name = self.analyzer.unknown_name
+#         self.counts_unknown = self.analyzer.counts_unknown
+#         self.residence_time = self.analyzer.residence_time
+#         self.msd_rand = self.analyzer.msd_rand
+        
+#         # Encounter
+#         self.encounter = Encounter(
+#             analyzer=self.analyzer,
+#             use_incomplete_encounter=use_incomplete_encounter,
+#             verbose=False
+#         )
+        
+#         self.f = self.encounter.f_cor
+#         self.verbose = verbose
+#         self.calculate_is_done = False
+        
+#         # extra properties
+#         self.a_path = None
+#         self.z_path = None
+#         self.temperatures = None
+#         self.P_site = None  # (n_temp, n_site)
+#         self.times_site = None # (n_temp, n_site)
+#         self.counts_hop = None  # (n_temp, n_path)
+        
+#         # object of AttemptFrequency
+#         self.attempt_frequency = None
+     
+#     def _get_correlation_factor(self):
+#         """Extracts the correlation factor from the encounter analysis."""
+#         if self.f is None:
+#             self.f = self.encounter.f_cor
+    
+#     def _get_random_walk_diffusivity(self):
+#         """Calculates the random walk diffusivity."""
+#         total_time = self.t_interval * self.num_steps
+#         self.D_rand = self.msd_rand / (6 * total_time) * 1e-8 # m2/s
+    
+#     def _get_diffusivity(self):
+#         """Calculates the final tracer diffusivity."""
+#         self.D = self.D_rand * self.f
+        
+#     def _get_residence_time(self):
+#         """Calculates the mean residence time."""
+#         total_time = self.t_interval * self.num_steps
+#         total_jumps = np.sum(self.counts) / self.num_vacancies
+#         self.tau = total_time / total_jumps
+        
+#     def _get_mean_number_of_equivalent_paths(self):
+#         """Calculates the weighted harmonic mean of equivalent paths (z)."""
+#         z = np.array([path['z'] for path in self.site.path], dtype=np.float64)
+#         counts = np.sum(self.counts, axis=0)
+#         self.z_mean = np.sum(counts) / np.sum(counts / z)
+        
+#     def _get_extra_properties(self):
+#         """Calculates extra properties: a_path, z_path, temperatures, counts_hop, times"""
+#         self.a_path, self.z_path = [], []
+#         for path in self.site.path:
+#             self.a_path.append(path['distance'])
+#             self.z_path.append(path['z'])
+#         self.temperatures = np.array([self.temperature])
+#         self.counts_hop = [np.sum(self.counts, axis=0).tolist()]
+        
+#         name_to_type_index = {name: i for i, name in enumerate(self.site.site_name)}
+#         site_index_to_type_map = np.array(
+#             [name_to_type_index[site['site']] for site in self.site.lattice_sites]
+#         )
+#         all_indices = np.concatenate(list(self.vacancy_trajectory_index.values()))
+#         all_type_indices = site_index_to_type_map[all_indices]
+#         count_site = np.bincount(all_type_indices, minlength=len(self.site.site_name))
+#         self.times_site = count_site * self.t_interval
+#         self.P_site = self.times_site / np.sum(self.times_site)
+        
+#         self.times_site = [self.times_site.tolist()]
+#         self.P_site = [self.P_site.tolist()]
+    
+#     def calculate(self, **kwargs) -> None:
+#         """Calculates the final physical properties from the initial analysis.
+
+#         This method should be called after the `CalculatorSingle` object has been
+#         initialized. It computes derived quantities like diffusivity, correlation
+#         factor, and residence time from the already-processed hop and encounter data.
+#         """
+#         self._get_correlation_factor()
+#         self._get_random_walk_diffusivity()
+#         self._get_diffusivity()
+#         self._get_residence_time()
+#         self._get_mean_number_of_equivalent_paths()
+#         self._get_extra_properties()
+#         self.calculate_is_done = True
+        
+#     def plot_counts(self,
+#                     title: str | None = None,
+#                     save: bool = True, 
+#                     filename: str = 'counts.png', 
+#                     dpi: int = 300) -> None:
+#         """Generates a bar plot showing the total counts for each migration path.
+
+#         This plot visualizes the frequency of both predefined (known) and
+#         dynamically discovered (unknown) hopping events.
+
+#         Args:
+#             title (str | None, optional):
+#                 A custom title for the plot. Defaults to None.
+#             save (bool, optional):
+#                 If True, saves the figure to a file. Defaults to True.
+#             filename (str, optional):
+#                 Filename for the saved plot. Defaults to 'counts.png'.
+#             dpi (int, optional):
+#                 Resolution in dots per inch for the saved figure. Defaults to 300.
+
+#         Returns:
+#             None: This method displays a plot and optionally saves it to a file.
+#         """
+#         if self.counts is None or self.counts_unknown is None:
+#             raise RuntimeError("Path counts have not been calculated. "
+#                                "Please run the .calculate() method first.")
+
+#         name_all = self.site.path_name + [p['name'] for p in self.path_unknown]
+#         counts_all = np.append(np.sum(self.counts, axis=0), 
+#                                np.sum(self.counts_unknown, axis=0))
+       
+#         if len(name_all) == 0:
+#             print("Warning: No path count data available to plot.")
+#             return
+
+#         fig, ax = plt.subplots(figsize=(10, 6))
+#         for axis in ['top', 'bottom', 'left', 'right']:
+#             ax.spines[axis].set_linewidth(1.2)
+            
+#         x_pos = np.arange(len(name_all))
+#         bars = ax.bar(x_pos, counts_all, color='steelblue', edgecolor='k', alpha=0.8)
+
+#         ax.set_ylabel('Total Counts', fontsize=13)
+#         ax.set_xlabel('Path Name', fontsize=13)
+#         ax.set_xticks(x_pos)
+#         ax.set_xticklabels(name_all, rotation=45, ha="right", rotation_mode="anchor")
+
+#         if title is not None:
+#             ax.set_title(title, fontsize=12, pad=10)
+            
+#         ax.bar_label(bars, fmt='%d', padding=3, fontsize=10)
+#         ax.yaxis.grid(True, linestyle='--', alpha=0.7)
+#         ax.set_axisbelow(True)
+#         ax.set_ylim(top=ax.get_ylim()[1] * 1.1)
+        
+#         fig.tight_layout()
+#         if save:
+#             fig.savefig(filename, dpi=dpi, bbox_inches="tight")
+        
+#         plt.show()
+#         plt.close(fig)
+              
+#     def summary(self) -> None:
+#         """Prints a comprehensive, formatted summary of the analysis results.
+
+#         The summary includes input parameters and all key calculated physical
+#         properties like diffusivity, correlation factor, and residence time.
+#         It automatically calls `.calculate()` if it has not been run yet.
+
+#         Returns:
+#             None: This method prints a summary to the console.
+#         """
+#         if not self.analyzer or not self.encounter:
+#             raise RuntimeError("Primary analysis objects (analyzer, encounter) are missing.")
+#         if not self.calculate_is_done:
+#             self.calculate()
+            
+#         print("=" * 60)
+#         print("Summary for Trajectory dataset")
+#         print(f"  - Path to TRAJ file   : {self.path_traj}")
+#         print(f"  - Lattice structure   : {self.site.path_structure}")
+#         print(f"  - t_interval          : {self.t_interval:.3f} ps ({self.frame_interval} frames)")
+#         print(f"  - Temperatures (K)    : {self.temperatures.tolist()}")
+#         print(f"  - Num. of TRAJ files  : [1]")
+#         print("=" * 60)
+        
+#         print("\n" + "="*16 + " Temperature-Dependent Data " + "="*16)
+#         headers = ["Temp (K)", "D (m2/s)", "D_rand (m2/s)", "f", "tau (ps)"]
+#         table_data = zip([self.temperature], [self.D], [self.D_rand], [self.f], [self.tau])
+#         formats = [".1f", ".3e", ".3e", ".4f", ".4f"]
+#         table_data = []
+#         for row in zip([self.temperature], [self.D], [self.D_rand], [self.f], [self.tau]):
+#             formatted_row = [f"{value:{fmt}}" for value, fmt in zip(row, formats)]
+#             table_data.append(formatted_row)
+#         table = tabulate(table_data, headers=headers, 
+#                             tablefmt="simple", stralign='left', numalign='left')
+#         print(table)
+#         print("=" * 60)
+        
+#         print("\n" + "="*17 + " Final Fitted Parameters " + "="*18)
+#         print(f"Diffusivity (D):")
+#         print(f"  - Ea          : - ")
+#         print(f"  - D0          : - ")
+#         print(f"  - R-squared   : -")
+#         print(f"Random Walk Diffusivity (D_rand):")
+#         print(f"  - Ea          : -")
+#         print(f"  - D0          : -")
+#         print(f"  - R-squared   : -")
+#         print(f"Correlation Factor (f):")
+#         print(f"  - Ea          : -")
+#         print(f"  - f0          : -")
+#         print(f"  - R-squared   : -")
+#         print(f"Residence Time (tau):")
+#         print(f"  - Ea (fixed)  : -")
+#         print(f"  - tau0        : -")
+#         print(f"  - R-squared   : -")
+#         print(f"Effective Hopping Distance (a) : -")
+#         print("=" * 60)
+        
+#     def show_hopping_history(self) -> None:
+#         """Prints a detailed, time-ordered table of the hopping sequence for each vacancy.
+
+#         Returns:
+#             None: This method prints a table to the console.
+#         """
+#         for i in range(self.num_vacancies):
+#             print("=" * 116)
+#             print(" "*43 + f"Hopping Sequence of Vacancy {i}")
+#             print("=" * 116)
+            
+#             header = ['Num', 'Time (ps)', 'Path', 'a (Ang)', 
+#                       'Initial Site (Fractional Coordinate)', 
+#                       'Final Site (Fractional Coordinate)']
+#             data = [
+#                 [
+#                     f"{j+1}",
+#                     f"{path['step'] * self.t_interval:.2f}",
+#                     f"{path['name']}",
+#                     f"{path['distance']:.5f}",
+#                     f"{path['site_init']} [{', '.join(f'{x:.5f}' for x in self.site.lattice_sites[path['index_init']]['coord'])}]",
+#                     f"{path['site_final']} [{', '.join(f'{x:.5f}' for x in self.site.lattice_sites[path['index_final']]['coord'])}]"
+#                 ] for j, path in enumerate(self.hopping_history[i])
+#             ]
+#             print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+#             print("=" * 116 + "\n")
+            
+#     def show_hopping_paths(self) -> None:
+#         """Prints a summary table of all observed hopping paths and their counts.
+
+#         This includes both the paths pre-defined in the `Site` object and any
+#         new "unknown" paths discovered during the trajectory analysis.
+
+#         Returns:
+#             None: This method prints a table to the console.
+#         """
+        
+#         path_info = []
+#         for i, path in enumerate(self.site.path):
+#             p = {
+#                 'name': path['name'],
+#                 'a': path['distance'],
+#                 'z': path['z'],
+#                 'count': np.sum(self.counts, axis=0)[i],
+#                 'site_init': f"{path['site_init']} [{', '.join(f'{x:.5f}' for x in path['coord_init'])}]",
+#                 'site_final': f"{path['site_final']} [{', '.join(f'{x:.5f}' for x in path['coord_final'])}]"
+#             }
+#             path_info.append(p)
+        
+#         for i, path in enumerate(self.path_unknown):
+#             p = {
+#                 'name': path['name'],
+#                 'a': path['distance'],
+#                 'z': '-',
+#                 'count': int(np.sum(self.counts_unknown, axis=0)[i]),
+#                 'site_init': f"{path['site_init']} [{', '.join(f'{x:.5f}' for x in path['coord_init'])}]",
+#                 'site_final': f"{path['site_final']} [{', '.join(f'{x:.5f}' for x in path['coord_final'])}]"
+#             }
+#             path_info.append(p)
+            
+#         print("=" * 116)
+#         print(" " * 46 + "Hopping Path Information")
+#         print("=" * 116)
+#         header = ['Name',
+#                   'a (Ang)',
+#                   'z',
+#                   'Count',
+#                   'Initial Site (Fractional Coordinate)',
+#                   'Final Site (Fractional Coordinate)']
+#         data = [
+#             [
+#                 p['name'],
+#                 p['a'],
+#                 p['z'],
+#                 p['count'],
+#                 p['site_init'],
+#                 p['site_final']
+#             ] for p in path_info
+#         ]
+#         print(tabulate(data, headers=header, tablefmt="simple", stralign='left', numalign='left'))
+#         print("=" * 116 + "\n")
+       
+#     def save_trajectory(self, filename: str = "trajectory.json") -> None:
+#         """Saves the unwrapped Cartesian trajectories of vacancies to a JSON file.
+
+#         The output JSON contains simulation metadata and the time-series coordinates
+#         for each vacancy, keyed as 'Vacancy0', 'Vacancy1', etc.
+
+#         Args:
+#             filename (str, optional):
+#                 The name of the output JSON file. Defaults to 'trajectory.json'.
+
+#         Returns:
+#             None: This method writes a file to disk.
+#         """
+#         trajectories = {i:[] for i in range(self.num_vacancies)}
+#         for coords in self.unwrapped_vacancy_trajectory_coord_cart.values():
+#             for i, coord in enumerate(coords):
+#                 trajectories[i].append(coord.tolist())
+                
+#         contents = {
+#             'traj': str(Path(self.path_traj).resolve()),
+#             'symbol': self.symbol,
+#             't_interval': self.t_interval,
+#             'temperature': self.temperature,
+#             'num_vacancies': self.num_vacancies,
+#             'lattice': self.lattice_parameter.tolist()
+#         }
+#         for i in range(self.num_vacancies):
+#             contents[f'Vacancy{i}'] = trajectories[i]
+            
+#         with open(filename, 'w', encoding='utf-8') as f:
+#             json.dump(contents, f, indent=2)
+
+#         if self.verbose:
+#             print(f"Trajectoris saved to '{filename}'.")
+
+#     def save_parameters(self,
+#                         filename: str = "parameters.json") -> None:
+#         """Saves all calculated physical parameters to a JSON file.
+
+#         The output JSON includes a 'description' key that explains each parameter,
+#         making the file self-documenting.
+
+#         Args:
+#             filename (str, optional):
+#                 The name of the output JSON file. Defaults to 'parameters.json'.
+        
+#         Returns:
+#             None: This method writes a file to disk.
+#         """
+
+            
+#         description = {
+#             'D'         : 'Diffusivity (m2/s): (n_temperatures,)',
+#             'D0'        : 'Pre-exponential factor for diffusivity (m2/s)',
+#             'Ea_D'      : 'Activation barrier for diffusivity (eV)',
+#             'D_rand'    : 'Random walk diffusivity (m2/s): (n_temperatures,)',
+#             'D_rand0'   : 'Pre-exponential factor for random walk diffusivity (m2/s)',
+#             'Ea_D_rand' : 'Activation barrier for random walk diffusivity (eV)',
+#             'f'         : 'Correlation factor: (n_temperatures,)',
+#             'f0'        : 'Pre-exponential factor for correlation factor',
+#             'Ea_f'      : 'Activation barrier for correlation factor (eV)',
+#             'tau'       : 'Residence time (ps): (n_temperatures,)',
+#             'tau0'      : 'Pre-exponential factor for residence time (ps)',
+#             'Ea_tau'    : 'Activation barrier for residence time (eV)',
+#             'a'         : 'Effective hopping distance (Ang)',
+#             'a_path'    : 'Path-wise hopping distance (Ang): (n_paths,)',
+#             'nu'        : 'Effective attempt frequency (THz): (n_temperatures,)',
+#             'nu_path'   : 'Path-wise attempt frequency (THz): (n_temperatures, n_paths)',
+#             'Ea_path'   : 'Path-wise hopping barrier (eV): (n_paths)',
+#             'z'         : 'Effective number of the equivalent paths: (n_temperatures,)',
+#             'z_path'    : 'Number of the equivalent paths of each path: (n_paths,)',
+#             'z_mean'    : 'Mean number of the equivalent paths per path type: (n_temperatures,)',
+#             'm_mean'    : 'Mean number of path types: (n_temperatures,)',
+#             'P_site'    : 'Site occupation probability: (n_temperatures, n_sites)',
+#             'P_esc'     : 'Escape probability: (n_temperature, n_paths)',
+#             'times_site': 'Total residence times at each site (ps): (n_temperature, n_sites)',
+#             'counts_hop': 'Counts of hops at each temperature: (n_temperature, n_paths)'
+#         }
+#         is_list = {
+#             'D'         : True,
+#             'D0'        : False,
+#             'Ea_D'      : False,
+#             'D_rand'    : True,
+#             'D_rand0'   : False,
+#             'Ea_D_rand' : False,
+#             'f'         : True,
+#             'f0'        : False,
+#             'Ea_f'      : False,
+#             'tau'       : True,
+#             'tau0'      : False,
+#             'Ea_tau'    : False,
+#             'a'         : False,
+#             'a_path'    : True,
+#             'nu'        : True,
+#             'nu_path'   : True,
+#             'Ea_path'   : True,
+#             'z'         : False,
+#             'z_path'    : True,
+#             'z_mean'    : True,
+#             'm_mean'    : True,
+#             'P_site'    : True,
+#             'P_esc'     : True,
+#             'times_site': True,
+#             'counts_hop': True
+#         }
+#         contents = {
+#             'symbol': self.symbol,
+#             'path': self.site.path_name,
+#             'site': self.site.site_name,
+#             'temperatures': self.temperatures.tolist(),
+#             'num_vacancies': self.num_vacancies,
+#         }
+        
+#         for param in description.keys():
+#             if hasattr(self, param):
+#                 value = getattr(self, param)
+#                 if isinstance(value, (np.ndarray, np.generic)):
+#                     value = value.tolist()
+#                 if is_list[param] and not isinstance(value, list):
+#                     contents[param] = [value]
+#                 else:
+#                     contents[param] = value
+#             else:
+#                 contents[param] = None
+#         contents['description'] = description
+        
+#         with open(filename, 'w', encoding='utf-8') as f:
+#             json.dump(contents, f, indent=2)
+        
+#         if self.verbose:
+#             print(f"Parameters saved to '{filename}'")
+    
+#     # ===================================================================
+#     # Methods for attempt frequency
+#     # ===================================================================
+       
+#     def calculate_attempt_frequency(self,
+#                                     neb_csv: str,
+#                                     filename: str = "parameters.json") -> None:
+#         """Calculates attempt frequencies and updates the parameter file.
+
+#         This method first saves the current analysis results, then runs the
+#         `AttemptFrequency` analysis using the provided NEB data, and finally
+#         updates the parameter file with the newly calculated frequency results.
+
+#         Args:
+#             neb_csv (str):
+#                 Path to the CSV file containing NEB-calculated activation barriers.
+#             filename (str, optional):
+#                 The name of the parameter JSON file to create and update.
+#                 Defaults to "parameters.json".
+#         """
+#         self.save_parameters(filename=filename)
+#         self.attempt_frequency = AttemptFrequency(filename, neb_csv, verbose=False)
+#         self.attempt_frequency.update_json()
+        
+#         if self.verbose:
+#             self.attempt_frequency.summary()

@@ -29,7 +29,7 @@ def cli_trajectory(path_traj: str,
     site_kwargs['verbose'] = False
     site = Site(path_structure, symbol, **site_kwargs)
     
-    calc_keys = ['t_interval', 'eps', 'use_incomplete_encounter']
+    calc_keys = ['t_interval', 'sampling_size', 'eps', 'use_incomplete_encounter']
     calc_kwargs = {key: kwargs[key] for key in calc_keys if key in kwargs}
     calc_kwargs['verbose'] = False
     
@@ -37,6 +37,10 @@ def cli_trajectory(path_traj: str,
     if t_interval is None:
         print(f"[STEP{STEP_FLAG}] Automatic t_interval Estimation:"); STEP_FLAG += 1
     calc = Calculator(path_traj, site, **calc_kwargs)
+    
+    if not calc.hopping_sequence:
+        print("\n[INFO] No hopping events found. Stopping analysis.\n")
+        return
     
     calc.calculate()
     
@@ -85,8 +89,6 @@ def cli_analyze(path_traj: str,
     """[CLI Method] This method is for hopping parameter extraction."""
     STEP_FLAG = 1
     p = Path(path_traj)
-    if not p.is_dir():
-        raise ValueError(f"Error: '{path_traj}' is not a regular directory.")
     
     site_keys = ['format', 'rmax', 'eps']
     site_kwargs = {key: kwargs[key] for key in site_keys if key in kwargs}
@@ -117,7 +119,7 @@ def cli_analyze(path_traj: str,
         calc.calculate_attempt_frequency(neb_csv=neb_csv, filename=filename)
         calc.attempt_frequency.summary()
         
-    if dir_imgs is not None:
+    if len(calc.temperatures) > 1 and dir_imgs is not None:
         if not os.path.isdir(dir_imgs): os.makedirs(dir_imgs)
         calc.plot_D_rand(disp=True, filename=os.path.join(dir_imgs, 'D_rand.png'))
         calc.plot_f(disp=True, filename=os.path.join(dir_imgs, 'f.png'))
@@ -127,9 +129,12 @@ def cli_analyze(path_traj: str,
         if neb_csv is not None:
             calc.plot_nu(disp=True, filename=os.path.join(dir_imgs, 'nu.png'))
             calc.plot_z(disp=True, filename=os.path.join(dir_imgs, 'z.png'))
+    else:
+        print("\n[INFO] Skipping plots (e.g., Arrhenius plots), " + 
+              "as they require data from more than one temperature.\n")
     
     print(f"Results are saved in '{filename}'.")      
-    if dir_imgs is not None:
+    if len(calc.temperatures) > 1 and dir_imgs is not None:
         print(f"Images are saved in '{dir_imgs}'.")
     print('')
     

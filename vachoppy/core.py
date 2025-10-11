@@ -2,45 +2,57 @@
 vachoppy.core
 =============
 
-The core module of `VacHopPy`, providing the main user-facing classes and
-functions for setting up and running a complete vacancy diffusion analysis.
+Provides the primary user-facing classes and functions for setting up and
+running a complete vacancy diffusion analysis with `VacHopPy`.
 
-Main Components
+Core Components
 ---------------
-- **parse_md / parse_lammps**: Helper functions to convert raw trajectory
-  data from common MD codes (like VASP or LAMMPS) into the standardized HDF5
-  format used by the rest of the package.
-- **Site**: A fundamental class that must be initialized first. It reads a
-  crystal structure file to determine the symmetrically inequivalent sites
-  and potential hopping paths for a diffusing species.
-- **Calculator**: The primary factory function and user entry point. It takes a
-  `Site` object and a path to trajectory data, then automatically returns the
-  appropriate high-level analysis object (`CalculatorSingle` or
-  `CalculatorEnsemble`).
+- **parse_md / parse_lammps**: Functions to convert raw MD trajectories from
+  common simulation packages (e.g., VASP, LAMMPS) into the standardized HDF5
+  format required for analysis.
+- **Site**: A fundamental class for analyzing a crystal structure to identify
+  symmetrically inequivalent sites and potential hopping paths. This is the
+  first object to create in an analysis workflow.
+- **Calculator**: A unified function that simplifies the setup of an analysis.
+  It intelligently handles both single and multiple trajectory files and returns
+  a configured `CalculatorEnsemble` instance, ready for computation.
 
 Typical Workflow
 ----------------
-A standard analysis using `vachoppy` follows these steps:
+A standard analysis involves two main stages: data preparation and calculation.
+
+**1. Data Preparation (CLI)**
+
+First, convert your raw MD trajectory into the required HDF5 format. This is
+typically done once using the command-line interface:
+
+.. code-block:: bash
+
+    vachoppy convert path/to/vasprun.xml 2000 1.0 --label 2000K
+
+**2. Analysis Workflow (Python)**
+
+Once the HDF5 files are ready, the analysis is performed in Python:
 
 .. code-block:: python
 
     from vachoppy.core import Site, Calculator
 
-    # 1. Analyze the crystal structure to define sites and paths
+    # a. Define sites and paths from the crystal structure
     site_info = Site(path_structure="path/to/POSCAR", symbol="O")
 
-    # 2. Use the Calculator factory to get the right analysis object
-    #    (This will return a CalculatorEnsemble for a directory)
+    # b. Set up the analysis for the HDF5 data
+    #    (This handles both single files and directories automatically)
     calc = Calculator(
-        path_traj="path/to/trajectories/",
+        path_traj="path/to/hdf5_files/",
         site=site_info,
         t_interval=0.1  # Coarse-graining time in ps
     )
 
-    # 3. Run the full analysis pipeline
+    # c. Run the full analysis pipeline in parallel
     calc.calculate()
 
-    # 4. View results
+    # d. View results and generate plots
     calc.summary()
     calc.plot_D()
 """
@@ -347,8 +359,8 @@ def parse_lammps(lammps_data: str,
         >>> parse_lammps(
         ...     lammps_data='tio2.data',
         ...     lammps_dump='tio2.dump',
-        ...     atom_style_data='type id x y z',
-        ...     atom_style_dump='type id x y z fx fy fz',
+        ...     atom_style_data='id type x y z',
+        ...     atom_style_dump='id type x y z fx fy fz',
         ...     atom_symbols={1: 'Ti', 2: 'O'},
         ...     temperature=1200.0,
         ...     dt=1.0,
@@ -443,9 +455,9 @@ def parse_lammps(lammps_data: str,
             chunk_positions = []
             chunk_forces = []
             for atoms in chunk_iterator:
-                chunk_positions.append(atoms.positions)
+                chunk_positions.append(atoms.positions.astype(dtype))
                 try:
-                    chunk_forces.append(atoms.forces)
+                    chunk_forces.append(atoms.forces.astype(dtype))
                 except AttributeError:
                     raise ValueError("Force data not found in the trajectory.")
                 
@@ -735,29 +747,27 @@ def Calculator(path_traj: str,
                site: Site,
                *,
                t_interval: float | None = None,
-               **kwargs) -> Union[CalculatorEnsemble, CalculatorSingle]:
-    """A factory function that returns the appropriate calculator instance.
+               **kwargs) -> CalculatorEnsemble:
+    """Initializes and configures a CalculatorEnsemble for analysis.
 
-    Based on whether the input path points to a directory or a single file,
-    this function instantiates and returns the appropriate calculator:
-    - `CalculatorEnsemble`: For analyzing multiple trajectories in a directory.
-    - `CalculatorSingle`: For analyzing a single trajectory file.
+    This function serves as the primary user entry point for setting up a
+    calculation. It intelligently handles both single HDF5 trajectory files and
+    directories containing multiple files by using the `TrajectoryBundle` class.
 
-    This simplifies the user API by providing a single, intelligent entry point
-    for creating calculator objects.
+    If `t_interval` is not provided, this function will automatically estimate
+    an optimal value based on the mean vibration frequency of the atoms in a
+    representative trajectory.
 
     Args:
         path_traj (str):
-            The path to a single trajectory file or a directory containing them.
+            Path to a single HDF5 file or a root directory to search for files.
         site (Site):
             An initialized `Site` object containing lattice and hopping path data.
         t_interval (float | None, optional):
             The time interval in picoseconds (ps) for analysis. If None, the
-            interval is automatically estimated from the mean vibration frequency.
-            Defaults to None.
+            interval is automatically estimated. Defaults to None.
         **kwargs:
-            Additional keyword arguments passed to the underlying calculator's
-            constructor (`CalculatorEnsemble` or `CalculatorSingle`).
+            Additional keyword arguments passed to underlying classes.
             Accepted arguments include:
             - `prefix` (str, optional): File prefix for directory scans.
             Defaults to "TRAJ".
@@ -771,30 +781,27 @@ def Calculator(path_traj: str,
             - `verbose` (bool, optional): Verbosity flag. Defaults to True.
 
     Returns:
-        Union[CalculatorEnsemble, CalculatorSingle]:
-            An initialized calculator instance appropriate for the provided path.
+        CalculatorEnsemble:
+            An initialized and ready-to-use CalculatorEnsemble instance.
 
     Raises:
         FileNotFoundError:
-            If the specified `path_traj` does not exist.
+            If `path_traj` does not exist or no valid files are found.
         ValueError:
-            If `path_traj` is not a regular file or directory, or if t_interval
-            cannot be estimated.
+            If `t_interval` cannot be estimated due to zero mean frequency.
 
     Examples:
-        >>> # For a single trajectory file
+        >>> # Analyze a single trajectory file
         >>> site_info = Site("POSCAR", symbol="O")
-        >>> calc_single = Calculator("TRAJ_O.h5", site=site_info)
+        >>> calc = Calculator("TRAJ_O.h5", site=site_info)
 
-        >>> # For a directory of trajectories with auto t_interval estimation
-        >>> calc_ensemble = Calculator("trajectories/", site=site_info)
+        >>> # Analyze a directory of trajectories
+        >>> calc = Calculator("trajectories/", site=site_info)
     """
     
     p = Path(path_traj)
     if not p.exists():
         raise FileNotFoundError(f"Error: The path '{path_traj}' was not found.")
-    
-    # t_interval = kwargs.pop('t_interval', None)
     
     # Helper function for t_interval estimation
     def _get_t_interval(path_traj: str) -> float:
@@ -866,26 +873,170 @@ def Calculator(path_traj: str,
         t_interval = adjusted_t_interval
         print("="*60)
     
-    if p.is_dir():
-        bundle_keys = ['prefix', 'depth', 'use_incomplete_encounter', 'eps', 'verbose']
-        bundle_kwargs = {key: kwargs.get(key) for key in bundle_keys if key in kwargs}
+    calc_keys = ['prefix', 'depth', 'use_incomplete_encounter', 'eps', 'verbose']
+    calc_kwargs = {key: kwargs.get(key) for key in calc_keys if key in kwargs}
+    
+    return CalculatorEnsemble(path_traj=path_traj, site=site, t_interval=t_interval, **calc_kwargs)
+
+
+
+# ===================================================================
+# Backups
+# ===================================================================
+
+# def Calculator(path_traj: str,
+#                site: Site,
+#                *,
+#                t_interval: float | None = None,
+#                **kwargs) -> Union[CalculatorEnsemble, CalculatorSingle]:
+#     """A factory function that returns the appropriate calculator instance.
+
+#     Based on whether the input path points to a directory or a single file,
+#     this function instantiates and returns the appropriate calculator:
+#     - `CalculatorEnsemble`: For analyzing multiple trajectories in a directory.
+#     - `CalculatorSingle`: For analyzing a single trajectory file.
+
+#     This simplifies the user API by providing a single, intelligent entry point
+#     for creating calculator objects.
+
+#     Args:
+#         path_traj (str):
+#             The path to a single trajectory file or a directory containing them.
+#         site (Site):
+#             An initialized `Site` object containing lattice and hopping path data.
+#         t_interval (float | None, optional):
+#             The time interval in picoseconds (ps) for analysis. If None, the
+#             interval is automatically estimated from the mean vibration frequency.
+#             Defaults to None.
+#         **kwargs:
+#             Additional keyword arguments passed to the underlying calculator's
+#             constructor (`CalculatorEnsemble` or `CalculatorSingle`).
+#             Accepted arguments include:
+#             - `prefix` (str, optional): File prefix for directory scans.
+#             Defaults to "TRAJ".
+#             - `depth` (int, optional): Directory search depth. Defaults to 2.
+#             - `sampling_size` (int, optional): Frames for t_interval
+#             estimation. Defaults to 5000.
+#             - `use_incomplete_encounter` (bool, optional): Flag for Encounter
+#             analysis. Defaults to True.
+#             - `eps` (float, optional): Tolerance for float comparisons.
+#             Defaults to 1.0e-3.
+#             - `verbose` (bool, optional): Verbosity flag. Defaults to True.
+
+#     Returns:
+#         Union[CalculatorEnsemble, CalculatorSingle]:
+#             An initialized calculator instance appropriate for the provided path.
+
+#     Raises:
+#         FileNotFoundError:
+#             If the specified `path_traj` does not exist.
+#         ValueError:
+#             If `path_traj` is not a regular file or directory, or if t_interval
+#             cannot be estimated.
+
+#     Examples:
+#         >>> # For a single trajectory file
+#         >>> site_info = Site("POSCAR", symbol="O")
+#         >>> calc_single = Calculator("TRAJ_O.h5", site=site_info)
+
+#         >>> # For a directory of trajectories with auto t_interval estimation
+#         >>> calc_ensemble = Calculator("trajectories/", site=site_info)
+#     """
+    
+#     p = Path(path_traj)
+#     if not p.exists():
+#         raise FileNotFoundError(f"Error: The path '{path_traj}' was not found.")
+    
+#     # Helper function for t_interval estimation
+#     def _get_t_interval(path_traj: str) -> float:
+#         vib_init_keys = ['sampling_size', 'filter_high_freq']
+#         vib_init_kwargs = {key: kwargs.get(key) for key in vib_init_keys if key in kwargs}
+#         vib_params = {
+#             'path_traj': path_traj, 
+#             'site': site,
+#             'verbose': False
+#         }
+
+#         vib_params.update(vib_init_kwargs)
+#         vib = Vibration(**vib_params)
+#         vib.calculate()
+#         if vib.mean_frequency > 0:
+#             estimated_interval = 1 / vib.mean_frequency
+#             print(" "*13 + f"-> t_interval : {estimated_interval:.3f} ps")
+#             return estimated_interval
+#         else:
+#             raise ValueError(f"Could not estimate t_interval from '{path_traj}' as mean frequency is zero.")
         
-        return CalculatorEnsemble(
-            path_traj=path_traj,
-            site=site,
-            t_interval=t_interval,
-            **bundle_kwargs
-        )
-    elif p.is_file():
-        single_keys = ['eps', 'use_incomplete_encounter', 'verbose']
-        single_kwargs = {key: kwargs[key] for key in single_keys if key in kwargs}
+#     # Helper function to get dt
+#     def _get_dt(traj: str) -> float:
+#         with h5py.File(traj, 'r') as f:
+#             return json.loads(f.attrs['metadata']).get('dt')
+    
+#     bundle = None   
+#     representative_traj = ""
+#     bundle_init_keys = ['prefix', 'depth', 'eps', 'verbose']
+#     bundle_init_kwargs = {key: kwargs.get(key) for key in bundle_init_keys if key in kwargs}
+
+#     if p.is_file():
+#         representative_traj = str(p.resolve())
+#     elif p.is_dir():
+#         bundle = TrajectoryBundle(path_traj=path_traj, symbol=site.symbol, **bundle_init_kwargs)
+#         if not bundle.traj or not bundle.traj[0]:
+#             raise FileNotFoundError(f"No valid trajectory files found in '{path_traj}' to use for analysis.")
+#         representative_traj = bundle.traj[0][0]
         
-        return CalculatorSingle(
-            path_traj=path_traj,
-            site=site,
-            t_interval=t_interval,
-            **single_kwargs
-        )
-    else:
-        raise ValueError(f"Error: The path '{path_traj}' is not a regular file or directory.")
+#     dt_fs = _get_dt(representative_traj)
+#     dt_ps = dt_fs / 1000.0
+    
+#     if t_interval is None:
+#         print("="*60)
+#         print(" "*15 + "Automatic t_interval Estimation")
+#         print("="*60)
+#         if p.is_dir():
+#             t_interval_list = []
+#             for i, temp in enumerate(bundle.temperatures):
+#                 file_path = Path(bundle.traj[i][0])
+#                 short_path = os.path.join(*file_path.parts[-bundle.depth:])
+#                 print(f"  [{temp} K] Estimating from {short_path}")
+#                 t_interval_list.append(_get_t_interval(bundle.traj[i][0]))
+#             t_interval = np.mean(t_interval_list) 
+#         elif p.is_file():
+#             print(f"  Estimating from {p.name}")
+#             t_interval = _get_t_interval(representative_traj)
+#         print("="*60)
+    
+#         original_t_interval = t_interval            
+#         num_dt_steps = round(original_t_interval / dt_ps)
+#         adjusted_t_interval = num_dt_steps * dt_ps
+
+#         print(" "*4 + "Adjusting t_interval to the nearest multiple of dt")
+#         print("="*60)
+#         print(f"    - dt                  : {dt_ps:.4f} ps")
+#         print(f"    - Original t_interval : {original_t_interval:.4f} ps")
+#         print(f"    - Adjusted t_interval : {adjusted_t_interval:.4f} ps ({num_dt_steps} frames)")
+#         t_interval = adjusted_t_interval
+#         print("="*60)
+    
+#     if p.is_dir():
+#         bundle_keys = ['prefix', 'depth', 'use_incomplete_encounter', 'eps', 'verbose']
+#         bundle_kwargs = {key: kwargs.get(key) for key in bundle_keys if key in kwargs}
+        
+#         return CalculatorEnsemble(
+#             path_traj=path_traj,
+#             site=site,
+#             t_interval=t_interval,
+#             **bundle_kwargs
+#         )
+#     elif p.is_file():
+#         single_keys = ['eps', 'use_incomplete_encounter', 'verbose']
+#         single_kwargs = {key: kwargs[key] for key in single_keys if key in kwargs}
+        
+#         return CalculatorSingle(
+#             path_traj=path_traj,
+#             site=site,
+#             t_interval=t_interval,
+#             **single_kwargs
+#         )
+#     else:
+#         raise ValueError(f"Error: The path '{path_traj}' is not a regular file or directory.")
     
