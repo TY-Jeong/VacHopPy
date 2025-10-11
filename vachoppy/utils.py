@@ -50,7 +50,7 @@ Typical Usage
     snapshot_generator.save_snapshots(path_dir='snapshots_for_analysis')
 """
 
-__all__ =['concat_traj', 'cut_traj', 'show_traj', 'Snapshots']
+__all__ =['concat_traj', 'cut_traj', 'show_traj', 'Snapshots', 'monitor_performance']
 
 import os
 import h5py
