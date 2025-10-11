@@ -133,7 +133,7 @@ def parse_md(filename: str,
         ...     dt=2.0,
         ...     label='2000K'
         ... )
-        # This will create files like 'TRAJ_Ti_2000K.h5' and 'TRAJ_O_200K.h5'.
+        # This will create files like 'TRAJ_Ti_2000K.h5' and 'TRAJ_O_2000K.h5'.
     """
     
     temp_files = {'pos': {}, 'force': {}}
@@ -354,7 +354,7 @@ def parse_lammps(lammps_data: str,
         ...     dt=1.0,
         ...     label='1200K'
         ... )
-        # This will create files like 'TRAJ_Ti_1200K.h5' and 'TRAJ_Ti_1200K.h5'.
+        # This will create files like 'TRAJ_Ti_1200K.h5' and 'TRAJ_O_1200K.h5'.
     """
     
     try:
