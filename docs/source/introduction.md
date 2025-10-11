@@ -21,22 +21,6 @@ The key parameters extractable with `VacHopPy` are summarized below.
 
 All parameters listed above are calculated as **effective values**. For a detailed explanation of the concept of effective hopping parameters, please refer to the following section.
 
-### Additional Tools
-
-In addition to the primary parameter extraction, `VacHopPy` also provides several secondary tools for more in--depth analysis:
-
-* **Vacancy Trajectory Visualization**
-
-  Visualize the movement and pathways of vacancies over time.
-
-* **MSD-based Diffusivity Calculation**
-
-  Calculate atomic diffusivity using mean squared displacement (MSD) analysis.
-
-* **Structural Evolution Tracking**
-
-  Identify and track the evolution of the material's structure throughout the simulation.
-
 ---
 
 ## What are effective hopping parameters?
@@ -56,4 +40,22 @@ $$
 $$
 
 For a more detailed theoretical background, please refer to [this paper](https://arxiv.org/abs/2503.23467).
+
+---
+
+## Additional Tools
+
+In addition to the primary parameter extraction, `VacHopPy` also provides several secondary tools for more in--depth analysis:
+
+* **Vacancy Trajectory Visualization**
+
+  Visualize the movement and pathways of vacancies over time.
+
+* **MSD-based Diffusivity Calculation**
+
+  Calculate atomic diffusivity using mean squared displacement (MSD) analysis.
+
+* **Structural Evolution Tracking**
+
+  Identify and track the evolution of the material's structure throughout the simulation.
 

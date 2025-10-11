@@ -40,7 +40,7 @@ Before running an analysis, you must first convert your MD trajectory into this 
 
 ### Converting Your Trajectory to HDF5
 
-You can convert your files using either a simple command-line tool or the Python API.
+You can convert your files using either a simple command-line tool or the Python script.
 
 #### Via the Command-Line Interface (CLI)
 
@@ -62,7 +62,7 @@ The arguments are as follows:
 
 For efficient storage, the converter automatically splits the trajectory by chemical species. The command above would generate two separate files: `TRAJ_Ti_2000K.h5` and `TRAJ_O_2000K.h5`. This conversion process is powered by Atomic Simulation Environment (**ASE**), enabling compatibility with a wide range of file [**formats supported by the ASE**](https://ase-lib.org/ase/io/io.html).
 
-### Via the Python API
+#### Via the Python script
 
 The CLI command is a convenient wrapper for the parse_md function. You can achieve the same result within a Python script:
 
