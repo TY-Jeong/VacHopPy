@@ -1,0 +1,5 @@
+.scrollable-output .highlight {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 15px;
+}
