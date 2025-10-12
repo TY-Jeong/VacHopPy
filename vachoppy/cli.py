@@ -38,7 +38,9 @@ def cli_trajectory(path_traj: str,
         print(f"[STEP{STEP_FLAG}] Automatic t_interval Estimation:"); STEP_FLAG += 1
         
     calc = Calculator(path_traj, site, **calc_kwargs)
-    calc.calculate()
+    
+    print(f"\n\n[STEP{STEP_FLAG}] Identifying Vacancy Trajectory:"); STEP_FLAG += 1
+    calc.calculate(verbose=False)
     
     if not calc.calculators[0].hopping_sequence:
         print("\n[INFO] No hopping events found. Stopping analysis.\n")
@@ -130,6 +132,7 @@ def cli_analyze(path_traj: str,
             calc.plot_f(disp=True, filename=os.path.join(dir_imgs, 'f.png'))
             calc.plot_D(disp=True, filename=os.path.join(dir_imgs, 'D.png'))
             calc.plot_tau(disp=True, filename=os.path.join(dir_imgs, 'tau.png'))
+            calc.plot_a(disp=True, filename=os.path.join(dir_imgs, 'a.png'))
             
             if neb_csv is not None:
                 calc.plot_nu(disp=True, filename=os.path.join(dir_imgs, 'nu.png'))
