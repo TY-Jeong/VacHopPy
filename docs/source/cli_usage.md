@@ -19,6 +19,8 @@ vachoppy -h
 
 Here is a summary of the main commands available:
 
+<div align="center">
+
 | Command | Description |
 |---|---|
 | `trajectory` | Identify and visualize vacancy trajectories from a single trajectory file. |
@@ -30,6 +32,8 @@ Here is a summary of the main commands available:
 | `convert` | Convert various MD trajectory formats to the standard HDF5 format. |
 | `concat` | Concatenate two successive HDF5 trajectory files into a new one. |
 | `show` | Display a metadata summary of a HDF5 trajectory file. |
+
+</div>
 
 -----
 

@@ -12,7 +12,7 @@ Welcome to VacHopPy's documentation!
    :alt: VacHopPy Logo
 
 **VacHopPy** is a Python package for analyzing vacancy-mediated diffusion from molecular dynamics (MD) 
-simulations. The library facilitates a reliable **multiscale modeling** workflow by calculating key 
+simulations. The package facilitates a reliable **multiscale modeling** workflow by calculating key 
 vacancy hopping parameters that can be directly incorporated into continuum-scale models.
 
 Key Features

@@ -263,7 +263,7 @@ You can open `trajectory.html` in any web browser to rotate, zoom, and inspect t
 
 -----
 
-## Working with Trajectory Json File
+## Working with trajectory.json File
 
 The `trajectory.json` file provides a straightforward way to access the raw trajectory data for your own custom analysis. You can load and process it using a simple Python script.
 
@@ -276,7 +276,7 @@ with open('trajectory.json', 'r') as f:
 
 # Vacancy trajectories
 trajectory_vac0 = np.array(contents['Vacancy0'], dtype=np.float64)
-trajectory_vac1 = np.array(contents['Vacancy0'], dtype=np.float64)
+trajectory_vac1 = np.array(contents['Vacancy1'], dtype=np.float64)
 
 # Summary
 print("\nSimulation Parameters")

@@ -30,7 +30,7 @@ This command takes the following primary arguments:
 
 * **`--neb [NEB_CSV]`** (Optional)
 
-    Path to a CSV file containing the activation energy barrier for each hopping path, as pre-calculated from a method like Nudged Elastic Band (NEB).
+    Path to a CSV file containing the activation energy barrier for each hopping path, as pre-calculated from a method like nudged elastic band (NEB).
 
 
 ### The NEB_CSV File
@@ -94,7 +94,7 @@ The following table summarizes what can be calculated under different conditions
 
 <div align="center">
 
-| Parameter | Symbol | Single T | Multiple T | NEB Data Required? |
+| Parameter | Symbol | Single T | Multiple T | `NEB_CSV` Required? |
 | :--- | :---: | :---: | :---: | :---: |
 | Diffusivity | $D$ | O | O | No |
 | Residence Time | $\tau$ | O | O | No |
@@ -376,6 +376,7 @@ A series of plots are saved in the `imgs/` directory to visualize the results. B
 
 Other generated images (`D_rand.png`, `f.png`, `tau.png`, `a.png`, `z.png`) can also be found in the `imgs/` directory.
 
+(section-parameters)=
 #### The parameters.json File
 
 This file contains all the raw calculated data in a machine-readable format. It also includes a helpful `description` key that provides a brief explanation for each parameter.
