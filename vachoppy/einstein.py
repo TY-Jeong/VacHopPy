@@ -801,8 +801,8 @@ class MSDEnsemble:
             raise RuntimeError("Cannot save parameters. Please run the .calculate() method first.")
 
         description = {
-            'temperatures': 'List of temperatures (K) at which simulations were run.',
-            'D'   : 'Temperature-dependent tracer diffusivity (m^2/s).',
+            'temperatures': 'List of temperatures (K) at which simulations were run, (n_temperatures,)',
+            'D'   : 'Temperature-dependent tracer diffusivity (m^2/s), (n_temperatures,)',
             'Ea_D': 'Activation energy (eV) from the Arrhenius fit of D.',
             'D0'  : 'Pre-exponential factor (m^2/s) from the Arrhenius fit of D.',
         }
@@ -899,9 +899,11 @@ def Einstein(path_traj: str,
     p = Path(path_traj)
     if p.is_dir():
         return MSDEnsemble(path_traj, symbol, skip, segment_length, start, end, **kwargs)
+    
     elif p.is_file():
         if isinstance(segment_length, (list, np.ndarray)):
             raise TypeError("For a single file analysis, `segment_length` must be a float or None.")
         return MSDCalculator(path_traj, symbol, skip, segment_length, start, end, **kwargs)
+    
     else:
         raise FileNotFoundError(f"Path not found: {path_traj}")

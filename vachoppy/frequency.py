@@ -280,13 +280,22 @@ class AttemptFrequency:
         fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
             ax.spines[axis].set_linewidth(1.2)
+            
+        cmap = plt.get_cmap("viridis", len(self.temperatures))
+        temp_color_map = {temp: cmap(i) for i, temp in enumerate(self.temperatures)}
         
-        ax.plot(self.temperatures, self.nu, marker='s', linestyle='--', color='crimson')
+        plt.plot(self.temperatures, self.nu, linestyle='--', color='k')    
+        
+        for i in range(len(self.nu)):
+            temp = self.temperatures[i]
+            ax.scatter(temp, self.nu[i], color=temp_color_map[temp],
+                       marker='s', s=100, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
         
         ax.set_xlabel('Temperature (K)', fontsize=12)
         ax.set_ylabel(r'Effective Attempt Frequency, $\nu_{eff}$ (THz)', fontsize=12)
         ax.set_title(title, fontsize=13, pad=10)
         ax.grid(True, linestyle='--', alpha=0.7)
+        ax.legend(title='Temperature', fontsize=11, title_fontsize=12)
         ax.set_yscale('log')
         
         bottom, top = ax.get_ylim()
@@ -333,13 +342,22 @@ class AttemptFrequency:
             
         fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
-            ax.spines[axis].set_linewidth(1.2)
-
-        ax.plot(self.temperatures, self.z, marker='s', linestyle='--', color='darkblue')
+            ax.spines[axis].set_linewidth(1.2)  
+        
+        cmap = plt.get_cmap("viridis", len(self.temperatures))
+        temp_color_map = {temp: cmap(i) for i, temp in enumerate(self.temperatures)}
+        
+        plt.plot(self.temperatures, self.z, linestyle='--', color='k')    
+        
+        for i in range(len(self.z)):
+            temp = self.temperatures[i]
+            ax.scatter(temp, self.z[i], color=temp_color_map[temp],
+                       marker='s', s=100, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
         
         ax.set_xlabel('Temperature (K)', fontsize=12)
         ax.set_ylabel(r'Effective Coordination Number, $z_{eff}$', fontsize=12)
         ax.set_title(title, fontsize=13, pad=10)
+        ax.legend(title='Temperature', fontsize=11, title_fontsize=12)
         ax.grid(True, linestyle='--', alpha=0.7)
         
         bottom, top = ax.get_ylim()

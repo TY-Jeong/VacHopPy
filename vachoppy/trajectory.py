@@ -3342,13 +3342,13 @@ class CalculatorEnsemble(TrajectoryBundle):
         for i in range(len(temps_valid)):
             temp = temps_valid[i]
             ax.scatter(x_points[i], y_points[i], color=temp_color_map[temp],
-                       marker="o", s=60, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
+                       marker="o", s=100, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
 
         if len(x_points) > 1:
             x_fit = np.linspace(np.min(x_points), np.max(x_points), 100)
             ax.plot(x_fit, slope * x_fit + intercept, 'k--', linewidth=1.5)
         
-        ax.legend(title='Temperature', fontsize=10)
+        ax.legend(title='Temperature', fontsize=11, title_fontsize=12)
         ax.set_xlabel('1000 / T (K⁻¹)', fontsize=12)
         ax.set_ylabel(ylabel, fontsize=12)
         if title:
@@ -3428,16 +3428,18 @@ class CalculatorEnsemble(TrajectoryBundle):
         cmap = plt.get_cmap("viridis", len(self.temperatures))
         temp_color_map = {temp: cmap(i) for i, temp in enumerate(self.temperatures)}
 
+        plt.plot(temps_valid, f_valid, linestyle='--', color='k')    
+        
         for i in range(len(temps_valid)):
             temp = temps_valid[i]
             ax.scatter(temp, f_valid[i], color=temp_color_map[temp],
-                       marker='s', s=60, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
+                       marker='s', s=100, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
         
         ax.set_ylim([0, 1])
         ax.set_xlabel('Temperature (K)', fontsize=12)
         ax.set_ylabel('Correlation Factor, $f$', fontsize=12)
         if title: ax.set_title(title, fontsize=14, pad=10)
-        ax.legend(title='Temperature', fontsize=9)
+        ax.legend(title='Temperature', fontsize=11, title_fontsize=12)
         ax.grid(True, linestyle='--', alpha=0.7)
         
         if self.Ea_f is not None:
@@ -3537,7 +3539,7 @@ class CalculatorEnsemble(TrajectoryBundle):
                edgecolor='k', alpha=0.6, zorder=2)
                
         ax.scatter(temps_valid, tau_valid, c=colors,
-                   marker='o', s=60, edgecolor='k', alpha=0.9, zorder=3)
+                   marker='o', s=100, edgecolor='k', alpha=0.9, zorder=3)
         
         if self.tau0 is not None and not np.isnan(self.tau0) and len(temps_valid) > 1:
             x_fit = np.linspace(np.min(temps_valid) * 0.95, np.max(temps_valid) * 1.05, 200)     
@@ -3597,12 +3599,12 @@ class CalculatorEnsemble(TrajectoryBundle):
         for i in range(len(temps_valid)):
             temp = temps_valid[i]
             ax.scatter(temp, a_valid[i], color=temp_color_map[temp],
-                       marker='s', s=60, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
+                       marker='s', s=100, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
         
         ax.set_xlabel('Temperature (K)', fontsize=12)
-        ax.set_ylabel('Hopping distance, $a$ (Å)', fontsize=12)
+        ax.set_ylabel(r'Effective Hopping distance, $a_{eff}$ (Å)', fontsize=12)
         if title: ax.set_title(title, fontsize=14, pad=10)
-        ax.legend(title='Temperature', fontsize=9)
+        ax.legend(title='Temperature', fontsize=11, title_fontsize=12)
         ax.grid(True, linestyle='--', alpha=0.7)
         
         bottom, top = ax.get_ylim()

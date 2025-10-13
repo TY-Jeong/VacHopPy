@@ -60,7 +60,7 @@ However, not all parameters can be calculated from the same set of data. The tab
 | $\tau$ | O                  | O                     | -                 |
 |  $f$   | O                  | O                     | -                 |
 | $E_a$  | X                  | O                     | -                 |
-|  $a$   | X                  | O                     | -                 |
+|  $a$   | O                  | O                     | -                 |
 |  $z$   | X                  | O                     | NEB data required |
 | $\nu$  | O                  | O                     | NEB data required |
 | $\nu^*$| O                  | O                     | -                 |
