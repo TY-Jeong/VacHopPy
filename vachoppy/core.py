@@ -712,16 +712,18 @@ class Site:
         coordinates.
         """
 
-        print("\n" + "=" * 110)
-        print(f"{' ' * 45}Site Analysis Summary")
-        print("=" * 110)
+        print("\n" + "=" * 100)
+        # print(f"{' ' * 40}Site Analysis Summary")
+        print(f'  Structure File: {self.path_structure}')
+        print("=" * 100)
+        print("[Structure Information]")
+        # print(f"    - Structure File        : {self.path_structure}")
+        print(f"    - Structure Composition : {str(self.structure.composition)}")
+        print(f"    - Lattice Vectors (Ang) :")
+        for vector in self.structure.lattice.matrix:
+            print(" "*8 + f"[{vector[0]:>9.5f}, {vector[1]:>9.5f}, {vector[2]:>9.5f}]")
         
-        print(f"  - Structure File       : {self.path_structure}")
-        print(f"  - Diffusing Symbol     : {self.symbol}")
-        print(f"  - Inequivalent Sites   : {len(self.site_name)} found")
-        print(f"  - Inequivalent Paths   : {len(self.path_name)} found (with Rmax = {self.rmax:.2f} Å)")
-        
-        print("\n" + "-- Hopping Path Information --" + "\n")
+        print("\n" + "[Hopping Path Information]")
         headers = ['Name', 'Init Site', 'Final Site', 'a (Å)', 'z',
                    'Initial Coord (Frac)', 'Final Coord (Frac)']
         data = [
@@ -736,11 +738,15 @@ class Site:
             ] for path in self.path
         ]
         
+        print(f"    - Diffusing Symbol   : {self.symbol}")
+        print(f"    - Inequivalent Sites : {len(self.site_name)} found")
+        print(f"    - Inequivalent Paths : {len(self.path_name)} found (with Rmax = {self.rmax:.2f} Å)\n")
+        
         if not data:
             print("No hopping paths were found within the specified rmax.")
         else:
             print(tabulate(data, headers=headers, tablefmt="simple", stralign='left', numalign='left'))
-        print("=" * 110 + "\n")
+        print("=" * 100 + "\n")
         
 
 def Calculator(path_traj: str,
@@ -845,9 +851,9 @@ def Calculator(path_traj: str,
     dt_ps = dt_fs / 1000.0
     
     if t_interval is None:
-        print("="*60)
-        print(" "*15 + "Automatic t_interval Estimation")
-        print("="*60)
+        print("="*68)
+        print(" "*19 + "Automatic t_interval Estimation")
+        print("="*68)
         if p.is_dir():
             t_interval_list = []
             for i, temp in enumerate(bundle.temperatures):
@@ -859,19 +865,19 @@ def Calculator(path_traj: str,
         elif p.is_file():
             print(f"  Estimating from {p.name}")
             t_interval = _get_t_interval(representative_traj)
-        print("="*60)
+        print("="*68)
     
         original_t_interval = t_interval            
         num_dt_steps = round(original_t_interval / dt_ps)
         adjusted_t_interval = num_dt_steps * dt_ps
 
-        print(" "*4 + "Adjusting t_interval to the nearest multiple of dt")
-        print("="*60)
+        print(" "*8 + "Adjusting t_interval to the nearest multiple of dt")
+        print("="*68)
         print(f"    - dt                  : {dt_ps:.4f} ps")
         print(f"    - Original t_interval : {original_t_interval:.4f} ps")
         print(f"    - Adjusted t_interval : {adjusted_t_interval:.4f} ps ({num_dt_steps} frames)")
         t_interval = adjusted_t_interval
-        print("="*60)
+        print("="*68)
     
     calc_keys = ['prefix', 'depth', 'use_incomplete_encounter', 'eps', 'verbose']
     calc_kwargs = {key: kwargs.get(key) for key in calc_keys if key in kwargs}
@@ -879,164 +885,3 @@ def Calculator(path_traj: str,
     return CalculatorEnsemble(path_traj=path_traj, site=site, t_interval=t_interval, **calc_kwargs)
 
 
-
-# ===================================================================
-# Backups
-# ===================================================================
-
-# def Calculator(path_traj: str,
-#                site: Site,
-#                *,
-#                t_interval: float | None = None,
-#                **kwargs) -> Union[CalculatorEnsemble, CalculatorSingle]:
-#     """A factory function that returns the appropriate calculator instance.
-
-#     Based on whether the input path points to a directory or a single file,
-#     this function instantiates and returns the appropriate calculator:
-#     - `CalculatorEnsemble`: For analyzing multiple trajectories in a directory.
-#     - `CalculatorSingle`: For analyzing a single trajectory file.
-
-#     This simplifies the user API by providing a single, intelligent entry point
-#     for creating calculator objects.
-
-#     Args:
-#         path_traj (str):
-#             The path to a single trajectory file or a directory containing them.
-#         site (Site):
-#             An initialized `Site` object containing lattice and hopping path data.
-#         t_interval (float | None, optional):
-#             The time interval in picoseconds (ps) for analysis. If None, the
-#             interval is automatically estimated from the mean vibration frequency.
-#             Defaults to None.
-#         **kwargs:
-#             Additional keyword arguments passed to the underlying calculator's
-#             constructor (`CalculatorEnsemble` or `CalculatorSingle`).
-#             Accepted arguments include:
-#             - `prefix` (str, optional): File prefix for directory scans.
-#             Defaults to "TRAJ".
-#             - `depth` (int, optional): Directory search depth. Defaults to 2.
-#             - `sampling_size` (int, optional): Frames for t_interval
-#             estimation. Defaults to 5000.
-#             - `use_incomplete_encounter` (bool, optional): Flag for Encounter
-#             analysis. Defaults to True.
-#             - `eps` (float, optional): Tolerance for float comparisons.
-#             Defaults to 1.0e-3.
-#             - `verbose` (bool, optional): Verbosity flag. Defaults to True.
-
-#     Returns:
-#         Union[CalculatorEnsemble, CalculatorSingle]:
-#             An initialized calculator instance appropriate for the provided path.
-
-#     Raises:
-#         FileNotFoundError:
-#             If the specified `path_traj` does not exist.
-#         ValueError:
-#             If `path_traj` is not a regular file or directory, or if t_interval
-#             cannot be estimated.
-
-#     Examples:
-#         >>> # For a single trajectory file
-#         >>> site_info = Site("POSCAR", symbol="O")
-#         >>> calc_single = Calculator("TRAJ_O.h5", site=site_info)
-
-#         >>> # For a directory of trajectories with auto t_interval estimation
-#         >>> calc_ensemble = Calculator("trajectories/", site=site_info)
-#     """
-    
-#     p = Path(path_traj)
-#     if not p.exists():
-#         raise FileNotFoundError(f"Error: The path '{path_traj}' was not found.")
-    
-#     # Helper function for t_interval estimation
-#     def _get_t_interval(path_traj: str) -> float:
-#         vib_init_keys = ['sampling_size', 'filter_high_freq']
-#         vib_init_kwargs = {key: kwargs.get(key) for key in vib_init_keys if key in kwargs}
-#         vib_params = {
-#             'path_traj': path_traj, 
-#             'site': site,
-#             'verbose': False
-#         }
-
-#         vib_params.update(vib_init_kwargs)
-#         vib = Vibration(**vib_params)
-#         vib.calculate()
-#         if vib.mean_frequency > 0:
-#             estimated_interval = 1 / vib.mean_frequency
-#             print(" "*13 + f"-> t_interval : {estimated_interval:.3f} ps")
-#             return estimated_interval
-#         else:
-#             raise ValueError(f"Could not estimate t_interval from '{path_traj}' as mean frequency is zero.")
-        
-#     # Helper function to get dt
-#     def _get_dt(traj: str) -> float:
-#         with h5py.File(traj, 'r') as f:
-#             return json.loads(f.attrs['metadata']).get('dt')
-    
-#     bundle = None   
-#     representative_traj = ""
-#     bundle_init_keys = ['prefix', 'depth', 'eps', 'verbose']
-#     bundle_init_kwargs = {key: kwargs.get(key) for key in bundle_init_keys if key in kwargs}
-
-#     if p.is_file():
-#         representative_traj = str(p.resolve())
-#     elif p.is_dir():
-#         bundle = TrajectoryBundle(path_traj=path_traj, symbol=site.symbol, **bundle_init_kwargs)
-#         if not bundle.traj or not bundle.traj[0]:
-#             raise FileNotFoundError(f"No valid trajectory files found in '{path_traj}' to use for analysis.")
-#         representative_traj = bundle.traj[0][0]
-        
-#     dt_fs = _get_dt(representative_traj)
-#     dt_ps = dt_fs / 1000.0
-    
-#     if t_interval is None:
-#         print("="*60)
-#         print(" "*15 + "Automatic t_interval Estimation")
-#         print("="*60)
-#         if p.is_dir():
-#             t_interval_list = []
-#             for i, temp in enumerate(bundle.temperatures):
-#                 file_path = Path(bundle.traj[i][0])
-#                 short_path = os.path.join(*file_path.parts[-bundle.depth:])
-#                 print(f"  [{temp} K] Estimating from {short_path}")
-#                 t_interval_list.append(_get_t_interval(bundle.traj[i][0]))
-#             t_interval = np.mean(t_interval_list) 
-#         elif p.is_file():
-#             print(f"  Estimating from {p.name}")
-#             t_interval = _get_t_interval(representative_traj)
-#         print("="*60)
-    
-#         original_t_interval = t_interval            
-#         num_dt_steps = round(original_t_interval / dt_ps)
-#         adjusted_t_interval = num_dt_steps * dt_ps
-
-#         print(" "*4 + "Adjusting t_interval to the nearest multiple of dt")
-#         print("="*60)
-#         print(f"    - dt                  : {dt_ps:.4f} ps")
-#         print(f"    - Original t_interval : {original_t_interval:.4f} ps")
-#         print(f"    - Adjusted t_interval : {adjusted_t_interval:.4f} ps ({num_dt_steps} frames)")
-#         t_interval = adjusted_t_interval
-#         print("="*60)
-    
-#     if p.is_dir():
-#         bundle_keys = ['prefix', 'depth', 'use_incomplete_encounter', 'eps', 'verbose']
-#         bundle_kwargs = {key: kwargs.get(key) for key in bundle_keys if key in kwargs}
-        
-#         return CalculatorEnsemble(
-#             path_traj=path_traj,
-#             site=site,
-#             t_interval=t_interval,
-#             **bundle_kwargs
-#         )
-#     elif p.is_file():
-#         single_keys = ['eps', 'use_incomplete_encounter', 'verbose']
-#         single_kwargs = {key: kwargs[key] for key in single_keys if key in kwargs}
-        
-#         return CalculatorSingle(
-#             path_traj=path_traj,
-#             site=site,
-#             t_interval=t_interval,
-#             **single_kwargs
-#         )
-#     else:
-#         raise ValueError(f"Error: The path '{path_traj}' is not a regular file or directory.")
-    

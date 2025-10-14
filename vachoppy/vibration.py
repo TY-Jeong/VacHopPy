@@ -207,22 +207,7 @@ class Vibration:
                  sampling_size: int = 5000,
                  filter_high_freq : bool = True,
                  verbose: bool = True):
-        """Initializes the Vibration analysis object.
 
-        Args:
-            path_traj (str): 
-                Path to the HDF5 trajectory file.
-            site (Site): 
-                A Vachoppy `Site` object containing lattice site information.
-            sampling_size (int, optional): 
-                Number of initial trajectory frames to use for the analysis.
-                Defaults to 5000.
-            filter_high_freq (bool, optional): 
-                If True, filters out high-frequency outliers using the IQR method. 
-                Defaults to True.
-            verbose (bool, optional): 
-                Verbosity flag. Defaults to True.
-        """
         self.path_traj = path_traj
         self.site = site
         self.filter_high_freq = filter_high_freq
