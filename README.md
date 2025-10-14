@@ -1,7 +1,7 @@
 
 <div align="center">
 <p>
-    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/logo.png" width="550"/>
+    <img src="https://raw.githubusercontent.com/TY-Jeong/VacHopPy/main/imgs/logo.png" width="700"/>
 </p>
 </div>
 
