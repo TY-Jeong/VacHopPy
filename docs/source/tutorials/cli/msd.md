@@ -186,7 +186,7 @@ Peak RAM Usage: 0.000 GB
 
 * **MSD vs. Time**
 
-  This plot shows the Mean Squared Displacement as a function of time for each temperature.
+  This plot shows the MSD as a function of time for each temperature.
 
 ```{image} ../../_static/msd.png
 :height: 350px
