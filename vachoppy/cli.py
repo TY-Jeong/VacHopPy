@@ -73,7 +73,7 @@ def cli_trajectory(path_traj: str,
         elif platform.system() == 'Darwin':  # macOS
             subprocess.run(['open', 'trajectory.html'])
         else:  # Linux
-            subprocess.run(['xdg-open', 'ttrajectory.html'])
+            subprocess.run(['xdg-open', 'trajectory.html'])
             
     except Exception as e:
         print("Could not open the image automatically. " + 
