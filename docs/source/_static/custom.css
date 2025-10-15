@@ -3,3 +3,15 @@
     overflow-y: auto;
     padding-right: 15px;
 }
+
+/* Limit the max height of text/plain output cells and add a scrollbar */
+.cell_output .output_text pre {
+    max-height: 300px;
+    overflow-y: scroll;
+}
+
+/* For long dataframes or other HTML outputs */
+.cell_output .output_html {
+    max-height: 400px;
+    overflow-y: scroll;
+}
