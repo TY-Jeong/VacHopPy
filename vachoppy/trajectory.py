@@ -2717,20 +2717,29 @@ class CalculatorEnsemble(TrajectoryBundle):
             Temperature-dependent vacancy diffusivity (m²/s).
         Ea_D (float):
             Activation energy (eV) for diffusivity from Arrhenius fit.
+            This value corresponds to the diffusion barrier.
         D0 (float):
             Pre-exponential factor (m²/s) for diffusivity.
         D_rand (numpy.ndarray):
             Temperature-dependent random-walk diffusivity (m²/s).
         Ea_D_rand (float):
             Activation energy (eV) for random-walk diffusivity.
+            This value corresponds to the hopping barrier.
         D_rand0 (float):
             Pre-exponential factor (m²/s) for random-walk diffusivity.
         f (numpy.ndarray):
             Temperature-dependent correlation factor.
+        Ea_f (float):
+            Activation energy (eV) for the correlation factor.
+        f0 (float):
+            Pre-exponential factor (ps) for the correlation factor
         tau (numpy.ndarray):
             Temperature-dependent average vacancy residence time (ps).
         Ea_tau (float):
             Activation energy (eV) for residence time.
+            This value is the samw with the Ea_D_rand.
+        tau0 (float):
+            Pre-exponential factor (ps) for the vacancy residence time.
         a (numpy.ndarray):
             Effective hopping distance (Å).
         calculators (list[CalculatorSingle]):

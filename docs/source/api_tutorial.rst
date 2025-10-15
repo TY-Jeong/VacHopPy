@@ -8,4 +8,5 @@ using the Python API.
    :maxdepth: 1
    :caption: Steps:
 
-   tutorials/api/vacancy_trajectory
+   tutorials/api/trajectory
+   tutorials/api/parameters
