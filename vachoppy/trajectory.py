@@ -491,285 +491,6 @@ class Trajectory:
             if verbose: print(f"\n'{filename}' created.\n")
         else:
             fig.show()
-    
-    # @monitor_performance
-    # def animate_vacancy_trajectory(self,
-    #                                vacancy_indices: int | list,
-    #                                step_init: int = 0,
-    #                                step_final: int | None = None,
-    #                                unwrap: bool = False,
-    #                                max_trace_length: int = 10,
-    #                                update_alpha: float = 0.8,
-    #                                fps: int = 5,
-    #                                save: bool = True,
-    #                                filename: str = "trajectory_video.html",
-    #                                verbose: bool = True) -> None:
-    #     """Generates an interactive 3D animation of vacancy trajectories using Plotly.
-
-    #     The animation includes play/pause controls and a slider to navigate through
-    #     time. The real-time position of each vacancy is shown, and its recent path
-    #     fades over time to indicate the direction of movement.
-
-    #     Args:
-    #         vacancy_indices (int | list):
-    #             Index or list of indices for the vacancies to be animated.
-    #         step_init (int, optional):
-    #             The starting step for the animation. Defaults to 0.
-    #         step_final (int | None, optional):
-    #             The ending step for the animation. If None, animates to the end.
-    #             Defaults to None.
-    #         unwrap (bool, optional):
-    #             If True, plots the continuous, unwrapped path. Defaults to False.
-    #         max_trace_length (int, optional):
-    #             The number of past path segments to display as a fading tail.
-    #             Defaults to 10.
-    #         update_alpha (float, optional):
-    #             Fading rate for the tail. Closer to 0 makes paths fade faster.
-    #             Defaults to 0.8.
-    #         fps (int, optional):
-    #             Frames per second for animation playback. Defaults to 5.
-    #         save (bool, optional):
-    #             If True, saves the animation as a standalone HTML file.
-    #             Defaults to True.
-    #         filename (str, optional):
-    #             The name of the output HTML file if `save` is True.
-    #             Defaults to "trajectory_video.html".
-    #         verbose (bool, optional):
-    #             Verbosity flag. Defaults to True.
-
-    #     Returns:
-    #         None: This method saves an HTML file or displays a plot.
-
-    #     Raises:
-    #         ValueError: If the specified `step_init` or `step_final` is out of bounds.
-    #     """
-    #     if unwrap:
-    #         coord_source = self.unwrapped_vacancy_trajectory_coord_cart
-    #         title_prefix = "Unwrapped Vacancy Animation"
-    #     else:
-    #         coord_source = self.vacancy_trajectory_coord_cart
-    #         title_prefix = "Vacancy Animation"
-
-    #     if not coord_source:
-    #         print("Vacancy trajectory data is not available."); return
-
-    #     if step_final is None: step_final = self.num_steps - 1
-    #     if not (0 <= step_init <= step_final < self.num_steps):
-    #         raise ValueError(f"Invalid step range [{step_init}, {step_final}].")
-        
-    #     if isinstance(vacancy_indices, int):
-    #         indices_to_plot = [vacancy_indices]
-    #     else:
-    #         indices_to_plot = vacancy_indices
-        
-    #     available_steps = sorted([s for s in coord_source.keys() 
-    #                               if s is not None and step_init <= s <= step_final])
-
-    #     all_paths_coords = []
-    #     for vac_idx in indices_to_plot:
-    #         path = [
-    #             coord_source[s][vac_idx] 
-    #             for s in available_steps if vac_idx < len(coord_source.get(s, []))
-    #         ]
-    #         if path: all_paths_coords.append(np.array(path, dtype=np.float64))
-
-    #     static_traces = []
-    #     if unwrap and all_paths_coords:
-    #         inv_lattice = np.linalg.inv(self.lattice_parameter)
-    #         frac_coords = np.dot(np.vstack(all_paths_coords), inv_lattice)
-    #         cell_indices = np.floor(frac_coords).astype(int)
-    #         unique_cells = np.unique(cell_indices, axis=0)
-    #         a, b, c = self.lattice_parameter
-    #         for cell_vec in unique_cells:
-    #             i, j, k = cell_vec
-    #             origin = i * a + j * b + k * c
-    #             is_center_cell = (i == 0 and j == 0 and k == 0)
-    #             if not is_center_cell:
-    #                 v = np.array([
-    #                     origin, origin+a, origin+b, origin+c, 
-    #                     origin+a+b, origin+b+c, origin+c+a, origin+a+b+c
-    #                 ])
-    #                 edges = [(0,1), (0,2), (0,3), (1,4), (1,6), (2,4), 
-    #                          (2,5), (3,5), (3,6), (4,7), (5,7), (6,7)]
-    #                 x_e, y_e, z_e = [], [], []; [ (x_e.extend([v[s][0], v[e][0], None]), 
-    #                                                y_e.extend([v[s][1], v[e][1], None]), 
-    #                                                z_e.extend([v[s][2], v[e][2], None])) 
-    #                                              for s, e in edges ]
-    #                 static_traces.append(go.Scatter3d(x=x_e, 
-    #                                                   y=y_e, 
-    #                                                   z=z_e, 
-    #                                                   mode='lines', 
-    #                                                   line=dict(color='lightgrey', width=1), 
-    #                                                   showlegend=False)
-    #                                      )
-    #                 supercell_sites = self.lattice_sites_cart + origin
-    #                 static_traces.append(go.Scatter3d(x=supercell_sites[:, 0], 
-    #                                                   y=supercell_sites[:, 1], 
-    #                                                   z=supercell_sites[:, 2], 
-    #                                                   mode='markers', 
-    #                                                   marker=dict(color='grey', size=3, opacity=0.2), 
-    #                                                   showlegend=False)
-    #                                      )
-    #         v = np.array(
-    #             [np.zeros(3)] + list(self.lattice_parameter) + 
-    #             [self.lattice_parameter[0] + self.lattice_parameter[1]] + 
-    #             [self.lattice_parameter[1] + self.lattice_parameter[2]] + 
-    #             [self.lattice_parameter[2] + self.lattice_parameter[0]] + 
-    #             [np.sum(self.lattice_parameter, axis=0)]
-    #         )
-    #         edges = [(0,1), (0,2), (0,3), (1,4), (1,6), (2,4), 
-    #                  (2,5), (3,5), (3,6), (4,7), (5,7), (6,7)]
-    #         x_e, y_e, z_e = [], [], []; [ (x_e.extend([v[s][0], v[e][0], None]), 
-    #                                        y_e.extend([v[s][1], v[e][1], None]), 
-    #                                        z_e.extend([v[s][2], v[e][2], None])) 
-    #                                      for s, e in edges ]
-    #         static_traces.append(go.Scatter3d(x=x_e, 
-    #                                           y=y_e, 
-    #                                           z=z_e, 
-    #                                           mode='lines', 
-    #                                           line=dict(color='black', width=2.5), 
-    #                                           showlegend=False)
-    #                              )
-    #         static_traces.append(go.Scatter3d(x=self.lattice_sites_cart[:, 0], 
-    #                                           y=self.lattice_sites_cart[:, 1], 
-    #                                           z=self.lattice_sites_cart[:, 2], 
-    #                                           mode='markers', 
-    #                                           marker=dict(color='dimgrey', size=4, opacity=0.8), 
-    #                                           showlegend=False)
-    #                              )
-    #     else:
-    #         v = np.array(
-    #             [np.zeros(3)] + list(self.lattice_parameter) + 
-    #             [self.lattice_parameter[0] + self.lattice_parameter[1]] + 
-    #             [self.lattice_parameter[1] + self.lattice_parameter[2]] + 
-    #             [self.lattice_parameter[2] + self.lattice_parameter[0]] + 
-    #             [np.sum(self.lattice_parameter, axis=0)]
-    #         )
-    #         edges = [(0,1), (0,2), (0,3), (1,4), (1,6), (2,4), 
-    #                  (2,5), (3,5), (3,6), (4,7), (5,7), (6,7)]
-    #         x_e, y_e, z_e = [], [], []; [ (x_e.extend([v[s][0], v[e][0], None]), 
-    #                                        y_e.extend([v[s][1], v[e][1], None]), 
-    #                                        z_e.extend([v[s][2], v[e][2], None])) 
-    #                                      for s, e in edges ]
-    #         static_traces.append(go.Scatter3d(x=x_e, 
-    #                                           y=y_e, 
-    #                                           z=z_e, 
-    #                                           mode='lines', 
-    #                                           line=dict(color='black', width=2), 
-    #                                           showlegend=False)
-    #                              )
-    #         static_traces.append(go.Scatter3d(x=self.lattice_sites_cart[:, 0], 
-    #                                           y=self.lattice_sites_cart[:, 1], 
-    #                                           z=self.lattice_sites_cart[:, 2], 
-    #                                           mode='markers', 
-    #                                           marker=dict(color='dimgrey', size=4, opacity=0.8), 
-    #                                           showlegend=False)
-    #                              )
-
-    #     frames = []
-    #     colors = ['#636EFA', '#EF553B', '#00CC96', 
-    #               '#AB63FA', '#FFA15A', '#19D3F3']
-
-    #     for s_idx, step in enumerate(available_steps):
-    #         dynamic_traces = []
-    #         for i, path_coords in enumerate(all_paths_coords):
-    #             vac_idx = indices_to_plot[i]
-    #             solid_color = colors[i % len(colors)]
-                
-    #             dynamic_traces.append(go.Scatter3d(
-    #                 x=[path_coords[s_idx, 0]], y=[path_coords[s_idx, 1]], z=[path_coords[s_idx, 2]],
-    #                 mode='markers',
-    #                 marker=dict(symbol='circle', 
-    #                             size=5, # Adjust this value to change vacancy size
-    #                             color=solid_color, 
-    #                             line=dict(width=2, color='black')),
-    #                 name=f'Vacancy {vac_idx}',
-    #                 legendgroup=f'vacancy_{vac_idx}'
-    #             ))
-                
-    #             current_alpha = 1.0
-    #             trace_length = min(s_idx, max_trace_length)
-    #             for j in range(max_trace_length):
-    #                 if j < trace_length:
-    #                     p_start, p_end = path_coords[s_idx - 1 - j], path_coords[s_idx - j]
-    #                     h = solid_color.lstrip('#'); r, g, b = tuple(int(h[k:k+2], 16) for k in (0, 2, 4))
-    #                     rgba_color = f'rgba({r}, {g}, {b}, {current_alpha})'
-    #                     dynamic_traces.append(go.Scatter3d(
-    #                         x=[p_start[0], p_end[0]], 
-    #                         y=[p_start[1], p_end[1]], 
-    #                         z=[p_start[2], p_end[2]],
-    #                         mode='lines', 
-    #                         line=dict(color=rgba_color, width=8), 
-    #                         showlegend=False
-    #                     ))
-    #                     current_alpha *= update_alpha
-    #                 else:
-    #                     dynamic_traces.append(go.Scatter3d(x=[None], 
-    #                                                        y=[None], 
-    #                                                        z=[None], 
-    #                                                        mode='lines', 
-    #                                                        line=dict(color='rgba(0,0,0,0)'), 
-    #                                                        showlegend=False)
-    #                                           )
-            
-    #         frames.append(go.Frame(data=static_traces + dynamic_traces, name=str(step)))
-
-    #     fig = go.Figure(data=frames[0].data if frames else static_traces)
-    #     fig.update(frames=frames)
-        
-    #     def frame_args(duration):
-    #         return {"frame": {"duration": duration}, "mode": "immediate", "transition": {"duration": 0}}
-    #     fig.update_layout(
-    #         updatemenus=[{
-    #             "buttons": [
-    #                 {"args": [None, frame_args(1000 / fps)], 
-    #                  "label": "▶ Play", 
-    #                  "method": "animate"},
-    #                 {"args": [[None], frame_args(0)], 
-    #                  "label": "❚❚ Pause", 
-    #                  "method": "animate"},
-    #             ], "direction": "left", 
-    #             "pad": {"r": 10, "t": 70}, 
-    #             "type": "buttons", 
-    #             "x": 0.1, 
-    #             "xanchor": "right", 
-    #             "y": 0, 
-    #             "yanchor": "top"
-    #         }],
-    #         sliders=[{
-    #             "active": 0, 
-    #             "yanchor": "top", 
-    #             "xanchor": "left",
-    #             "currentvalue": {"font": {"size": 16}, 
-    #                              "prefix": "Step: ", 
-    #                              "visible": True, 
-    #                              "xanchor": "right"},
-    #             "transition": {"duration": 0}, 
-    #             "pad": {"b": 10, "t": 50}, 
-    #             "len": 0.9, 
-    #             "x": 0.1, 
-    #             "y": 0,
-    #             "steps": [
-    #                 {"args": [[f.name], frame_args(0)], 
-    #                  "label": f.name, "method": "animate"} for f in fig.frames
-    #                 ]
-    #         }]
-    #     )
-
-    #     fig.update_layout(
-    #         title_text=f'{title_prefix} (Steps {step_init}-{step_final})',
-    #         scene=dict(xaxis_title='x (Å)', 
-    #                    yaxis_title='y (Å)', 
-    #                    zaxis_title='z (Å)', 
-    #                    aspectmode='data'),
-    #         showlegend=True, margin=dict(l=0, r=0, b=0, t=40)
-    #     )
-
-    #     if save:
-    #         fig.write_html(filename)
-    #         if self.verbose: print(f"'{filename}' created.")
-    #     else:
-    #         fig.show()
 
     def plot_vacancy_trajectory(self, 
                                 vacancy_indices: int | list, 
@@ -1015,7 +736,8 @@ class Trajectory:
     @ monitor_performance
     def animate_occupation(self,
                            index: list | str = 'all',
-                           steps: list | str = 'all',
+                           step_init: int = 0,
+                           step_final: int | None = None,
                            vac: bool = True,
                            gif: bool = True,
                            filename: str = 'occupation_video.gif',
@@ -1042,8 +764,11 @@ class Trajectory:
         Args:
             index (list | str, optional):
                 Indices of atoms to display. Defaults to 'all'.
-            steps (list | str, optional):
-                Time steps to include in the animation. Defaults to 'all'.
+            step_init (int, optional):
+                The starting step for the animation. Defaults to 0.
+            step_final (int | None, optional):
+                The ending step for the animation. If None, animates to the end.
+                Defaults to None.
             vac (bool, optional):
                 If True, highlights vacancy and transient vacancy sites.
                 Defaults to True.
@@ -1075,8 +800,12 @@ class Trajectory:
         if not os.path.isdir(foldername):
             os.mkdir(foldername)
 
+        if step_final is None: step_final = self.num_steps - 1
+        if not (0 <= step_init <= step_final < self.num_steps):
+            raise ValueError(f"Invalid step range [{step_init}, {step_final}].")
+   
+        step_indices = np.arange(step_init, step_final)
         atom_indices = np.arange(self.num_atoms) if index == 'all' else np.array(index)
-        step_indices = np.arange(self.num_steps) if steps == 'all' else np.array(steps)
         
         files = Parallel(n_jobs=n_jobs)(
             delayed(self._create_snapshot)(
@@ -1084,9 +813,7 @@ class Trajectory:
             ) for step in tqdm(step_indices, 
                                desc="Make Animation",
                                bar_format='{l_bar}{bar:30}{r_bar}',
-                               ascii=True)
-        )
-        
+                               ascii=True))
         files.sort()
 
         if gif:
