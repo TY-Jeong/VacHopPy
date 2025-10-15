@@ -4,14 +4,15 @@
     padding-right: 15px;
 }
 
-/* Limit the max height of text/plain output cells and add a scrollbar */
-.cell_output .output_text pre {
-    max-height: 300px;
-    overflow-y: scroll;
+/* For long text outputs (like long print statements or tracebacks) */
+.rst-content .cell .cell_output .output_text pre,
+.rst-content .cell .cell_output .output_stream pre {
+    max-height: 300px; /* 스크롤이 생기기 시작할 최대 높이 */
+    overflow-y: auto;  /* 내용이 넘칠 때만 세로 스크롤바 표시 */
 }
 
-/* For long dataframes or other HTML outputs */
-.cell_output .output_html {
-    max-height: 400px;
-    overflow-y: scroll;
+/* For long HTML outputs (like large pandas DataFrames) */
+.rst-content .cell .cell_output .output_html {
+    max-height: 400px; /* 데이터프레임 등의 최대 높이 */
+    overflow-y: auto;
 }
