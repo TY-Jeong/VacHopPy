@@ -4215,20 +4215,35 @@ class CalculatorEnsemble(TrajectoryBundle):
                 self.Ea_z, self.D0_z, self.Dz_R2 = np.nan, np.nan, np.nan
 
             if verbose:
-                print("\n" + "="*18 + " Decomposed Diffusivity Fits " + "="*19)
-                print(f"Directional Diffusivity (Dx):")
-                print(f"  - Ea        : {self.Ea_x:.3f} eV")
-                print(f"  - D0        : {self.D0_x:.3e} m^2/s")
-                print(f"  - R-squared : {self.Dx_R2:.4f}")
-                print(f"Directional Diffusivity (Dy):")
-                print(f"  - Ea        : {self.Ea_y:.3f} eV")
-                print(f"  - D0        : {self.D0_y:.3e} m^2/s")
-                print(f"  - R-squared : {self.Dy_R2:.4f}")
-                print(f"Directional Diffusivity (Dz):")
-                print(f"  - Ea        : {self.Ea_z:.3f} eV")
-                print(f"  - D0        : {self.D0_z:.3e} m^2/s")
-                print(f"  - R-squared : {self.Dz_R2:.4f}")
+                print("="*11 + " Temperature-Dependent Decomposed Diffusivity " + "="*11)
+                headers = ["T (K)", "Dx (m2/s)", "Dy (m2/s)", "Dz (m2/s)"]
+                formats = [".1f", ".3e", ".3e", ".3e"]
+                
+                table_data = []
+                for row in zip(self.temperatures, self.Dx, self.Dy, self.Dz):
+                    formatted_row = [f"{value:{fmt}}" for value, fmt in zip(row, formats)]
+                    table_data.append(formatted_row)
+
+                table = tabulate(table_data, headers=headers, 
+                                tablefmt="simple", stralign='left', numalign='left')
+                print(table)
                 print("=" * 68)
+
+                if len(self.temperatures) >= 2:
+                    print("\n" + "="*19 + " Decomposed Diffusivity Fits " + "="*20)
+                    print(f"Directional Diffusivity (Dx):")
+                    print(f"  - Ea        : {self.Ea_x:.3f} eV")
+                    print(f"  - D0        : {self.D0_x:.3e} m^2/s")
+                    print(f"  - R-squared : {self.Dx_R2:.4f}")
+                    print(f"Directional Diffusivity (Dy):")
+                    print(f"  - Ea        : {self.Ea_y:.3f} eV")
+                    print(f"  - D0        : {self.D0_y:.3e} m^2/s")
+                    print(f"  - R-squared : {self.Dy_R2:.4f}")
+                    print(f"Directional Diffusivity (Dz):")
+                    print(f"  - Ea        : {self.Ea_z:.3f} eV")
+                    print(f"  - D0        : {self.D0_z:.3e} m^2/s")
+                    print(f"  - R-squared : {self.Dz_R2:.4f}")
+                    print("=" * 68)
 
     def plot_msd_xyz(self,
                      title: str | None = "MSD Components vs. Time",
@@ -4252,7 +4267,7 @@ class CalculatorEnsemble(TrajectoryBundle):
         if not hasattr(self, 'msd') or not self.msd:
             raise RuntimeError("MSD has not been calculated. Please run .decompose_diffusivity() first.")
 
-        fig, axes = plt.subplots(1, 3, figsize=(21, 8), sharey=True)
+        fig, axes = plt.subplots(1, 3, figsize=(16, 6), sharey=True)
         components = ['x', 'y', 'z']
         
         cmap = plt.get_cmap("viridis", len(self.temperatures))
@@ -4314,7 +4329,7 @@ class CalculatorEnsemble(TrajectoryBundle):
             {'label': 'z', 'data': self.Dz, 'Ea': self.Ea_z, 'D0': self.D0_z, 'R2': self.Dz_R2}
         ]
 
-        fig, axes = plt.subplots(1, 3, figsize=(21, 8), sharey=True)
+        fig, axes = plt.subplots(1, 3, figsize=(16, 6), sharey=True)
 
         for i, comp in enumerate(components):
             ax = axes[i]

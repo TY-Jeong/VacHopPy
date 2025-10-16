@@ -86,6 +86,8 @@ def cli_analyze(path_traj: str,
                 symbol: str,
                 neb_csv: str = None,
                 dir_imgs: str = 'imgs',
+                xyz: bool = False,
+                disp: bool = True,
                 verbose: bool = True,
                 **kwargs) -> None:
     """[CLI Method] This method is for hopping parameter extraction."""
@@ -121,27 +123,34 @@ def cli_analyze(path_traj: str,
         calc.calculate_attempt_frequency(neb_csv=neb_csv, filename=filename)
         calc.attempt_frequency.summary()
     
-    
-    
+    if xyz:
+        print(f"\n[STEP{STEP_FLAG}] Decomposing Diffusivity into xyz-Components:"); STEP_FLAG += 1
+        calc.decompose_diffusivity(verbose=True)
+        
     if  dir_imgs is not None:
         if not os.path.isdir(dir_imgs): os.makedirs(dir_imgs)
-        calc.plot_counts(disp=True, filename=os.path.join(dir_imgs, 'counts.png'))
+        calc.plot_counts(disp=disp, filename=os.path.join(dir_imgs, 'counts.png'))
         
         if len(calc.temperatures) > 1:
-            calc.plot_D_rand(disp=True, filename=os.path.join(dir_imgs, 'D_rand.png'))
-            calc.plot_f(disp=True, filename=os.path.join(dir_imgs, 'f.png'))
-            calc.plot_D(disp=True, filename=os.path.join(dir_imgs, 'D.png'))
-            calc.plot_tau(disp=True, filename=os.path.join(dir_imgs, 'tau.png'))
-            calc.plot_a(disp=True, filename=os.path.join(dir_imgs, 'a.png'))
+            calc.plot_D_rand(disp=disp, filename=os.path.join(dir_imgs, 'D_rand.png'))
+            calc.plot_f(disp=disp, filename=os.path.join(dir_imgs, 'f.png'))
+            calc.plot_D(disp=disp, filename=os.path.join(dir_imgs, 'D.png'))
+            calc.plot_tau(disp=disp, filename=os.path.join(dir_imgs, 'tau.png'))
+            calc.plot_a(disp=disp, filename=os.path.join(dir_imgs, 'a.png'))
             
             if neb_csv is not None:
-                calc.plot_nu(disp=True, filename=os.path.join(dir_imgs, 'nu.png'))
-                calc.plot_z(disp=True, filename=os.path.join(dir_imgs, 'z.png'))
+                calc.plot_nu(disp=disp, filename=os.path.join(dir_imgs, 'nu.png'))
+                calc.plot_z(disp=disp, filename=os.path.join(dir_imgs, 'z.png'))
+            
+            if xyz:
+                calc.plot_msd_xyz(disp=disp, filename=os.path.join(dir_imgs, 'msd_xyz.png'))
+                calc.plot_D_xyz(disp=disp, filename=os.path.join(dir_imgs, 'D_xyz.png'))    
+                
         else:
             print("\n[INFO] Skipping plots (e.g., Arrhenius plots), " + 
-                "as they require data from more than one temperature.\n")
+                "as they require data from more than one temperature.")
     
-    print(f"Results are saved in '{filename}'.")      
+    print(f"\nResults are saved in '{filename}'.")      
     if dir_imgs is not None: print(f"Images are saved in '{dir_imgs}'.")
     print('')
     

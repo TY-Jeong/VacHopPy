@@ -221,9 +221,9 @@ class AttemptFrequency:
         Prints a comprehensive summary of the attempt frequency analysis results,
         including temperature-dependent data and path-wise details in tables.
         """
-        print("="*60)
-        print(f"            Attempt Frequency Analysis Summary")
-        print("="*60)
+        print("="*68)
+        print(f"                Attempt Frequency Analysis Summary")
+        print("="*68)
 
         print("\n" + "-- Temperature-Dependent Effective Parameters --" + "\n")
         headers_temp = ["Temp (K)", "nu (THz)", "z"]
@@ -250,10 +250,10 @@ class AttemptFrequency:
             formatted_data = [[name, f"{count:.0f}", f"{nu:.4f}"] for name, count, nu in table_data_path]
             print(tabulate(formatted_data, headers=headers_path, tablefmt="simple", stralign='left', numalign='left'))
             print("-" * 40)
-        print(f"============================================================")
+        print(f"="*68)
         print(f"NOTE: nu_paths can be unreliable for paths with low hop counts,")
         print(f"      as they are sensitive to statistical noise.")
-        print("="*60 + "\n")
+        print("="*68 + "\n")
 
     def plot_nu(self,
                 title: str | None = "Attempt Frequency vs. Temperature",

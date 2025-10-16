@@ -108,6 +108,15 @@ def main():
         default=None, 
         help='Path to the NEB results CSV file for attempt frequency calculation.')
     p_anal.add_argument(
+        '--xyz', 
+        action='store_true',
+        help='Decompose the diffusivity into x, y, z components.')
+    p_anal.add_argument(
+        '--no_disp',
+        dest='disp',
+        action='store_false',
+        help='Do not display plots in a popup window upon creation.')
+    p_anal.add_argument(
         '--t_interval', 
         type=float, 
         default=None, 
