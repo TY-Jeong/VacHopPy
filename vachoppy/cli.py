@@ -332,4 +332,19 @@ def cli_show(path_traj:str):
     """[CLI method] This method displays metadata of a HDF5 file"""
     show_traj(path_traj)
     print('')
+
+@ monitor_performance
+def cli_cut(path_traj:str,
+            start_frame: int | None = None,
+            end_frame: int | None = None,
+            label: str = "CUT",
+            chunk_size: int = 5000,
+            verbose=True):
+    """[CLI method] This method cut HDF5 file into user-defined size"""
+    cut_traj(path_traj=path_traj,
+             start_frame=start_frame,
+             end_frame=end_frame,
+             label=label,
+             chunk_size=chunk_size) 
+    print('')   
     

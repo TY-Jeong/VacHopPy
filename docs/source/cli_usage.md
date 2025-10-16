@@ -31,6 +31,7 @@ Here is a summary of the main commands available:
 | `msd` | Calculate diffusivity from mean squared displacement (Einstein relation). |
 | `convert` | Convert various MD trajectory formats to the standard HDF5 format. |
 | `concat` | Concatenate two successive HDF5 trajectory files into a new one. |
+| `cut` | Cut a portion of a HDF5 file and saves it as a new file. |
 | `show` | Display a metadata summary of a HDF5 trajectory file. |
 
 </div>

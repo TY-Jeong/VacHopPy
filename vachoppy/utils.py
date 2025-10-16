@@ -13,7 +13,7 @@ Main Components
 ---------------
 - **Data Management Functions**:
     - `concat_traj`: Joins two HDF5 trajectory files into a single, continuous file.
-    - `cut_traj`: Extracts a specific range of frames from a trajectory file (not yet implemented).
+    - `cut_traj`: Extracts a specific range of frames from a trajectory file.
     - `show_traj`: Prints a human-readable summary of a trajectory file's metadata.
 - **Data Processing Classes**:
     - `Snapshots`: A class that reads one or more trajectories and generates
@@ -277,7 +277,8 @@ def concat_traj(path_traj1: str,
 def cut_traj(path_traj: str,
              start_frame: int | None = None,
              end_frame: int | None = None,
-             label: str = "CUT") -> None:
+             label: str = "CUT",
+             chunk_size: int = 5000) -> None:
     """Cuts a portion of a trajectory file and saves it as a new file.
 
     This function extracts a specific range of frames (from `start_frame` to
@@ -294,6 +295,9 @@ def cut_traj(path_traj: str,
         label (str, optional):
             A label for the output cut file, creating a filename like
             'TRAJ_SYMBOL_LABEL.h5'. Defaults to "CUT".
+        chunk_size (int, optional):
+            The number of frames to process in each chunk to conserve memory.
+            Defaults to 5000.
 
     Returns:
         None: This function saves a new, shorter HDF5 file to disk.
@@ -302,11 +306,66 @@ def cut_traj(path_traj: str,
         FileNotFoundError: If `path_traj` is not found.
         ValueError: If the specified frame range is invalid.
     """
-    # This function is not yet implemented.
     if not os.path.exists(path_traj):
-        raise FileNotFoundError(f"Input file not found: {path_traj}")
-    pass
+        raise FileNotFoundError(f"{path_traj} not found.")
+    
+    base, ext = os.path.splitext(path_traj)
+    output_path = f"{base}_{label}{ext}"
 
+    with h5py.File(path_traj, 'r') as f_in:
+        if 'metadata' not in f_in.attrs:
+            raise ValueError("HDF5 file is missing the 'metadata' attribute.")
+            
+        metadata = json.loads(f_in.attrs['metadata'])
+        total_frames = metadata.get('nsw')
+        
+        if total_frames is None:
+            raise ValueError("Key 'nsw' (number of frames) not found in metadata.")
+
+        start = start_frame if start_frame is not None else 0
+        end = end_frame if end_frame is not None else total_frames
+
+        if not (0 <= start < end <= total_frames):
+            raise ValueError(
+                f"Invalid frame range. Must satisfy 0 <= start < end <= {total_frames}. "
+                f"Got start={start}, end={end}."
+            )
+        
+        new_num_frames = end - start
+        
+        with h5py.File(output_path, 'w') as f_out:
+            new_metadata = metadata.copy()
+            new_metadata['nsw'] = new_num_frames
+            f_out.attrs['metadata'] = json.dumps(new_metadata)
+
+            datasets_to_copy = ['positions', 'forces']
+            for dset_name in datasets_to_copy:
+                if dset_name not in f_in:
+                    raise ValueError(f"Required dataset '{dset_name}' not found in source file.")
+
+                source_dset = f_in[dset_name]
+                
+                if new_num_frames <= chunk_size:
+                    data_slice = source_dset[start:end]
+                    f_out.create_dataset(dset_name, data=data_slice)
+                else:
+                    new_shape = (new_num_frames,) + source_dset.shape[1:]
+                    out_dset = f_out.create_dataset(dset_name, shape=new_shape, dtype=source_dset.dtype)
+                    
+                    for i in tqdm(range(0, new_num_frames, chunk_size),
+                                  desc=f'Cut Trajectory',
+                                  bar_format='{l_bar}{bar:30}{r_bar}',
+                                  ascii=True):
+                        
+                        read_start = start + i
+                        read_end = min(start + i + chunk_size, end)
+                        
+                        write_start = i
+                        write_end = i + (read_end - read_start)
+                        
+                        out_dset[write_start:write_end] = source_dset[read_start:read_end]
+
+    print(f"\nSuccessfully created cut trajectory file: {output_path}")
 
 def show_traj(path_traj: str) -> None:
     """Displays metadata and dataset info from a trajectory HDF5 file.

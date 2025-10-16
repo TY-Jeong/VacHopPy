@@ -483,6 +483,39 @@ def main():
         help='Disable verbose output.')
     
     # ==============================================================================
+    # Sub-parser for the 'cut' command
+    # ==============================================================================
+    p_cut = subparsers.add_parser(
+        'cut', 
+        help='Cut a portion of a HDF5 file and saves it as a new file.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    p_cut.add_argument(
+        'path_traj', 
+        type=str, 
+        help='Path to the source HDF5 trajectory file.')
+    p_cut.add_argument(
+        '--start_frame', 
+        type=int,
+        default=None,
+        help='The starting frame number (inclusive). Defaults to the beginning.')
+    p_cut.add_argument(
+        '--end_frame', 
+        type=int,
+        default=None,
+        help='The ending frame number (exclusive). Defaults to the end.')
+    p_cut.add_argument(
+        '--label', 
+        type=str,
+        default='CUT',
+        help='A label for the output cut file.')
+    p_cut.add_argument(
+        '--chunk_size', 
+        type=int,
+        default=5000,
+        help='The number of frames to process in each chunk to conserve memory.')
+    
+    # ==============================================================================
     # Sub-parser for the 'show' command
     # ==============================================================================
     p_show = subparsers.add_parser(
@@ -527,6 +560,7 @@ def main():
                     parser.error("Argument --atom_symbols must be in 'ID=SYMBOL' format (e.g., '1=Hf').")
         cli_convert(**kwargs)
     elif command == 'concat': cli_concat(**kwargs)
+    elif command == 'cut': cli_cut(**kwargs)
     elif command == 'show': cli_show(**kwargs)
     else:
         print(f"Unknown command: {command}")
