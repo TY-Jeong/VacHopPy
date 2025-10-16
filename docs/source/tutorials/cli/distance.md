@@ -1,6 +1,6 @@
 # Identifying Phase Transition
 
-To follow this tutorial, please download and unzip `Example5/` from [this link](https://drive.google.com/file/d/1xBj3iP4eUInB2OKxCHstel4CTyXUDU9t/view?usp=sharing):
+To follow this tutorial, please download and unzip `Example5/` from [this link](https://drive.google.com/file/d/193HvxqKRsYno_qDd4q1Uqu-c00Jbu-Pg/view?usp=drivesdk) (309 MB).
 
 
 ---

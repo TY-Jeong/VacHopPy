@@ -6,7 +6,8 @@ using the Python API.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Steps:
+   :caption: Contents:
 
    tutorials/api/trajectory
    tutorials/api/parameters
+   tutorials/api/auxiliary

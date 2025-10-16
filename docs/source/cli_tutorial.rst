@@ -6,7 +6,7 @@ using the command-line interface.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Steps:
+   :caption: Contents:
 
    tutorials/cli/convert
    tutorials/cli/trajectory

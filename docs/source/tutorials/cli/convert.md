@@ -1,7 +1,7 @@
 # Input Generation
 
 
-To follow this tutorial, please download and unzip `Example1/` from [this link](https://drive.google.com/file/d/1xBj3iP4eUInB2OKxCHstel4CTyXUDU9t/view?usp=sharing):
+To follow this tutorial, please download and unzip `Example1/` from [this link](https://drive.google.com/file/d/1xBj3iP4eUInB2OKxCHstel4CTyXUDU9t/view?usp=drivesdk) (177 MB).
 
 ----
 

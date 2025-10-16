@@ -1,6 +1,6 @@
 # Hopping Parameter Extraction
 
-To follow this tutorial, please download and unzip `Example3/` from [this link](https://drive.google.com/file/d/1xBj3iP4eUInB2OKxCHstel4CTyXUDU9t/view?usp=sharing):
+To follow this tutorial, please download and unzip `Example3/` from [this link](https://drive.google.com/file/d/1_gMT74f_1PqxQ8Um1-y_i11Y2tKg7-3f/view?usp=drivesdk) (26 GB).
 
 ----
 

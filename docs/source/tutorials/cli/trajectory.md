@@ -1,6 +1,8 @@
 # Vacancy Trajectory Analysis
 
-To follow this tutorial, please download and unzip `Example2/` from [this link](https://drive.google.com/file/d/1xBj3iP4eUInB2OKxCHstel4CTyXUDU9t/view?usp=sharing):
+To follow this tutorial, please download and unzip `Example2/` from [this link](
+https://drive.google.com/file/d/1eck2Ill-l_jPCxsOPmfNn1BVOd6uOLBS/view?usp=drivesdk
+) (200 MB).
 
 ----
 
