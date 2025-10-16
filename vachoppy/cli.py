@@ -142,8 +142,9 @@ def cli_analyze(path_traj: str,
                 calc.plot_nu(disp=disp, filename=os.path.join(dir_imgs, 'nu.png'))
                 calc.plot_z(disp=disp, filename=os.path.join(dir_imgs, 'z.png'))
             
-            if xyz:
-                calc.plot_msd_xyz(disp=disp, filename=os.path.join(dir_imgs, 'msd_xyz.png'))
+        if xyz:
+            calc.plot_msd_xyz(disp=disp, filename=os.path.join(dir_imgs, 'msd_xyz.png'))
+            if len(calc.temperatures) > 1:
                 calc.plot_D_xyz(disp=disp, filename=os.path.join(dir_imgs, 'D_xyz.png'))    
                 
         else:
