@@ -159,6 +159,8 @@ vachoppy analyze TRAJ_TiO2/ POSCAR_TiO2 O --neb neb_TiO2.csv
 
 * `VacHopPy` processes large datasets efficiently using streaming and parallel processing. You can control the number of CPU cores used with the `--n_jobs` flag. The default is -1, which uses all available cores.
 
+* Use the `--xyz` flag to decompose the vacancy diffusivity into its directional components ($D_x$, $D_y$, $D_z$). This is useful for analyzing anisotropic systems and calculating the diffusion energy for each direction.
+
 
 ### Running the Full Tutorial Analysis
 
