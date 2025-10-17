@@ -504,12 +504,14 @@ def main():
         type=str, 
         help='Path to the source HDF5 trajectory file.')
     p_cut.add_argument(
-        '--start_frame', 
+        '--start', 
+        dest='start_frame',
         type=int,
         default=None,
         help='The starting frame number (inclusive). Defaults to the beginning.')
     p_cut.add_argument(
-        '--end_frame', 
+        '--end',
+        dest='end_frame', 
         type=int,
         default=None,
         help='The ending frame number (exclusive). Defaults to the end.')
