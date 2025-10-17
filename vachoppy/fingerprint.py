@@ -675,26 +675,31 @@ def plot_cosine_distance(path_traj: str | list[str],
     
     fluctuation_intervals = []
     if find_fluctuations:
-        global_mean = np.mean(distance_data)
-        global_std = np.std(distance_data)
-        if threshold_std is not None:
-            upper_threshold = global_mean + threshold_std * global_std
-        
-        moving_avg = np.convolve(distance_data, np.ones(window_size)/window_size, mode='valid')
-        time_avg = time_data[(window_size-1)//2 : -(window_size-1)//2][:len(moving_avg)]
-        if threshold_std is not None:
-            suspicious_indices = np.where(moving_avg > upper_threshold)[0]
-            if suspicious_indices.size > 0:
-                for group in np.split(suspicious_indices, np.where(np.diff(suspicious_indices) != 1)[0] + 1):
-                    start_time = time_avg[group[0]]
-                    end_time = time_avg[group[-1]]
-                    fluctuation_intervals.append((start_time, end_time))
+        if len(distance_data) < window_size:
+            print(f"\n[Warning] Data points ({len(distance_data)}) are fewer than window size ({window_size})."
+                "\n          Skipping moving average and fluctuation analysis.")
+            moving_avg = None
+        else:
+            global_mean = np.mean(distance_data)
+            global_std = np.std(distance_data)
+            if threshold_std is not None:
+                upper_threshold = global_mean + threshold_std * global_std
+            
+            moving_avg = np.convolve(distance_data, np.ones(window_size)/window_size, mode='valid')
+            time_avg = time_data[(window_size-1)//2 : -(window_size-1)//2][:len(moving_avg)]
+            if threshold_std is not None:
+                suspicious_indices = np.where(moving_avg > upper_threshold)[0]
+                if suspicious_indices.size > 0:
+                    for group in np.split(suspicious_indices, np.where(np.diff(suspicious_indices) != 1)[0] + 1):
+                        start_time = time_avg[group[0]]
+                        end_time = time_avg[group[-1]]
+                        fluctuation_intervals.append((start_time, end_time))
                 
     plt.figure(figsize=(12, 5))
     ax = plt.gca()
     ax.scatter(time_data, distance_data, alpha=0.5, label='Cosine Distance', s=15, zorder=2)
     
-    if find_fluctuations:
+    if find_fluctuations and moving_avg is not None:
         ax.plot(time_avg, moving_avg, color='crimson', lw=2, label=f'Moving Avg (win={window_size})', zorder=3)
         ax.axhline(global_mean, color='k', linestyle='--', label='Global Mean', zorder=1)
         if threshold_std is not None:
