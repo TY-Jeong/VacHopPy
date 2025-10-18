@@ -15,18 +15,25 @@ pip install -e .
 ```
 
 ---
-## Installation test
+## Running Unit Tests
 
-Once the `VacHopPy` package is successfully installed, you can import `VacHopPy` within Python interpreter:
+After installing `VacHopPy` in editable mode (`pip install -e .`) from a cloned repository, you can run the built-in unit tests to verify the installation and core functionality. The tests use the `pytest` framework.
 
-```python
-import vachoppy
-```
+Make sure you are in the main `VacHopPy` directory (the one containing `pyproject.toml`). Execute the tests using the following command:
 
-Or the following command can be executed:
 ```bash
-vachoppy -h
+pytest
 ```
+The first time you run this, the necessary test data files will be downloaded automatically if they are not already present.
+
+Or, for more detailed output:
+
+```bash
+pytest -v
+```
+
+A successful run will show a summary indicating that all tests have **passed**. This confirms that the core components of `VacHopPy` are functioning correctly in your environment.
+
 
 ---
 
