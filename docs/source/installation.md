@@ -19,6 +19,11 @@ pip install -e .
 
 After installing `VacHopPy` in editable mode (`pip install -e .`) from a cloned repository, you can run the built-in unit tests to verify the installation and core functionality. The tests use the `pytest` framework.
 
+Running the tests requires `pytest`. If you don't have it installed in your environment, you can install it using pip:
+```bash
+pip install pytest
+```
+
 Make sure you are in the main `VacHopPy` directory (the one containing `pyproject.toml`). Execute the tests using the following command:
 
 ```bash
