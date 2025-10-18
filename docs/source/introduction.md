@@ -48,8 +48,6 @@ $$
 
 For a more detailed theoretical background, please refer to [this paper](https://arxiv.org/abs/2503.23467).
 
-`VacHopPy` was developed with **multiscale modeling** in mind. It calculates the various parameters required for continuum-scale models, providing each as an effective value. These effective parameters are delivered in simple, ready-to-use forms—such as a single value or an Arrhenius form—making them directly suitable for continuum-level analysis.
-
 The key effective hoppping parameters extractable with `VacHopPy` are summarized below.
 
 <div align="center">
@@ -67,6 +65,7 @@ The key effective hoppping parameters extractable with `VacHopPy` are summarized
 
 </div>
 
+All hopping parameters extracted by `VacHopPy`, such as those summarized above, are **effective values**. This means they represent the overall, averaged behavior of vacancy diffusion across all possible migration paths within the system. For instance, the calculated effective hopping barrier ($E_a$) is not tied to a single NEB path but reflects the system-wide average barrier influencing diffusion.
 For other extractable parameters, please refer to {ref}`this section <section-parameters>`.
 
 ```{note}
