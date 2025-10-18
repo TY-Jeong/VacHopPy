@@ -401,7 +401,7 @@ class MSDEnsemble:
     This class manages multiple `MSDCalculator` instances, typically for simulations
     run at different temperatures. It calculates the diffusivity for each trajectory
     (or temperature group) in parallel and then performs an Arrhenius fit to
-    determine the activation energy (Ea) and pre-exponential factor (D0).
+    determine the activation energy (Ea_D) and pre-exponential factor (D0).
 
     The main workflow is to initialize the class, call `.calculate()` to run the
     analysis, and then use plotting methods like `.plot_msd()` and `.plot_D()`
@@ -432,9 +432,9 @@ class MSDEnsemble:
             for file discovery (e.g., `prefix`, `depth`).
 
     Attributes:
-        diffusivities (numpy.ndarray):
+        D (numpy.ndarray):
             An array of the average diffusivity (m²/s) for each temperature.
-        Ea (float):
+        Ea_D (float):
             Activation energy (eV) from the Arrhenius fit.
         D0 (float):
             Pre-exponential factor (m²/s) from the Arrhenius fit.
@@ -489,8 +489,8 @@ class MSDEnsemble:
                 )
                 
         self.calculators: List[MSDCalculator] = []
-        self.diffusivities: np.ndarray = None
-        self.Ea: float = None
+        self.D: np.ndarray = None
+        self.Ea_D: float = None
         self.D0: float = None
         self.R2: float = None
     
@@ -587,18 +587,18 @@ class MSDEnsemble:
             diffusivity = slope * (1e-5 / 6.0)
             temp_avg_D.append(diffusivity)
             
-        self.diffusivities = np.array(temp_avg_D, dtype=np.float64)
+        self.D = np.array(temp_avg_D, dtype=np.float64)
 
     def _fit_arrhenius(self):
         """Performs an Arrhenius fit on the temperature-dependent diffusivity data."""
         kb = 8.61733326e-5
         temps = np.asarray(self.temperatures, dtype=np.float64)
-        diffs = np.asarray(self.diffusivities, dtype=np.float64)
+        diffs = np.asarray(self.D, dtype=np.float64)
         valid_mask = ~np.isnan(diffs) & (diffs > 0)
         
         if np.sum(valid_mask) < 2:
             if self.verbose: print("Warning: Less than 2 valid data points for Arrhenius fit. Skipping.")
-            self.Ea, self.D0, self.R2 = np.nan, np.nan, np.nan
+            self.Ea_D, self.D0, self.R2 = np.nan, np.nan, np.nan
             return
             
         temps_valid = temps[valid_mask]
@@ -608,7 +608,7 @@ class MSDEnsemble:
         y = np.log(D_valid)
         slope, intercept = np.polyfit(x, y, 1)
         
-        self.Ea = -slope * kb
+        self.Ea_D = -slope * kb
         self.D0 = np.exp(intercept)
         
         y_pred = slope * x + intercept
@@ -667,8 +667,8 @@ class MSDEnsemble:
 
             ax.plot(timestep, mean_msd, color=cmap(i), label=f"{temp:.0f} K")
             
-            if self.diffusivities is not None and not np.isnan(self.diffusivities[i]):
-                slope = self.diffusivities[i] * 6 / 1e-5
+            if self.D is not None and not np.isnan(self.D[i]):
+                slope = self.D[i] * 6 / 1e-5
                 intercept = np.mean(
                     [c.intercept for c in calcs_for_temp 
                      if c.intercept is not None and not np.isnan(c.intercept)]
@@ -724,9 +724,9 @@ class MSDEnsemble:
         fig, ax = plt.subplots(figsize=(6, 5))
         kb = 8.61733326e-5
         
-        valid_mask = ~np.isnan(self.diffusivities) & (self.diffusivities > 0)
+        valid_mask = ~np.isnan(self.D) & (self.D > 0)
         temps_valid = self.temperatures[valid_mask]
-        D_valid = self.diffusivities[valid_mask]
+        D_valid = self.D[valid_mask]
         
         x_points = 1000 / temps_valid
         y_points = D_valid
@@ -734,12 +734,12 @@ class MSDEnsemble:
         ax.scatter(x_points, y_points, c=temps_valid, cmap='viridis', s=50, zorder=3)
         ax.set_yscale('log')
         
-        if self.Ea is not None and not np.isnan(self.Ea):
+        if self.Ea_D is not None and not np.isnan(self.Ea_D):
             x_fit_temps = np.linspace(min(temps_valid), max(temps_valid), 100)
-            y_fit = self.D0 * np.exp(-self.Ea / (kb * x_fit_temps))
-            ax.plot(1000 / x_fit_temps, y_fit, 'k--', lw=1.5, label=f"Fit (Ea={self.Ea:.2f} eV)")
+            y_fit = self.D0 * np.exp(-self.Ea_D / (kb * x_fit_temps))
+            ax.plot(1000 / x_fit_temps, y_fit, 'k--', lw=1.5, label=f"Fit (Ea={self.Ea_D:.2f} eV)")
             
-            text = f"$D_0 = {self.D0:.2e}$ m$^2$/s\n$E_a = {self.Ea:.2f}$ eV\n$R^2 = {self.R2:.3f}$"
+            text = f"$D_0 = {self.D0:.2e}$ m$^2$/s\n$E_a = {self.Ea_D:.2f}$ eV\n$R^2 = {self.R2:.3f}$"
             ax.text(0.05, 0.05, text, transform=ax.transAxes, 
                     va='bottom', ha='left', 
                     bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.5))
@@ -765,16 +765,16 @@ class MSDEnsemble:
         
         headers = ["Temp (K)", "Avg. Diffusivity (m^2/s)"]
         table_data = []
-        for T, D in zip(self.temperatures, self.diffusivities):
+        for T, D in zip(self.temperatures, self.D):
             table_data.append([f"{T:.0f}", f"{D:.3e}" if not np.isnan(D) else "N/A"])
         
         print(tabulate(table_data, headers=headers, tablefmt="simple"))
         
-        if self.Ea is not None and not np.isnan(self.Ea):
+        if self.Ea_D is not None and not np.isnan(self.Ea_D):
             print("\n-- Arrhenius Fit Results --")
-            print(f"  - Activation Energy (Ea) : {self.Ea:.3f} eV")
-            print(f"  - Pre-factor (D0)        : {self.D0:.3e} m^2/s")
-            print(f"  - R-squared              : {self.R2:.4f}")
+            print(f"  - Activation Energy (Ea_D) : {self.Ea_D:.3f} eV")
+            print(f"  - Pre-factor (D0)          : {self.D0:.3e} m^2/s")
+            print(f"  - R-squared                : {self.R2:.4f}")
         print("="*50)
         
     def save_parameters(self, filename: str = "einstein.json") -> None:
@@ -797,7 +797,7 @@ class MSDEnsemble:
             >>> ensemble.calculate()
             >>> ensemble.save_parameters("results.json")
         """
-        if self.diffusivities is None:
+        if self.D is None:
             raise RuntimeError("Cannot save parameters. Please run the .calculate() method first.")
 
         description = {
@@ -813,7 +813,7 @@ class MSDEnsemble:
             'description': description
         }
 
-        params_to_save = ['diffusivities', 'Ea', 'D0']
+        params_to_save = ['D', 'Ea_D', 'D0']
         json_keys = ['D', 'Ea_D', 'D0']
 
         for param, key in zip(params_to_save, json_keys):
