@@ -398,7 +398,7 @@ def cosine_distance(fp1: np.ndarray, fp2: np.ndarray) -> float:
 
 
 def get_fingerprint(path_structure: str, 
-                    filename: str, 
+                    filename: str | None, 
                     atom_pairs: List[Tuple[str, str]], 
                     Rmax: float = 10.0,
                     delta: float = 0.08,
@@ -419,8 +419,9 @@ def get_fingerprint(path_structure: str,
     Args:
         path_structure (str):
             Path to the crystallographic structure file (e.g., POSCAR, cif).
-        filename (str):
+        filename (str | None):
             The name of the output file to save the concatenated fingerprint data.
+            If None, output file is not saved.
         atom_pairs (List[Tuple[str, str]]):
             A list of tuples, each containing the chemical symbols for an atom
             pair, e.g., `[('Ti', 'O'), ('O', 'O')]`.
@@ -477,16 +478,17 @@ def get_fingerprint(path_structure: str,
     final_fingerprint = np.concatenate(all_fingerprints)
     final_R = np.concatenate(all_R_values)
     
-    with open(filename, 'w') as f:
-        f.write(f'# Rmax, delta, sigma, dirac = {Rmax}, {delta}, {sigma}, {dirac}\n')
-        f.write('# pair : ')
-        f.write(', '.join([f'{A}-{B}' for A, B in atom_pairs]))
-        f.write('\n')
-        
-        data_to_save = np.vstack((final_R, final_fingerprint)).T
-        np.savetxt(f, data_to_save, fmt='%.6f', delimiter='\t')
+    if filename is not None:
+        with open(filename, 'w') as f:
+            f.write(f'# Rmax, delta, sigma, dirac = {Rmax}, {delta}, {sigma}, {dirac}\n')
+            f.write('# pair : ')
+            f.write(', '.join([f'{A}-{B}' for A, B in atom_pairs]))
+            f.write('\n')
+            
+            data_to_save = np.vstack((final_R, final_fingerprint)).T
+            np.savetxt(f, data_to_save, fmt='%.6f', delimiter='\t')
 
-    if verbose: print(f"Fingerprint data successfully saved to '{filename}'")
+        if verbose: print(f"Fingerprint data successfully saved to '{filename}'")
     
     if disp:
         fig, ax = plt.subplots(figsize=(10, 5))
@@ -547,8 +549,8 @@ def plot_cosine_distance(path_traj: str | list[str],
                          find_fluctuations: bool = True,
                          window_size: int = 50,
                          threshold_std: float | None = None,
+                         disp: bool = True,
                          verbose: bool = True) -> None:
-    
     """Traces structural evolution by plotting fingerprint cosine distance over time.
 
     This function provides a comprehensive workflow to analyze how a system's
@@ -596,6 +598,9 @@ def plot_cosine_distance(path_traj: str | list[str],
             The threshold in standard deviations (σ) from the global mean to define
             a fluctuation. If None, fluctuation intervals are not detected.
             Defaults to None.
+        disp (bool, optional):
+            If True, displays a plot of the cosine dinstance vs time.
+            Defaults to True.
         verbose (bool, optional):
             Verbosity flag. Defaults to True.
 
@@ -619,11 +624,10 @@ def plot_cosine_distance(path_traj: str | list[str],
         ...     threshold_std=2.5
         ... )
     """
-    
     if not os.path.isdir(path_dir):
         os.makedirs(path_dir)
         if verbose: print(f"Created output directory: '{path_dir}'")
-
+        
     if atom_pairs is None:
         if verbose: print("Argument 'atom_pairs' not provided: Auto-generating all unique pairs...")
         try:
@@ -633,6 +637,7 @@ def plot_cosine_distance(path_traj: str | list[str],
             if verbose: print(f"-> Generated pairs: {atom_pairs}\n")
         except Exception as e:
             raise IOError(f"Failed to read reference structure '{reference_structure}' to auto-generate pairs. Error: {e}")
+
     with tempfile.TemporaryDirectory() as temp_dir:
         snapshots = Snapshots(
             path_traj=path_traj,
@@ -644,49 +649,59 @@ def plot_cosine_distance(path_traj: str | list[str],
             format='vasp',
             prefix='POSCAR'
         )
+
+        ref_fingerprint_file = os.path.join(path_dir, "fingerprint_ref.txt")
         ref_fingerprint = get_fingerprint(
             path_structure=reference_structure,
-            filename=os.path.join(path_dir, "fingerprint_ref.txt"),
+            filename=ref_fingerprint_file,
             atom_pairs=atom_pairs,
-            Rmax=Rmax, 
-            delta=delta, 
+            Rmax=Rmax,
+            delta=delta,
             sigma=sigma,
             dirac=dirac,
             disp=False,
             verbose=False
         )
-        
+
         tasks = []
         for i in range(snapshots.num_steps):
             snapshot_path = os.path.join(temp_dir, f"POSCAR_{i:0{snapshots.digit}d}")
             tasks.append((i, snapshot_path, ref_fingerprint, atom_pairs, Rmax, delta, sigma, dirac, path_dir))
+
         results = Parallel(n_jobs=n_jobs, verbose=0)(
             delayed(_worker_calculate_distance)(task)
             for task in tqdm(tasks,
                              desc=f'Compute Fingerprint',
                              bar_format='{l_bar}{bar:30}{r_bar}',
-                             ascii=True)
-        )
-        
+                             ascii=True,
+                             disable=not verbose))
+
     results.sort(key=lambda x: x[0])
     results = np.array(results, dtype=np.float64)
-    results[:, 0] = (results[:, 0] + 1) * snapshots.t_interval
+    results[:, 0] = (results[:, 0]) * snapshots.t_interval
     time_data, distance_data = results[:, 0], results[:, 1]
-    
+
+    # Fluctuation analysis (optional)
     fluctuation_intervals = []
+    moving_avg = None
+    global_mean = np.mean(distance_data)
     if find_fluctuations:
         if len(distance_data) < window_size:
-            print(f"\n[Warning] Data points ({len(distance_data)}) are fewer than window size ({window_size})."
-                "\n          Skipping moving average and fluctuation analysis.")
-            moving_avg = None
+            if verbose:
+                print(f"\n[Warning] Data points ({len(distance_data)}) are fewer than window size ({window_size})."
+                      "\n          Skipping moving average and fluctuation analysis.")
         else:
-            global_mean = np.mean(distance_data)
             global_std = np.std(distance_data)
+            upper_threshold = np.inf
             if threshold_std is not None:
                 upper_threshold = global_mean + threshold_std * global_std
-            
+
             moving_avg = np.convolve(distance_data, np.ones(window_size)/window_size, mode='valid')
-            time_avg = time_data[(window_size-1)//2 : -(window_size-1)//2][:len(moving_avg)]
+            time_avg_start_index = (window_size - 1) // 2
+            time_avg_end_index = len(time_data) - (window_size // 2)
+            time_avg = time_data[time_avg_start_index:time_avg_end_index]
+
+
             if threshold_std is not None:
                 suspicious_indices = np.where(moving_avg > upper_threshold)[0]
                 if suspicious_indices.size > 0:
@@ -694,41 +709,50 @@ def plot_cosine_distance(path_traj: str | list[str],
                         start_time = time_avg[group[0]]
                         end_time = time_avg[group[-1]]
                         fluctuation_intervals.append((start_time, end_time))
-                
+
     plt.figure(figsize=(12, 5))
     ax = plt.gca()
     ax.scatter(time_data, distance_data, alpha=0.5, label='Cosine Distance', s=15, zorder=2)
-    
+
     if find_fluctuations and moving_avg is not None:
         ax.plot(time_avg, moving_avg, color='crimson', lw=2, label=f'Moving Avg (win={window_size})', zorder=3)
         ax.axhline(global_mean, color='k', linestyle='--', label='Global Mean', zorder=1)
         if threshold_std is not None:
-            ax.axhline(upper_threshold, color='k', linestyle=':', label=f'Threshold ({threshold_std}σ)', zorder=1)
+            ax.axhline(upper_threshold, color='k', linestyle=':', label=f'Threshold ({threshold_std:.1f}σ)', zorder=1) # Formatted label
+
+        fluctuation_label_added = False
         for start, end in fluctuation_intervals:
-            ax.axvspan(start, end, color='orange', alpha=0.3, label='Detected Fluctuation')
+            label = 'Detected Fluctuation' if not fluctuation_label_added else ""
+            ax.axvspan(start, end, color='orange', alpha=0.3, label=label)
+            fluctuation_label_added = True
 
     handles, labels = ax.get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
     ax.legend(by_label.values(), by_label.keys(), fontsize=9)
+
+    out_png_filename = f'{prefix}.png'
+    full_png_path = os.path.join(path_dir, out_png_filename)
     
-    out_png = f'{prefix}.png'
     ax.set_xlabel("Time (ps)", fontsize=13)
     ax.set_ylabel('Cosine Distance to Reference', fontsize=13)
     ax.grid(True, linestyle='--', alpha=0.6)
     plt.tight_layout()
-    plt.savefig(out_png, dpi=dpi)
-    plt.show()
+    plt.savefig(full_png_path, dpi=dpi)
+    if disp: plt.show()
     plt.close()
-    print(f"\n'{out_png}' created successfully.")
+    if verbose: print(f"\n'{full_png_path}' created successfully.")
     
-    output_txt = f'{prefix}.txt'
-    with open(output_txt, 'w') as f:
-        f.write(f'# Rmax, delta, sigma, dirac = {Rmax}, {delta}, {sigma}, {dirac}\n')
-        f.write('# pair : ' + ', '.join([f'{A}-{B}' for A, B in atom_pairs]) + '\n')
+    output_txt_filename = f'{prefix}.txt'
+    full_txt_path = os.path.join(path_dir, output_txt_filename)
+
+    with open(full_txt_path, 'w') as f:
+        f.write(f'# Rmax={Rmax}, delta={delta}, sigma={sigma}, dirac={dirac}\n')
+        f.write('# pair: ' + ', '.join([f'{A}-{B}' for A, B in atom_pairs]) + '\n')
+        f.write('# Time (ps)\tCosine Distance\n')
         np.savetxt(f, results, fmt='%.6f', delimiter='\t')
-    print(f"'{output_txt}' created successfully.")
-    
+    if verbose: print(f"'{full_txt_path}' created successfully.")
+
     if (threshold_std is not None) and find_fluctuations and fluctuation_intervals:
-        print("\nDetected fluctuation intervals:")
+        if verbose: print("\nDetected fluctuation intervals:")
         for start, end in fluctuation_intervals:
-            print(f"  - From {start:.2f} ps to {end:.2f} ps")
+            if verbose: print(f"  - From {start:.2f} ps to {end:.2f} ps")
