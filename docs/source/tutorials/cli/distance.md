@@ -98,7 +98,7 @@ This command produces the following plot:
 :align: center
 :alt: Mono Plot
 ```
-The red line, representing the average structural distance, shows a distinct drift **away** from the monoclinic reference structure around the 20 ps. For this analysis, the absolute y-values are not meaningful, and the important feature is the relative change.
+The red line, representing the average structural distance, shows a distinct drift **away** from the monoclinic reference structure around the 20 ps. For this analysis, the absolute y-values are not meaningful, and the important feature is the relative change. By default, the output files will be saved in the `fingerprint_trace/` directory.
 
 #### Compare against the Tetragonal structure:
 
