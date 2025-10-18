@@ -1453,8 +1453,8 @@ class TrajectoryAnalyzer:
                  site: Site | None = None,
                  eps: float = 1e-3,
                  verbose: bool = True):
-        self.trajectory = trajectory
         
+        self.trajectory = trajectory
         
         if site is None:
             self.site = trajectory.site
@@ -1466,11 +1466,11 @@ class TrajectoryAnalyzer:
         self.verbose = verbose
         
         # site(lattice)
-        self.path = site.path
-        self.path_name = site.path_name
-        self.site_name = site.site_name
-        self.path_distance = np.array([p['distance'] for p in site.path])
-        self.lattice_sites_info = site.lattice_sites
+        self.path = self.site.path
+        self.path_name = self.site.path_name
+        self.site_name = self.site.site_name
+        self.path_distance = np.array([p['distance'] for p in self.site.path])
+        self.lattice_sites_info = self.site.lattice_sites
 
         self.path_unknown = []
         
@@ -1737,7 +1737,7 @@ class Encounter:
         self.f_cor = None
         self.path_distance = None
         
-        self.encounter_all = self.encounter_complete
+        self.encounter_all = list(self.encounter_complete)
         if use_incomplete_encounter:
             self.encounter_all += self.encounter_in_process
         self.num_encounter = len(self.encounter_all)
@@ -1865,7 +1865,8 @@ class Encounter:
                         # exchange with a new vacancy : terminate encounter
                         else:
                             # terminate the existing encounter
-                            self.encounter_complete.append(encounter_match.copy())
+                            # self.encounter_complete.append(encounter_match.copy())
+                            self.encounter_complete.append(copy.deepcopy(encounter_match))
                             del self.encounter_in_process[index_encounter]
                             
                             # initiate a new encounter
@@ -1881,7 +1882,8 @@ class Encounter:
                     # case 3. PBC matching encounter:
                     else:
                         # terminate the existing encounter
-                        self.encounter_complete.append(encounter_match.copy())
+                        # self.encounter_complete.append(encounter_match.copy())
+                        self.encounter_complete.append(copy.deepcopy(encounter_match))
                         del self.encounter_in_process[index_encounter]
                         
                         # initiate a new encounter
