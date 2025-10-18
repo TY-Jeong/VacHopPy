@@ -59,7 +59,15 @@ def setup_test_data():
 @pytest.fixture(scope="session")
 def site_data():
     """
-    테스트에 필요한 Site 객체와 정답 데이터를 로드하는 공용 픽스처.
+    Session-scoped fixture to load the Site object and corresponding
+    answer data required for multiple tests.
+
+    Loads data based on 'POSCAR_HfO2' and 'answer_site.json' within
+    the test data directory.
+
+    Returns:
+        tuple: A tuple containing the initialized Site object and the loaded
+               answer data (dict).
     """
     current_dir = Path(__file__).parent
     path_structure = current_dir / 'test_data' / 'POSCAR_HfO2'
