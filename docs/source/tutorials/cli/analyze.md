@@ -159,8 +159,6 @@ vachoppy analyze TRAJ_TiO2/ POSCAR_TiO2 O --neb neb_TiO2.csv
 
 * `VacHopPy` processes large datasets efficiently using streaming and parallel processing. You can control the number of CPU cores used with the `--n_jobs` flag. The default is -1, which uses all available cores.
 
-* Use the `--xyz` flag to decompose the vacancy diffusivity into its directional components ($D_x$, $D_y$, $D_z$). This is useful for analyzing anisotropic systems and calculating the diffusion energy for each direction.
-
 
 ### Running the Full Tutorial Analysis
 
@@ -440,5 +438,89 @@ In this context, it is crucial to distinguish between the **hopping barrier** an
 * The **diffusion barrier**, represented by `Ea_D`, is the total activation energy for the macroscopic diffusion process. It encompasses both the hopping barrier and the energetic contributions from jump correlations.
 
 This subtle distinction is important. For instance, the activation energy that governs physical quantities like the residence time ($\tau$) or the hopping rate ($\Gamma$) corresponds to the **hopping barrier** (`Ea_D_rand`), not the overall diffusion barrier.
+```
+
+----
+
+## Advanced Features
+
+### Assessing Data Reliability
+
+Using the `--error_bar` flag will display error bars on the plots for $D$, $D_{rand}$, $f$, $\tau$. The error bars represent the **standard error of the mean (SEM)**, which allows for an assessment of the data's reliability. It is calculated as follows:
+
+
+
+$$
+SEM = {\sigma}/{\sqrt{n}}
+$$
+
+Here, $\sigma$ represents the standard deviation of the physical quantity at each temperature, and $n$ is the number of data points (i.e., the number of HDF5 files used for that temperature).
+
+Below is an example of the output plot:
+
+
+```{image} ../../_static/D_sem.png
+:height: 350px
+:align: center
+:alt: Diffusivity Plot
+```
+
+
+### Decomposing Vacancy Diffusivity
+
+The `--xyz` flag enables the decomposition and analysis of vacancy diffusivity into its x, y, and z components. This analysis can be particularly effective when dealing with anisotropic systems.
+
+Example terminal output:
+
+```{code-block} bash
+:class: scrollable-output
+[STEP5] Decomposing Diffusivity into xyz-Components:
+=========== Temperature-Dependent Decomposed Diffusivity ===========
+T (K)    Dx (m2/s)    Dy (m2/s)    Dz (m2/s)
+-------  -----------  -----------  -----------
+1700     4.729e-10    5.324e-10    2.475e-10
+1800     6.673e-10    7.123e-10    4.496e-10
+1900     1.144e-09    6.331e-10    6.915e-10
+2000     1.25e-09     1.497e-09    5.507e-10
+2100     2.069e-09    1.525e-09    8.47e-10
+====================================================================
+
+=================== Decomposed Diffusivity Fits ====================
+Directional Diffusivity (Dx):
+  - Ea        : 1.101 eV
+  - D0        : 8.523e-07 m^2/s
+  - R-squared : 0.9710
+Directional Diffusivity (Dy):
+  - Ea        : 0.867 eV
+  - D0        : 1.818e-07 m^2/s
+  - R-squared : 0.8022
+Directional Diffusivity (Dz):
+  - Ea        : 0.834 eV
+  - D0        : 8.645e-08 m^2/s
+  - R-squared : 0.8231
+====================================================================
+
+```
+
+This flag also generates additional plots for the component-wise Mean Squared Displacement (MSD) and component-wise Arrhenius fits.
+
+
+```{image} ../../_static/msd_xyz.png
+:width: 750px
+:align: center
+:alt: Diffusivity Plot
+```
+
+
+```{image} ../../_static/D_xyz.png
+:width: 750px
+:align: center
+:alt: Diffusivity Plot
+```
+
+
+
+```{note}
+This component-wise analysis requires significantly more sampling of hopping events than calculating the isotropic vacancy diffusivity. As seen in the example plots, insufficient sampling can lead to poor linearity in the MSD and reduced R² values for the Arrhenius fits.
 ```
 
