@@ -465,6 +465,7 @@ Below is an example of the output plot:
 :alt: Diffusivity Plot
 ```
 
+----
 
 ### Decomposing Vacancy Diffusivity
 
