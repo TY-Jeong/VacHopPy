@@ -62,6 +62,7 @@ from typing import Tuple, Optional
 from pathlib import Path
 from tqdm.auto import tqdm
 from tabulate import tabulate
+from matplotlib.lines import Line2D
 from joblib import Parallel, delayed
 from scipy.optimize import minimize_scalar
 
@@ -2992,6 +2993,7 @@ class CalculatorEnsemble(TrajectoryBundle):
                 use_incomplete_encounter=self.use_incomplete_encounter,
                 verbose=False
             )
+            calc.calculate()
             return (path_traj, calc)
         
         except Exception as e:
@@ -3363,7 +3365,6 @@ class CalculatorEnsemble(TrajectoryBundle):
         activation_energy = -slope * kb
         pre_exponential_factor = np.exp(intercept)
         
-        # Calculate R-squared for goodness of fit
         y_predicted = slope * x + intercept
         ss_residual = np.sum((y - y_predicted)**2)
         ss_total = np.sum((y - np.mean(y))**2)
@@ -3387,7 +3388,8 @@ class CalculatorEnsemble(TrajectoryBundle):
                                ylabel: str, 
                                title: Optional[str] = None, 
                                figsize: Tuple[float, float] = (7, 6),
-                               ax: Optional[plt.Axes] = None) -> Tuple[plt.Figure, plt.Axes]:
+                               ax: Optional[plt.Axes] = None,
+                               y_err: Optional[np.ndarray] = None) -> Tuple[plt.Figure, plt.Axes]:
         """
         Generic helper function to create a styled Arrhenius plot.
         Can draw on a provided Axes object or create a new figure.
@@ -3401,30 +3403,35 @@ class CalculatorEnsemble(TrajectoryBundle):
         temps_valid = temperatures[valid_mask]
         data_valid = data[valid_mask]
 
-        # fig, ax = plt.subplots(figsize=figsize)  <-- 이 라인이 문제였습니다. 삭제합니다!
+        y_points = np.log(data_valid)
+        x_points = 1000 / temps_valid
+
+        y_err_propagated = None
+        if y_err is not None:
+            y_err_valid = y_err[valid_mask]
+            y_err_propagated = y_err_valid / data_valid
 
         for axis in ['top', 'bottom', 'left', 'right']:
             ax.spines[axis].set_linewidth(1.2)
-
-        x_points = 1000 / temps_valid
-        y_points = np.log(data_valid)
         
         cmap = plt.get_cmap("viridis", len(self.temperatures))
         temp_color_map = {temp: cmap(i) for i, temp in enumerate(self.temperatures)}
 
         for i in range(len(temps_valid)):
             temp = temps_valid[i]
-            ax.scatter(x_points[i], y_points[i], color=temp_color_map[temp],
-                       marker="o", s=100, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
+            y_err_point = y_err_propagated[i] if y_err_propagated is not None else None
+            ax.errorbar(x=x_points[i], y=y_points[i], yerr=y_err_point,
+                        color=temp_color_map[temp], marker="o", markersize=8,
+                        markeredgecolor='k', ecolor='gray', capsize=5,
+                        linestyle='None', label=f"{temp:.0f} K", alpha=0.8)
 
         if len(x_points) > 1 and not np.isnan(slope):
             x_fit = np.linspace(np.min(x_points), np.max(x_points), 100)
             ax.plot(x_fit, slope * x_fit + intercept, 'k--', linewidth=1.5)
-        
-        # 범례가 중복되지 않도록 기존 범례를 지우고 다시 생성
-        if ax.get_legend() is not None:
-            ax.get_legend().remove()
-        ax.legend(title='Temperature', fontsize=11, title_fontsize=12)
+
+        handles, labels = ax.get_legend_handles_labels()
+        if handles:
+            ax.legend(handles, labels, title='Temperature', fontsize=11, title_fontsize=12)
 
         ax.set_xlabel('1000 / T (K⁻¹)', fontsize=12)
         ax.set_ylabel(ylabel, fontsize=12)
@@ -3433,8 +3440,6 @@ class CalculatorEnsemble(TrajectoryBundle):
         
         ax.grid(True, linestyle='--', alpha=0.7)
         
-        # fig.tight_layout() # 이 함수를 호출하는 상위 함수에서 레이아웃을 조절하므로 주석 처리
-        
         return fig, ax
              
     def plot_D_rand(self, 
@@ -3442,6 +3447,7 @@ class CalculatorEnsemble(TrajectoryBundle):
                     disp: bool = True,
                     save: bool = True, 
                     filename: str = "D_rand.png", 
+                    error_bar: bool = False,
                     dpi: int = 300) -> None:
         """Generates an Arrhenius plot for the random-walk diffusivity (D_rand).
 
@@ -3450,6 +3456,7 @@ class CalculatorEnsemble(TrajectoryBundle):
             disp (bool, optional): If True, displays the plot. Defaults to True.
             save (bool, optional): If True, saves the plot to a file. Defaults to True.
             filename (str, optional): Filename for the saved plot.
+            error_bar (bool, optional): If True, displays SEM error bars.
             dpi (int, optional): Resolution for the saved figure.
         """
         if len(self.temperatures) < 2:
@@ -3457,13 +3464,23 @@ class CalculatorEnsemble(TrajectoryBundle):
         if self.D_rand is None or self.Ea_D_rand is None:
              raise RuntimeError("Please run analysis and fitting for 'D_rand' first.")
          
+        D_rand_sem = None
+        if error_bar:
+            D_rand_sem_list = []
+            for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
+                D_temp = [calc.D_rand for calc in self.calculators[start:end]]
+                sem_val = np.std(D_temp) / np.sqrt(len(D_temp))
+                D_rand_sem_list.append(sem_val)
+            D_rand_sem = np.array(D_rand_sem_list)
+         
         slope = -self.Ea_D_rand / (self.kb * 1000) 
         intercept = np.log(self.D_rand0)
 
         fig, ax = self._create_arrhenius_plot(
             data=self.D_rand, temperatures=self.temperatures,
             slope=slope, intercept=intercept,
-            ylabel=r'ln($D_{rand}$) (m$^2$/s)', title=title
+            ylabel=r'ln($D_{rand}$) (m$^2$/s)', title=title,
+            y_err=D_rand_sem
         )
         
         text_str = (f'$E_a = {self.Ea_D_rand:.2f}$ eV\n'
@@ -3478,11 +3495,12 @@ class CalculatorEnsemble(TrajectoryBundle):
         if disp: plt.show()
         plt.close(fig)
         
-    def plot_f(self, 
+    def plot_f(self,
                title: str | None = "Correlation Factor vs. Temperature",
                disp: bool = True,
-               save: bool = True, 
-               filename: str = 'f.png', 
+               save: bool = True,
+               filename: str = 'f.png',
+               error_bar: bool = False,
                dpi: int = 300) -> None:
         """Plots the correlation factor (f) as a function of temperature.
 
@@ -3491,6 +3509,7 @@ class CalculatorEnsemble(TrajectoryBundle):
             disp (bool, optional): If True, displays the plot. Defaults to True.
             save (bool, optional): If True, saves the plot to a file. Defaults to True.
             filename (str, optional): Filename for the saved plot.
+            error_bar (bool, optional): If True, displays SEM error bars.
             dpi (int, optional): Resolution for the saved figure.
         """
         if self.f is None:
@@ -3499,6 +3518,16 @@ class CalculatorEnsemble(TrajectoryBundle):
         valid_mask = ~np.isnan(self.f)
         temps_valid = self.temperatures[valid_mask]
         f_valid = self.f[valid_mask]
+        
+        # Calculate Standard Error of the Mean (SEM) on the fly if requested
+        f_sem_valid = None
+        if error_bar:
+            f_sem_list = []
+            for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
+                f_temp = [calc.f for calc in self.calculators[start:end]]
+                sem_val = np.std(f_temp) / np.sqrt(len(f_temp)) # SEM = std / sqrt(n)
+                f_sem_list.append(sem_val)
+            f_sem_valid = np.array(f_sem_list)[valid_mask]
 
         fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
@@ -3507,27 +3536,49 @@ class CalculatorEnsemble(TrajectoryBundle):
         cmap = plt.get_cmap("viridis", len(self.temperatures))
         temp_color_map = {temp: cmap(i) for i, temp in enumerate(self.temperatures)}
 
-        plt.plot(temps_valid, f_valid, linestyle='--', color='k')    
+        ax.plot(temps_valid, f_valid, linestyle='--', color='k', zorder=1)
         
         for i in range(len(temps_valid)):
             temp = temps_valid[i]
-            ax.scatter(temp, f_valid[i], color=temp_color_map[temp],
-                       marker='s', s=100, label=f"{temp:.0f} K", edgecolor='k', alpha=0.8)
+            y_val = f_valid[i]
+            y_err = f_sem_valid[i] if f_sem_valid is not None else None
+            ax.errorbar(x=temp,
+                        y=y_val,
+                        yerr=y_err,
+                        marker='s',
+                        markersize=8,
+                        color=temp_color_map[temp],
+                        markeredgecolor='k',
+                        ecolor='gray',
+                        capsize=5,
+                        linestyle='None',
+                        label=f"{temp:.0f} K",
+                        alpha=0.8,
+                        zorder=2)
         
+        if not error_bar:
+             handles, labels = ax.get_legend_handles_labels()
+             if handles: # Only show legend if there are labels
+                 ax.legend(handles, labels, title='Temperature', fontsize=11, title_fontsize=12)
+        else:
+            legend_elements = [Line2D([0], [0], marker='s', color='w', label=f'{temp:.0f} K',
+                                      markerfacecolor=temp_color_map[temp], markersize=10, markeredgecolor='k')
+                               for temp in temps_valid]
+            ax.legend(handles=legend_elements, title='Temperature', fontsize=11, title_fontsize=12)
+
         ax.set_ylim([0, 1])
         ax.set_xlabel('Temperature (K)', fontsize=12)
         ax.set_ylabel('Correlation Factor, $f$', fontsize=12)
         if title: ax.set_title(title, fontsize=14, pad=10)
-        ax.legend(title='Temperature', fontsize=11, title_fontsize=12)
         ax.grid(True, linestyle='--', alpha=0.7)
         
         if self.Ea_f is not None:
-             text_str = (f'$E_a = {self.Ea_f:.3f}$ eV\n'
-                         f'$f_0 = {self.f0:.3f}$\n'
-                         f'$R^2 = {self.f_R2:.4f}$')
-             ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=10,
-                     verticalalignment='bottom', horizontalalignment='left',
-                     bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.7))
+              text_str = (f'$E_a = {self.Ea_f:.3f}$ eV\n'
+                          f'$f_0 = {self.f0:.3f}$\n'
+                          f'$R^2 = {self.f_R2:.4f}$')
+              ax.text(0.05, 0.05, text_str, transform=ax.transAxes, fontsize=10,
+                      verticalalignment='bottom', horizontalalignment='left',
+                      bbox=dict(boxstyle='round,pad=0.5', fc='wheat', alpha=0.7))
         
         fig.tight_layout()
         if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
@@ -3538,7 +3589,8 @@ class CalculatorEnsemble(TrajectoryBundle):
                title: str | None = "Diffusivity (Arrhenius Plot)",
                disp: bool = True,
                save: bool = True, 
-               filename: str = "D.png", 
+               filename: str = "D.png",
+               error_bar: bool = False,
                dpi: int = 300) -> None:
         """Generates an Arrhenius plot for the final diffusivity (D).
 
@@ -3547,20 +3599,31 @@ class CalculatorEnsemble(TrajectoryBundle):
             disp (bool, optional): If True, displays the plot. Defaults to True.
             save (bool, optional): If True, saves the plot to a file. Defaults to True.
             filename (str, optional): Filename for the saved plot.
+            error_bar (bool, optional): If True, displays SEM error bars.
             dpi (int, optional): Resolution for the saved figure.
         """
         if len(self.temperatures) < 2:
             raise ValueError("At least two temperature points are required for an Arrhenius plot.")
         if self.D is None or self.Ea_D is None:
-             raise RuntimeError("Please run analysis and fitting for 'D' first.")
-         
+              raise RuntimeError("Please run analysis and fitting for 'D' first.")
+        
+        D_sem = None
+        if error_bar:
+            D_sem_list = []
+            for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
+                D_temp = [calc.D for calc in self.calculators[start:end]]
+                sem_val = np.std(D_temp) / np.sqrt(len(D_temp))
+                D_sem_list.append(sem_val)
+            D_sem = np.array(D_sem_list)
+
         slope = -self.Ea_D / (self.kb * 1000)
         intercept = np.log(self.D0)
         
         fig, ax = self._create_arrhenius_plot(
             data=self.D, temperatures=self.temperatures,
             slope=slope, intercept=intercept,
-            ylabel=r'ln(D) (m$^2$/s)', title=title
+            ylabel=r'ln(D) (m$^2$/s)', title=title,
+            y_err=D_sem
         )
         
         text_str = (f'$E_a = {self.Ea_D:.2f}$ eV\n'
@@ -3579,7 +3642,8 @@ class CalculatorEnsemble(TrajectoryBundle):
                  title: str | None = "Residence Time vs. Temperature",
                  disp: bool = True,
                  save: bool = True, 
-                 filename: str = 'tau.png', 
+                 filename: str = 'tau.png',
+                 error_bar: bool = False,
                  dpi: int = 300) -> None:
         """Plots the average residence time (tau) vs. temperature.
 
@@ -3588,6 +3652,7 @@ class CalculatorEnsemble(TrajectoryBundle):
             disp (bool, optional): If True, displays the plot. Defaults to True.
             save (bool, optional): If True, saves the plot to a file. Defaults to True.
             filename (str, optional): Filename for the saved plot.
+            error_bar (bool, optional): If True, displays SEM error bars on the bars.
             dpi (int, optional): Resolution for the saved figure.
         """
         if self.tau is None:
@@ -3600,7 +3665,16 @@ class CalculatorEnsemble(TrajectoryBundle):
         if len(tau_valid) == 0:
             print("Warning: No valid residence time data to plot.")
             return
-        
+
+        tau_sem_valid = None
+        if error_bar:
+            tau_sem_list = []
+            for start, end in zip(self.index_calc_temp[:-1], self.index_calc_temp[1:]):
+                tau_temp = [calc.tau for calc in self.calculators[start:end]]
+                sem_val = np.std(tau_temp) / np.sqrt(len(tau_temp))
+                tau_sem_list.append(sem_val)
+            tau_sem_valid = np.array(tau_sem_list)[valid_mask]
+
         fig, ax = plt.subplots(figsize=(7, 6))
         for axis in ['top', 'bottom', 'left', 'right']:
             ax.spines[axis].set_linewidth(1.2)
@@ -3615,13 +3689,14 @@ class CalculatorEnsemble(TrajectoryBundle):
             bar_width = temps_valid[0] * 0.1
 
         ax.bar(temps_valid, tau_valid, width=bar_width, color=colors,
-               edgecolor='k', alpha=0.6, zorder=2)
+               edgecolor='k', alpha=0.6, zorder=2,
+               yerr=tau_sem_valid, capsize=5)
                
         ax.scatter(temps_valid, tau_valid, c=colors,
                    marker='o', s=100, edgecolor='k', alpha=0.9, zorder=3)
         
         if self.tau0 is not None and not np.isnan(self.tau0) and len(temps_valid) > 1:
-            x_fit = np.linspace(np.min(temps_valid) * 0.95, np.max(temps_valid) * 1.05, 200)     
+            x_fit = np.linspace(np.min(temps_valid) * 0.95, np.max(temps_valid) * 1.05, 200)      
             y_fit = self.tau0 * np.exp(self.Ea_tau / (self.kb * x_fit))
             ax.plot(x_fit, y_fit, 'k--', linewidth=1.5, label='Arrhenius Fit', zorder=4)
             
@@ -3637,8 +3712,12 @@ class CalculatorEnsemble(TrajectoryBundle):
         ax.set_ylabel(r'Residence Time, $\tau$ (ps)', fontsize=12)
         if title: ax.set_title(title, fontsize=13, pad=10)
         ax.grid(True, which='both', linestyle='--', alpha=0.7)
-        ax.legend()
         
+        handles, labels = ax.get_legend_handles_labels()
+        if 'Arrhenius Fit' in labels:
+            ax.legend(handles=[handles[labels.index('Arrhenius Fit')]], 
+                      labels=['Arrhenius Fit'])
+
         fig.tight_layout()
         if save: fig.savefig(filename, dpi=dpi, bbox_inches="tight")
         if disp: plt.show()
