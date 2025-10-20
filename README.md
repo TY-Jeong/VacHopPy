@@ -10,7 +10,7 @@
 ----
 ## Documentation
 
-You can find the complete `VacHopPy` documentation, including comprehensive tutorials and API references, on [Read The Docs](https://vachoppy.readthedocs.io/en/latest/).
+You can find the complete `VacHopPy` documentation, including comprehensive tutorials and API references, on [Read The Docs](https://vachoppy.readthedocs.io/en/stable/).
 
 ---
 ## Key Features
