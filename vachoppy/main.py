@@ -112,6 +112,10 @@ def main():
         action='store_true',
         help='Decompose the diffusivity into x, y, z components.')
     p_anal.add_argument(
+        '--error_bar', 
+        action='store_true',
+        help='Display the standard error of the mean (SEM) as error bars.')
+    p_anal.add_argument(
         '--no_disp',
         dest='disp',
         action='store_false',

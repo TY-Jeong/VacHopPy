@@ -64,20 +64,20 @@ def cli_trajectory(path_traj: str,
     print(f"Results are saved in '{filename}'.")
     print(f"Trajectory is saved in 'trajectory.html'.\n")
     
-    try:
-        import platform
-        import subprocess
+    # try:
+    #     import platform
+    #     import subprocess
         
-        if platform.system() == 'Windows':
-            os.startfile('trajectory.html')
-        elif platform.system() == 'Darwin':  # macOS
-            subprocess.run(['open', 'trajectory.html'])
-        else:  # Linux
-            subprocess.run(['xdg-open', 'trajectory.html'])
+    #     if platform.system() == 'Windows':
+    #         os.startfile('trajectory.html')
+    #     elif platform.system() == 'Darwin':
+    #         subprocess.run(['open', 'trajectory.html'])
+    #     else:  # Linux
+    #         subprocess.run(['xdg-open', 'trajectory.html'])
             
-    except Exception as e:
-        print("Could not open the image automatically. " + 
-                f"Please open '{'trajectory.png'}'")
+    # except Exception as e:
+    #     print("Could not open the image automatically. " + 
+    #             f"Please open '{'trajectory.html'}'")
         
 
 @ monitor_performance
@@ -87,6 +87,7 @@ def cli_analyze(path_traj: str,
                 neb_csv: str = None,
                 dir_imgs: str = 'imgs',
                 xyz: bool = False,
+                error_bar: bool = False,
                 disp: bool = True,
                 verbose: bool = True,
                 **kwargs) -> None:
@@ -132,10 +133,10 @@ def cli_analyze(path_traj: str,
         calc.plot_counts(disp=disp, filename=os.path.join(dir_imgs, 'counts.png'))
         
         if len(calc.temperatures) > 1:
-            calc.plot_D_rand(disp=disp, filename=os.path.join(dir_imgs, 'D_rand.png'))
-            calc.plot_f(disp=disp, filename=os.path.join(dir_imgs, 'f.png'))
-            calc.plot_D(disp=disp, filename=os.path.join(dir_imgs, 'D.png'))
-            calc.plot_tau(disp=disp, filename=os.path.join(dir_imgs, 'tau.png'))
+            calc.plot_D_rand(disp=disp, error_bar=error_bar, filename=os.path.join(dir_imgs, 'D_rand.png'))
+            calc.plot_f(disp=disp, error_bar=error_bar, filename=os.path.join(dir_imgs, 'f.png'))
+            calc.plot_D(disp=disp, error_bar=error_bar, filename=os.path.join(dir_imgs, 'D.png'))
+            calc.plot_tau(disp=disp, error_bar=error_bar, filename=os.path.join(dir_imgs, 'tau.png'))
             calc.plot_a(disp=disp, filename=os.path.join(dir_imgs, 'a.png'))
             
             if neb_csv is not None:
