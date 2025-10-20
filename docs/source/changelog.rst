@@ -3,6 +3,19 @@
 Release History
 ===============
 
+Version 3.1.0 (Develop, Not released)
+-------------------------------------
+
+**New Features**
+
+* Added an ``--error_bar`` option to the plot command to display the standard error of the mean (SEM) on various plots (:math:`D`, :math:`D_{rand}`, :math:`f`, :math:`\tau`).
+
+**Changes & Fixes**
+
+* Removed the automatic opening of the HTML file in the ``trajectory`` command to prevent errors on certain systems.
+
+====
+
 Version 3.0.0 (October 18, 2025)
 ---------------------------------
 
