@@ -63,22 +63,7 @@ def cli_trajectory(path_traj: str,
     
     print(f"Results are saved in '{filename}'.")
     print(f"Trajectory is saved in 'trajectory.html'.\n")
-    
-    # try:
-    #     import platform
-    #     import subprocess
-        
-    #     if platform.system() == 'Windows':
-    #         os.startfile('trajectory.html')
-    #     elif platform.system() == 'Darwin':
-    #         subprocess.run(['open', 'trajectory.html'])
-    #     else:  # Linux
-    #         subprocess.run(['xdg-open', 'trajectory.html'])
-            
-    # except Exception as e:
-    #     print("Could not open the image automatically. " + 
-    #             f"Please open '{'trajectory.html'}'")
-        
+
 
 @ monitor_performance
 def cli_analyze(path_traj: str,
@@ -148,9 +133,9 @@ def cli_analyze(path_traj: str,
             if len(calc.temperatures) > 1:
                 calc.plot_D_xyz(disp=disp, filename=os.path.join(dir_imgs, 'D_xyz.png'))    
                 
-        else:
-            print("\n[INFO] Skipping plots (e.g., Arrhenius plots), " + 
-                "as they require data from more than one temperature.")
+    if len(calc.temperatures) == 1:
+        print("\n[INFO] Skipping plots (e.g., Arrhenius plots), " + 
+            "as they require data from more than one temperature.")
     
     print(f"\nResults are saved in '{filename}'.")      
     if dir_imgs is not None: print(f"Images are saved in '{dir_imgs}'.")
