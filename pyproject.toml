@@ -40,3 +40,4 @@ vachoppy = "vachoppy.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["vachoppy*"]
