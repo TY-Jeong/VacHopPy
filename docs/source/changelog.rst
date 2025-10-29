@@ -3,7 +3,7 @@
 Release History
 ===============
 
-Version 3.1.0 (Develop, Not released)
+Version 3.1.0 (October 29, 2025)
 -------------------------------------
 
 **New Features**
