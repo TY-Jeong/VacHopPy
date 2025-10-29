@@ -7,7 +7,9 @@ from pathlib import Path
 from vachoppy.core import Site
 
 
-FILE_ID = "1pG8QNTUanKXMKyfQq51Wqr4EoKemEvJ2"
+# FILE_ID = "1pG8QNTUanKXMKyfQq51Wqr4EoKemEvJ2" # v3.0.0
+FILE_ID = "1rVhX0Bj_qFNnfs-v0XQS7o-pkYf_6e65" # v3.1.0
+
 OUTPUT_ZIP_PATH = Path(__file__).parent / "test_data.zip"
 TARGET_DATA_DIR = Path(__file__).parent / "test_data"
 
