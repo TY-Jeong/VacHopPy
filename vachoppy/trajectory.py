@@ -156,8 +156,8 @@ class Trajectory:
                  path_traj: str,
                  site: Site,
                  t_interval: float,
-                 force_margin: float = 0.1,   # 0.05
-                 cos_margin: float = 0.5,     # 0.1
+                 force_margin: float = 0.1,
+                 cos_margin: float = 0.1,
                  verbose: bool = True):
         
         self._validate_traj(path_traj)
