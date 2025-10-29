@@ -3,12 +3,13 @@ import json
 import pytest
 import zipfile
 import subprocess
+import matplotlib
 from pathlib import Path
 from vachoppy.core import Site
 
 
 # FILE_ID = "1pG8QNTUanKXMKyfQq51Wqr4EoKemEvJ2" # v3.0.0
-FILE_ID = "1rVhX0Bj_qFNnfs-v0XQS7o-pkYf_6e65" # v3.1.0
+FILE_ID = "15OyQex7_sdnmigMvj1QLhrpjc5UU1NXh" # v3.1.0
 
 OUTPUT_ZIP_PATH = Path(__file__).parent / "test_data.zip"
 TARGET_DATA_DIR = Path(__file__).parent / "test_data"
@@ -57,7 +58,11 @@ def setup_test_data():
     
     print(f"Test data is ready in '{TARGET_DATA_DIR}'!")
     
-    
+
+@pytest.fixture(autouse=True)
+def set_matplotlib_backend():
+    matplotlib.use('Agg')
+
 @pytest.fixture(scope="session")
 def site_data():
     """
