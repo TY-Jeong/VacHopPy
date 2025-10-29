@@ -60,7 +60,7 @@ import matplotlib.pyplot as plt
 
 from tqdm.auto import tqdm
 from scipy.stats import norm
-from scipy.spatial.distance import cdist
+# from scipy.spatial.distance import cdist
 from joblib import Parallel, delayed
 
 from vachoppy.utils import monitor_performance
@@ -107,8 +107,13 @@ def _worker_assign_sites(args):
     """[Parallel Worker] Assigns atoms to the nearest lattice site for a single timestep."""
     positions_at_t, site_positions_frac, site_radius, lattice = args
     positions_at_t, site_positions_frac, site_radius, lattice = args
-    distance_matrix = cdist(positions_at_t, site_positions_frac,
-                            lambda u, v: _helper_distance_pbc(u, v, lattice))
+    # distance_matrix = cdist(positions_at_t, site_positions_frac,
+    #                         lambda u, v: _helper_distance_pbc(u, v, lattice))
+    all_displacements_frac = positions_at_t[:, np.newaxis, :] - site_positions_frac[np.newaxis, :, :]
+    all_displacements_frac -= np.round(all_displacements_frac)
+    all_displacements_cart = np.einsum('ijk,kl->ijl', all_displacements_frac, lattice)
+    distance_matrix = np.linalg.norm(all_displacements_cart, axis=2)
+    
     closest_site_indices = np.argmin(distance_matrix, axis=1)
     min_distances = np.min(distance_matrix, axis=1)
     assignments_at_t = np.full(positions_at_t.shape[0], -1, dtype=int)
@@ -225,7 +230,7 @@ class Vibration:
         
         self.displacements = None
         self.mu_displacements = None
-        self.sigma_displacements = None
+        self._helper_distance_pbc = None
         self.site_radius = None
         
         self.frequencies = None

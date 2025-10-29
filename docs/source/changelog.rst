@@ -14,6 +14,7 @@ Version 3.1.0 (October 29, 2025)
 
 * Fixed an issue where the CLI was not available when ``VacHopPy`` was installed via ``pip``.
 * Updated default values for ``cos_margin`` and ``force_margin`` parameters.
+* Fixed a ``Segmentation Fault`` that occurred with NumPy (``>=2.3``) and SciPy (``>=1.16``) versions.
 * Removed the automatic opening of the HTML file in the ``trajectory`` command to prevent errors on certain systems.
 
 
