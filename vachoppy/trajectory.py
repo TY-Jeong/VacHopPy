@@ -156,8 +156,8 @@ class Trajectory:
                  path_traj: str,
                  site: Site,
                  t_interval: float,
-                 force_margin: float = 0.05,
-                 cos_margin: float = 0.1,
+                 force_margin: float = 0.1,   # 0.05
+                 cos_margin: float = 0.5,     # 0.1
                  verbose: bool = True):
         
         self._validate_traj(path_traj)
@@ -1153,7 +1153,8 @@ class Trajectory:
                     accept_hop = True
                     
                     if norm_f > force_margin and not (np.isnan(cos_init) or np.isnan(cos_final)):
-                        if (cos_init - cos_final) > cos_margin:
+                        # if (cos_init - cos_final) > cos_margin:
+                        if (cos_final - cos_init) < cos_margin:
                             accept_hop = False
                             
                     if not accept_hop:
