@@ -131,7 +131,7 @@ Execute the following two commands:
 
 ```bash
 vachoppy distance TRAJ_*_1600K.h5 0.05 POSCAR_MONOCLINIC
-vachoppy distance TRAJ_*_1600K.h5 0.05 POSCAR_MONOCLINIC
+vachoppy distance TRAJ_*_1600K.h5 0.05 POSCAR_TETRAGONAL
 ```
 
 The two commands produce the following plots, respectively:
