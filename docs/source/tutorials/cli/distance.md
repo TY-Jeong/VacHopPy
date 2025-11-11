@@ -65,7 +65,7 @@ A well-generated fingerprint should converge to -1 at r=0 and approach 0 as r â†
 Navigate into the `Example5/` directory you downloaded. In this directory, you will find four HDF5 files and two structure files:
 
 ```bash
-cd path/to/Example3/
+cd path/to/Example5/
 ls
 # >> TRAJ_Hf_2200K.h5  TRAJ_O_2200K.h5  TRAJ_Hf_1600K.h5  TRAJ_O_1600K.h5  
 # >> POSCAR_MONOCLINIC  POSCAR_TETRAGONAL 
