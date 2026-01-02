@@ -46,7 +46,7 @@ $$
 \Gamma = \frac{1}{\tau} = z \nu \cdot \exp(-E_a / k_B T)
 $$
 
-For a more detailed theoretical background, please refer to [this paper](https://arxiv.org/abs/2503.23467).
+For a more detailed theoretical background, please refer to [this paper](https://doi.org/10.1016/j.cpc.2025.110010).
 
 The key effective hoppping parameters extractable with `VacHopPy` are summarized below.
 

@@ -122,4 +122,6 @@ Here is a summary of the main commands available:
 
 -----
 ## References
-If you used `VacHopPy` package, please cite [**this paper**](https://arxiv.org/abs/2503.23467)
+If you used `VacHopPy` package, please cite [**this paper**](https://doi.org/10.1016/j.cpc.2025.110010)
+
+* T. Jeong *et al*., *Comput. Phys. Commun.* **320**, 110010 (2026)
