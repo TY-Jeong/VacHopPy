@@ -117,7 +117,7 @@ class Trajectory:
             This determines the coarse-graining level of the analysis.
         force_margin (float, optional):
             The minimum force magnitude (eV/Å) required for the directional
-            transition state check. Defaults to 0.05.
+            transition state check. Defaults to 0.1.
         cos_margin (float, optional):
             The required cosine difference to reject a hop during the transition
             state check. A higher value makes the check stricter. Defaults to 0.1.
