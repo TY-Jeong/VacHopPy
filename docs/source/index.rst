@@ -42,8 +42,9 @@ Key Features
 
 How to Cite
 ---------------
-If this package was used in your work, please cite `this paper <https://arxiv.org/abs/2503.23467>`_.
+If this package was used in your work, please cite `this paper <https://doi.org/10.1016/j.cpc.2025.110010>`_.
 
+* T. Jeong *et al*., *Comput. Phys. Commun.* **320**, 110010 (2026)
 
 .. toctree::
    :hidden:
