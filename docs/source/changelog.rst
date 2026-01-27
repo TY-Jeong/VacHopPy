@@ -3,6 +3,13 @@
 Release History
 ===============
 
+Version 3.1.2 (January 27, 2026)
+--------------------------------
+
+**Fixes**
+
+* Added an error check to raise an exception when no hopping events are detected.
+
 Version 3.1.1 (January 2, 2026)
 -------------------------------
 
