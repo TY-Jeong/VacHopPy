@@ -2332,6 +2332,9 @@ class CalculatorSingle(Trajectory):
                          t_interval=t_interval, 
                          verbose=False)
         
+        if not self.hopping_sequence:
+            raise ValueError(f"No hopping events detected.")
+        
         # TrajectoryAnalyzer
         self.analyzer = TrajectoryAnalyzer(
             trajectory=self, 
@@ -2932,6 +2935,9 @@ class CalculatorEnsemble(TrajectoryBundle):
         
         # Successfully terminated calculators
         successful_results = [res for res in results if res[1] is not None]
+        
+        if len(successful_results) == 0:
+            raise ValueError(f"No successfully terminated calculators.")
 
         # Sort the results in order of traj
         path_order_map = {path: i for i, path in enumerate(self.all_traj_paths)}
