@@ -88,7 +88,7 @@ The `msd` command is flexible and can be used in several ways depending on your 
 
 ```bash
 # Analyzes a single trajectory file from the 2100 K simulation
-vachoppy analyze TRAJ_TiO2/TRAJ_2100K/TRAJ_O_01.h5 O
+vachoppy msd TRAJ_TiO2/TRAJ_2100K/TRAJ_O_01.h5 O
 ```
 
 * **To analyze a single-temperature ensemble**:
@@ -97,7 +97,7 @@ vachoppy analyze TRAJ_TiO2/TRAJ_2100K/TRAJ_O_01.h5 O
 
 ```bash
 # Analyzes all 20 trajectory files from the 2100 K simulation
-vachoppy analyze TRAJ_TiO2/TRAJ_2100K/ O 
+vachoppy msd TRAJ_TiO2/TRAJ_2100K/ O 
 ```
 
 * **To analyze a multi-temperature ensemble**:
