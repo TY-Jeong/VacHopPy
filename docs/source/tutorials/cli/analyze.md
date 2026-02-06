@@ -18,7 +18,7 @@ This command takes the following primary arguments:
 
 * **`PATH_TRAJ`**
 
-    Path to either a single HDF5 trajectory file or a root directory containing multiple HDF5 files. If files from multiple temperatures are provided, an Arrhenius-type analysis is automatically performed.
+    Path to either a single HDF5 trajectory file or a root directory containing multiple HDF5 files. When providing a directory, each trajectory file must follow the naming convention **TRAJ_*.h5**. The default prefix **TRAJ** can be customized using the `--prefix` flag. If files from multiple temperatures are detected, an Arrhenius-type analysis is automatically performed.
 
 * **`PATH_STRUCTURE`**
 
