@@ -9,7 +9,7 @@ pip install vachoppy
 Alternatively, you can install the latest version in development from [VacHopPy GitHub](https://github.com/TY-Jeong/VacHopPy):
 
 ```bash
-git clone git@github.com:TY-Jeong/VacHopPy.git
+git clone https://github.com/TY-Jeong/VacHopPy.git
 cd VacHopPy
 pip install -e .
 ```
